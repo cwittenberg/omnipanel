@@ -1,0 +1,12 @@
+{
+  "name": "OmniPanel",
+  "description": "True multi-monitor panel. Creates real native components and dynamically moves 3rd-party extensions to the active screen.",
+  "uuid": "omnipanel@christian",
+  "settings-schema": "org.gnome.shell.extensions.omnipanel",
+  "shell-version": [
+    "46",
+    "47",
+    "50"    
+  ],
+  "url": "https://github.com/cwittenberg/omnipanel"
+}

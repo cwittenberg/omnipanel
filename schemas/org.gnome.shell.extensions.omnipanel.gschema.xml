@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.omnipanel" path="/org/gnome/shell/extensions/omnipanel/">
+    <key name="movement-enabled" type="b">
+      <default>true</default>
+      <summary>Enable Active Toolbar Movement</summary>
+      <description>Master switch to enable or disable moving the toolbar to the active screen.</description>
+    </key>
+    <key name="movement-speed" type="i">
+      <default>200</default>
+      <summary>Movement Polling Speed</summary>
+      <description>Interval in milliseconds. Lower is faster but uses more CPU.</description>
+    </key>
+    <key name="animation-style" type="s">
+      <default>'slide'</default>
+      <summary>Animation Style</summary>
+      <description>Visual effect when toolbar elements teleport (none, fade, slide, pop).</description>
+    </key>
+    <key name="animation-duration" type="i">
+      <default>300</default>
+      <summary>Animation Duration</summary>
+      <description>Duration of the teleport animation in milliseconds.</description>
+    </key>
+    <key name="highlight-active" type="b">
+      <default>false</default>
+      <summary>Highlight Active Panel</summary>
+      <description>Apply a background color to the active monitor's panel.</description>
+    </key>
+    <key name="active-panel-color" type="s">
+      <default>'rgba(255, 100, 0, 0.3)'</default>
+      <summary>Active Panel Color</summary>
+      <description>The RGBA string applied to the active panel.</description>
+    </key>
+    <key name="translucent-inactive" type="b">
+      <default>false</default>
+      <summary>Translucent Inactive Bars</summary>
+      <description>Make inactive monitor top bars translucent.</description>
+    </key>
+    <key name="inactive-opacity" type="d">
+      <default>0.5</default>
+      <summary>Inactive Opacity</summary>
+      <description>Opacity level for inactive top bars (0.0 to 1.0).</description>
+    </key>
+    <key name="show-clock" type="b">
+      <default>true</default>
+      <summary>Show Static Clock</summary>
+      <description>Show the time on secondary monitors.</description>
+    </key>
+    <key name="hide-inactive-panels" type="b">
+      <default>false</default>
+      <summary>Hide toolbars on inactive screens</summary>
+      <description>Completely hide the top bar on inactive monitors.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -1,0 +1,24 @@
+/*
+ * OmniPanel Stylesheet
+ * Contains fallback and base styling for the secondary panels.
+ */
+
+.panel-background.solid {
+    background-color: rgba(0, 0, 0, 1.0);
+}
+
+.panel-button {
+    padding: 0 15px;
+    font-weight: bold;
+    border-radius: 999px;
+    transition-duration: 100ms;
+}
+
+.panel-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.clock-display {
+    font-weight: bold;
+    padding: 0 10px;
+}
