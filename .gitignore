@@ -1,0 +1,25 @@
+# Compiled GSettings Schema
+schemas/gschemas.compiled
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor and IDE directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Extension release bundles
+*.zip
+
+schemas/*.compiled
+
+venv

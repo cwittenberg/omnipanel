@@ -1,6 +1,6 @@
 {
   "name": "OmniPanel",
-  "description": "True multi-monitor panel. Creates real native components and dynamically moves 3rd-party extensions to the active screen.",
+  "description": "Shows the GNOME top bar on all monitors",
   "uuid": "omnipanel@christian",
   "settings-schema": "org.gnome.shell.extensions.omnipanel",
   "shell-version": [
