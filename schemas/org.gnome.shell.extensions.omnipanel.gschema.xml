@@ -41,6 +41,10 @@
       <default>false</default>
       <summary>Hide toolbars on inactive screens</summary>
     </key>
+    <key name="show-desktop-enabled" type="b">
+      <default>false</default>
+      <summary>Enable Show Desktop Button</summary>
+    </key>
 
     <key name="enable-tiling" type="b">
       <default>false</default>

@@ -1,4 +1,5 @@
 // omnipanel/layout_definitions.js
+
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
@@ -85,6 +86,7 @@ export function calculateTitleSimilarity(t1, t2) {
 
 export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames) {
     if (!zoneNames || zoneNames.length === 0) return null;
+
     wmClass = (wmClass || '').toLowerCase();
     windowTitle = (windowTitle || '').toLowerCase();
     categories = (categories || '').toLowerCase();
@@ -211,6 +213,7 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         rect.y = workAreaY + Math.round(workAreaHeight * cry);
         rect.width = Math.max(50, Math.round(monitor.width * crw));
         rect.height = Math.max(50, Math.round(workAreaHeight * crh));
+
     } else {
         let safeMonitorIndex = Math.max(0, Math.min(monitorIndex, mCount - 1));
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
@@ -318,9 +321,9 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
         let sectionRect = getSectionRect(monitorIndex, section, customSections);
         if (!sectionRect) continue;
 
-        let diff = Math.abs(windowRect.x - sectionRect.x) +
-                   Math.abs(windowRect.y - sectionRect.y) +
-                   Math.abs(windowRect.width - sectionRect.width) +
+        let diff = Math.abs(windowRect.x - sectionRect.x) + 
+                   Math.abs(windowRect.y - sectionRect.y) + 
+                   Math.abs(windowRect.width - sectionRect.width) + 
                    Math.abs(windowRect.height - sectionRect.height);
 
         if (diff < 400 && diff < minDifference) {
@@ -328,6 +331,7 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
             bestMatch = section;
         }
     }
+
     return bestMatch;
 }
 
@@ -368,7 +372,10 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
                     if (window.get_maximized()) {
                         window.unmaximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
                     }
-                    window.move_resize_frame(false, targetX, targetY, targetW, targetH);
+                    // IMPORTANT: Setting `true` flag below denotes a "user operation"
+                    // This forces Wayland constraints to be respected (like a client's hard minimum width)
+                    // If set to false, GTK4 clients (like Nautilus) crash immediately when resized too small!
+                    window.move_resize_frame(true, targetX, targetY, targetW, targetH);
                 }
             };
 
@@ -377,7 +384,7 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
             let tId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
                 try {
                     if (isWindowValid(window)) {
-                        apply(); 
+                        apply();
                         
                         if (!isMaximized && zoneBounds) {
                             let cRect = window.get_frame_rect();
@@ -404,7 +411,7 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
                             }
 
                             if (changed) {
-                                window.move_resize_frame(false, fixX, fixY, cRect.width, cRect.height);
+                                window.move_resize_frame(true, fixX, fixY, cRect.width, cRect.height);
                             }
                         }
                     }

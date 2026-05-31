@@ -2,6 +2,8 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import PanelMover from './panel_mover.js';
 import TilingManager from './tiling_manager.js';
 import { LayoutIndicator } from './layout_indicator.js';
+import { ShowDesktopButton } from './show_desktop_button.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export default class OmniPanelExtension extends Extension {
     constructor(metadata) {
@@ -9,6 +11,7 @@ export default class OmniPanelExtension extends Extension {
         this._panelMover = null;
         this._tilingManager = null;
         this._indicator = null;
+        this._showDesktopBtn = null;
     }
 
     enable() {
@@ -19,6 +22,10 @@ export default class OmniPanelExtension extends Extension {
         
         this._indicator = new LayoutIndicator(this._settings, this._tilingManager);
         this._tilingManager._indicator = this._indicator;
+
+        this._showDesktopBtn = new ShowDesktopButton(this._settings);
+        // Add at index 2 to place it immediately next to the LayoutIndicator (which uses index 1)
+        Main.panel.addToStatusArea('omnipanel-show-desktop', this._showDesktopBtn, 2, 'right');
 
         this._settingsChangedId = this._settings.connect('changed', this._onSettingsChanged.bind(this));
         this._applyModules();
@@ -43,6 +50,11 @@ export default class OmniPanelExtension extends Extension {
         if (this._indicator) {
             this._indicator.destroy();
             this._indicator = null;
+        }
+        
+        if (this._showDesktopBtn) {
+            this._showDesktopBtn.destroy();
+            this._showDesktopBtn = null;
         }
 
         this._settings = null;

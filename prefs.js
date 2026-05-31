@@ -154,6 +154,21 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
         });
         groupMovement.add(rowSpeed);
 
+        // --- Show Desktop Group ---
+        const groupDesktop = new Adw.PreferencesGroup({ title: 'Show Desktop Button' });
+
+        const rowShowDesktop = new Adw.ActionRow({ 
+            title: 'Enable Show Desktop Button', 
+            subtitle: 'Adds a button to the top bar to minimize/restore windows on the current monitor' 
+        });
+        const switchShowDesktop = new Gtk.Switch({ 
+            active: settings.get_boolean('show-desktop-enabled'), 
+            valign: Gtk.Align.CENTER 
+        });
+        settings.bind('show-desktop-enabled', switchShowDesktop, 'active', Gio.SettingsBindFlags.DEFAULT);
+        rowShowDesktop.add_suffix(switchShowDesktop);
+        groupDesktop.add(rowShowDesktop);
+
         // --- Animation Effects Group ---
         const groupAnimations = new Adw.PreferencesGroup({ title: 'Animation Effects' });
 
@@ -714,6 +729,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Assemble Pages ---
         pageTopBar.add(groupMovement);
+        pageTopBar.add(groupDesktop);
         pageTopBar.add(groupAnimations);
         pageTopBar.add(groupActiveUI);
         pageTopBar.add(groupInactiveUI);
