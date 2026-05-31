@@ -1,3 +1,4 @@
+// omnipanel/tiling_manager.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -260,9 +261,34 @@ export default class TilingManager {
         }
     }
 
-    onDesignerClosed() {
+    onDesignerClosed(zonesModified) {
         this.isDesignerActive = false;
         this._designerRoot = null;
+
+        if (zonesModified) {
+            let customSections = this.storage.getCustomSections();
+            let windows = global.display.list_all_windows();
+            
+            for (let win of windows) {
+                try {
+                    if (win._omnipanel_zone && customSections[win._omnipanel_zone]) {
+                        let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : 0;
+                        if (customSections[win._omnipanel_zone].monitorIndex !== undefined) {
+                            mIndex = customSections[win._omnipanel_zone].monitorIndex;
+                        }
+                        let rect = getSectionRect(mIndex, win._omnipanel_zone, customSections);
+                        if (rect) {
+                            applyWindowTransform(win, mIndex, rect, false);
+                        }
+                    }
+                } catch {}
+            }
+            
+            if (this.stackManager) {
+                this.stackManager.invalidateSignature();
+                this.stackManager.updateOverlays();
+            }
+        }
     }
 
     _startStateTracking() {
@@ -386,7 +412,6 @@ export default class TilingManager {
         this._log(`[${winId}] >> window-created signal fired.`);
 
         try {
-            // STRUCTURAL FIX: Track window lifecycle strictly to prevent all dead-object crashes
             window._omnipanel_is_dead = false;
             if (window._omnipanel_unmanaged_id === undefined) {
                 window._omnipanel_unmanaged_id = window.connect('unmanaged', () => {
@@ -398,7 +423,6 @@ export default class TilingManager {
                 });
             }
 
-            // Deep heuristic filter for browser tabs and transient mapping overlays
             let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
             let isSkipPager = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
 
@@ -425,14 +449,12 @@ export default class TilingManager {
         window._omnipanel_creation_timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 750, () => {
             window._omnipanel_creation_timer = 0;
             
-            // STRUCTURAL LIVENESS VERIFICATION
             if (window._omnipanel_is_dead || !isWindowValid(window)) {
                 this._log(`[${winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
                 return GLib.SOURCE_REMOVE;
             }
 
             try {
-                // Secondary heuristic check in case properties shifted during the 750ms yield (e.g. detaching a tab)
                 let isSkipTaskbarNow = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
                 let isSkipPagerNow = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
                 if (isSkipTaskbarNow || isSkipPagerNow) {

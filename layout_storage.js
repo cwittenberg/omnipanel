@@ -1,3 +1,4 @@
+// omnipanel/layout_storage.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -131,12 +132,13 @@ export class LayoutStorage {
         if (!this.settings.get_string('default-layout')) {
             this.settings.set_string('default-layout', name);
         }
-
-        Main.notify('OmniPanel', `Layout '${name}' saved successfully.`);
     }
 
     saveCustomZoneRect(name, rect, monitorIndex) {
-        let monitor = Main.layoutManager.monitors[monitorIndex];
+        let safeMonitorIndex = Math.max(0, monitorIndex);
+        let monitor = Main.layoutManager.monitors[safeMonitorIndex];
+        if (!monitor) return;
+        
         let panelHeight = Main.panel.height;
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
@@ -146,15 +148,30 @@ export class LayoutStorage {
         let rw = rect.width / monitor.width;
         let rh = rect.height / workAreaHeight;
 
+        // Prevent NaN poisoning of storage JSON that kills Wayland later
+        rx = isNaN(rx) ? 0 : Math.max(0, Math.min(1, rx));
+        ry = isNaN(ry) ? 0 : Math.max(0, Math.min(1, ry));
+        rw = isNaN(rw) ? 0.2 : Math.max(0.05, Math.min(1, rw)); // Force min 5% width
+        rh = isNaN(rh) ? 0.2 : Math.max(0.05, Math.min(1, rh)); // Force min 5% height
+
         const COLORS = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#2ecc71', '#34495e', '#ff7979', '#badc58'];
         let allZones = this.getCustomSections();
-        let used = Object.values(allZones).map(z => z.color);
-        let available = COLORS.filter(c => !used.includes(c));
-        let color = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : COLORS[Math.floor(Math.random() * COLORS.length)];
+        let existing = allZones[name] || {};
+        
+        let color = existing.color;
+        if (!color) {
+            let used = Object.values(allZones).map(z => z.color);
+            let available = COLORS.filter(c => !used.includes(c));
+            color = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : COLORS[Math.floor(Math.random() * COLORS.length)];
+        }
 
-        allZones[name] = { rx, ry, rw, rh, monitorIndex, color: color, hotkeySlot: 0 };
+        allZones[name] = { 
+            ...existing,
+            rx, ry, rw, rh, monitorIndex: safeMonitorIndex, 
+            color: color, 
+            hotkeySlot: existing.hotkeySlot || 0 
+        };
         this.setCustomSectionsAndSave(allZones);
-        Main.notify('OmniPanel', `Drop Zone '${name}' created on Monitor ${monitorIndex + 1}.`);
     }
 
     restoreNamedLayout(name) {
@@ -173,7 +190,6 @@ export class LayoutStorage {
             if (this.manager._indicator) {
                 this.manager._indicator._rebuildMenu();
             }
-            Main.notify('OmniPanel', `Layout restored: ${name}`);
         }
     }
 

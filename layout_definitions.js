@@ -1,3 +1,4 @@
+// omnipanel/layout_definitions.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
@@ -18,7 +19,6 @@ export const Sections = {
     BOTTOM_RIGHT_QUAD: 'bottom_right_quad'
 };
 
-// STRUCTURAL LIVENESS GATEKEEPER
 export function isWindowValid(window) {
     if (!window) return false;
     if (window._omnipanel_is_dead === true) return false;
@@ -196,10 +196,21 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
 
-        rect.x = monitor.x + Math.round(monitor.width * cs.rx);
-        rect.y = workAreaY + Math.round(workAreaHeight * cs.ry);
-        rect.width = Math.round(monitor.width * cs.rw);
-        rect.height = Math.round(workAreaHeight * cs.rh);
+        // HARD SANITIZATION: Instantly heal NaN or negative numbers permanently
+        let crx = Number(cs.rx);
+        let cry = Number(cs.ry);
+        let crw = Number(cs.rw);
+        let crh = Number(cs.rh);
+
+        crx = isNaN(crx) ? 0 : Math.max(0, Math.min(1, crx));
+        cry = isNaN(cry) ? 0 : Math.max(0, Math.min(1, cry));
+        crw = isNaN(crw) ? 0.2 : Math.max(0.05, Math.min(1, crw)); // Force min 5% width
+        crh = isNaN(crh) ? 0.2 : Math.max(0.05, Math.min(1, crh)); // Force min 5% height
+
+        rect.x = monitor.x + Math.round(monitor.width * crx);
+        rect.y = workAreaY + Math.round(workAreaHeight * cry);
+        rect.width = Math.max(50, Math.round(monitor.width * crw));
+        rect.height = Math.max(50, Math.round(workAreaHeight * crh));
     } else {
         let safeMonitorIndex = Math.max(0, Math.min(monitorIndex, mCount - 1));
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
@@ -289,8 +300,8 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
     }
 
     if (rect && rect.width > 0 && rect.height > 0) {
-        rect.width = Math.max(100, rect.width);
-        rect.height = Math.max(100, rect.height);
+        rect.width = Math.max(50, rect.width);
+        rect.height = Math.max(50, rect.height);
         return rect;
     }
 
@@ -325,10 +336,16 @@ const _pendingTransforms = new Map();
 export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, zoneBounds = null) {
     if (!isWindowValid(window)) return;
     
-    let targetX = Math.round(targetRect.x);
-    let targetY = Math.round(targetRect.y);
-    let targetW = Math.round(Math.max(100, targetRect.width));
-    let targetH = Math.round(Math.max(100, targetRect.height));
+    // Absolute barrier against NaN to prevent Wayland disconnects
+    let targetX = Math.round(Number(targetRect.x));
+    let targetY = Math.round(Number(targetRect.y));
+    let targetW = Math.round(Number(targetRect.width));
+    let targetH = Math.round(Number(targetRect.height));
+
+    // Hard reject poisoned measurements
+    if (isNaN(targetX) || isNaN(targetY) || isNaN(targetW) || isNaN(targetH) || targetW < 50 || targetH < 50) {
+        return; 
+    }
 
     GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
         try {

@@ -83,17 +83,14 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
             title: 'Panel', 
             icon_name: 'view-dual-symbolic' 
         });
-
         const pageTiling = new Adw.PreferencesPage({ 
             title: 'Layouts', 
             icon_name: 'view-grid-symbolic' 
         });
-
         const pageGuide = new Adw.PreferencesPage({ 
             title: 'Guide', 
             icon_name: 'system-help-symbolic' 
         });
-
         const pageAbout = new Adw.PreferencesPage({ 
             title: 'About', 
             icon_name: 'dialog-information-symbolic' 
@@ -102,7 +99,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
         // --- Guide Group Configuration ---
         const groupConcept = new Adw.PreferencesGroup({ 
             title: '1. The Two-In-One Powerhouse',
-            description: 'Native GNOME lacks true multi-monitor capabilities. OmniPanel resolves this by offering two distinct, configurable engines:\n\n• Multi-Monitor Top Panel: Dynamically teleports the native GNOME Top Bar to whichever monitor your mouse is currently active on.\n• Window Layouts & Drop Zones: A persistent workspace engine that remembers exactly where your apps belong across all your screens.'
+            description: 'Native GNOME lacks true multi-monitor capabilities. OmniPanel resolves this by offering two distinct, configurable engines:\n\n  Multi-Monitor Top Panel: Dynamically teleports the native GNOME Top Bar to whichever monitor your mouse is currently active on.\n  Window Layouts & Drop Zones: A persistent workspace engine that remembers exactly where your apps belong across all your screens.'
         });
 
         const groupDesigner = new Adw.PreferencesGroup({
@@ -112,12 +109,12 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         const groupPlacement = new Adw.PreferencesGroup({
             title: '3. Smart Window Placement',
-            description: 'OmniPanel acts as an intelligent assistant using Fuzzy Auto-Placement.\n\n• If you name a zone "Terminals", apps like Alacritty, Console, or GNOME Terminal will automatically snap there when opened.\n• If you name a zone "Web", Firefox and Chrome will route there.\n\nManual Overrides: If you manually drag a window into a different zone using your mouse, OmniPanel permanently learns your preference and assigns it to that new zone.'
+            description: 'OmniPanel acts as an intelligent assistant using Fuzzy Auto-Placement.\n\n  If you name a zone "Terminals", apps like Alacritty, Console, or GNOME Terminal will automatically snap there when opened.\n  If you name a zone "Web", Firefox and Chrome will route there.\n\nManual Overrides: If you manually drag a window into a different zone using your mouse, OmniPanel permanently learns your preference and assigns it to that new zone.'
         });
 
         const groupHotkeys = new Adw.PreferencesGroup({
             title: '4. Hotkeys, Snapping & Stacks',
-            description: 'Navigate to the "Window Layouts" tab to master your workspace.\n\n• Cycle Layouts: Press your configured hotkey to instantly loop through your saved Layouts.\n• Directional Snapping: Use Alt + Left, Right, Up, or Down to snap the active window into a neighboring Drop Zone.\n• Window Stacks: If multiple windows are dropped into the same zone, a Stack Indicator will appear. Hover over it to cycle between them or instantly expand them into a visual grid.'
+            description: 'Navigate to the "Window Layouts" tab to master your workspace.\n\n  Cycle Layouts: Press your configured hotkey to instantly loop through your saved Layouts.\n  Directional Snapping: Use Alt + Left, Right, Up, or Down to snap the active window into a neighboring Drop Zone.\n  Window Stacks: If multiple windows are dropped into the same zone, a Stack Indicator will appear. Hover over it to cycle between them or instantly expand them into a visual grid.'
         });
 
         pageGuide.add(groupConcept);
@@ -127,6 +124,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Active Toolbar Movement Group ---
         const groupMovement = new Adw.PreferencesGroup({ title: 'Active Toolbar Movement' });
+
         const rowEnabled = new Adw.ActionRow({ 
             title: 'Enable Toolbar Movement', 
             subtitle: 'Dynamically move the real native panel to the active screen' 
@@ -158,6 +156,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Animation Effects Group ---
         const groupAnimations = new Adw.PreferencesGroup({ title: 'Animation Effects' });
+
         const rowAnimStyle = new Adw.ComboRow({
             title: 'Movement Animation Style',
             subtitle: 'Visual effect when extensions arrive on the new screen',
@@ -190,6 +189,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Active Panel Appearance Group ---
         const groupActiveUI = new Adw.PreferencesGroup({ title: 'Active Panel Appearance' });
+
         const rowHighlight = new Adw.ActionRow({ 
             title: 'Highlight Active Panel', 
             subtitle: 'Change the background color of the active monitor\'s top bar' 
@@ -218,6 +218,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Inactive Panel Appearance Group ---
         const groupInactiveUI = new Adw.PreferencesGroup({ title: 'Inactive Panel Appearance' });
+
         const rowTranslucent = new Adw.ActionRow({ 
             title: 'Translucent Inactive Bars', 
             subtitle: 'Make the top bar fade out on inactive monitors' 
@@ -276,6 +277,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Tiling Settings -> Core Features ---
         const groupCoreTiling = new Adw.PreferencesGroup({ title: 'Core Settings' });
+
         const rowTilingEnabled = new Adw.ActionRow({ 
             title: 'Enable Window Layouts', 
             subtitle: 'Activate drop zones and layout memory' 
@@ -314,6 +316,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Tiling Settings -> Automation & Defaults ---
         const groupAutomation = new Adw.PreferencesGroup({ title: 'Automation & Defaults' });
+
         const rowSmartPlacement = new Adw.ActionRow({ 
             title: 'Fuzzy Auto-Placement', 
             subtitle: 'Automatically assign new unrecognized windows to zones matching their name or category' 
@@ -334,6 +337,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Tiling Settings -> Stacks ---
         const groupStacks = new Adw.PreferencesGroup({ title: 'Stack Indicators' });
+
         const rowStacks = new Adw.ActionRow({ 
             title: 'Zone Stack Indicators', 
             subtitle: 'Show a fast-switching overlay when multiple windows share the same drop zone' 
@@ -380,6 +384,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Tiling Settings -> Shortcuts ---
         const groupShortcuts = new Adw.PreferencesGroup({ title: 'Keyboard Shortcuts' });
+
         let rowShortcut = new Adw.ActionRow({
             title: 'Cycle Layouts Shortcut',
             subtitle: 'Click to capture keybinding'
@@ -392,262 +397,276 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
             title: 'Saved Layouts & Drop Zones',
             description: 'Click a layout to expand and manage its associated drop zones.' 
         });
+
         this._layoutRows = [];
+        this._isUpdatingLayouts = false;
 
         const refreshLayoutsAndZones = () => {
-            for (let row of this._layoutRows) {
-                groupLayouts.remove(row);
-            }
-            this._layoutRows = [];
-
-            let rawLayoutsStr = settings.get_string('named-layouts');
-            let rawLayouts = {};
-            try { rawLayouts = JSON.parse(rawLayoutsStr) || {}; } catch {}
-            let rawKeys = Object.keys(rawLayouts).filter(k => k && k !== 'null' && k !== 'undefined');
-            
-            // Auto-promote to Default if only 1 layout exists
-            if (rawKeys.length === 1) {
-                let currentDef = settings.get_string('default-layout');
-                if (currentDef !== rawKeys[0]) {
-                    settings.set_string('default-layout', rawKeys[0]);
+            this._isUpdatingLayouts = true;
+            try {
+                for (let row of this._layoutRows) {
+                    groupLayouts.remove(row);
                 }
-            } else if (rawKeys.length === 0) {
-                if (settings.get_string('default-layout') !== '') {
+                this._layoutRows = [];
+
+                let rawLayoutsStr = settings.get_string('named-layouts');
+                let rawLayouts = {};
+                try { rawLayouts = JSON.parse(rawLayoutsStr) || {}; } catch {}
+                
+                // Ensure no empty or invalid layout names sneak into the list
+                let rawKeys = Object.keys(rawLayouts).filter(k => k && k.trim() !== '' && k !== 'null' && k !== 'undefined');
+                
+                // Auto-promote to a valid default if one isn't set, or clear if empty
+                if (rawKeys.length > 0) {
+                    let currentDef = settings.get_string('default-layout');
+                    if (!rawKeys.includes(currentDef)) {
+                        settings.set_string('default-layout', rawKeys[0]);
+                    }
+                } else {
                     settings.set_string('default-layout', '');
                 }
-            }
 
-            let needsHealingSave = false;
-            for (let name of rawKeys) {
-                if (!rawLayouts[name].hotkeySlot) {
-                    let usedSlots = Object.values(rawLayouts).map(l => l.hotkeySlot).filter(s => s);
-                    let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
-                    rawLayouts[name].hotkeySlot = freeSlot;
-                    needsHealingSave = true;
-                }
-            }
-            
-            if (needsHealingSave) {
-                settings.set_string('named-layouts', JSON.stringify(rawLayouts));
-                return;
-            }
-
-            let modelList = ['None', ...rawKeys];
-            rowDefaultLayout.model = Gtk.StringList.new(modelList);
-            let currentDef = settings.get_string('default-layout');
-            let idx = modelList.indexOf(currentDef);
-            rowDefaultLayout.selected = (idx !== -1) ? idx : 0;
-
-            let createNewRow = new Adw.EntryRow({ title: 'Create New Blank Layout', text: '' });
-            let createBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
-            createBtn.add_css_class('suggested-action');
-            
-            let handleCreate = () => {
-                let newName = createNewRow.get_text().trim();
-                if (!newName || newName === 'null') return;
-                let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                if (!fresh[newName]) {
-                    let usedSlots = Object.values(fresh).map(l => l.hotkeySlot).filter(s => s);
-                    let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
-                    fresh[newName] = { windows: {}, zones: {}, color: 'rgba(46, 204, 113, 1.0)', hotkeySlot: freeSlot };
-                    settings.set_string('named-layouts', JSON.stringify(fresh));
-
-                    if (!settings.get_string('default-layout')) {
-                        settings.set_string('default-layout', newName);
+                let needsHealingSave = false;
+                for (let name of rawKeys) {
+                    if (!rawLayouts[name].hotkeySlot) {
+                        let usedSlots = Object.values(rawLayouts).map(l => l.hotkeySlot).filter(s => s);
+                        let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
+                        rawLayouts[name].hotkeySlot = freeSlot;
+                        needsHealingSave = true;
                     }
                 }
-                createNewRow.set_text('');
-            };
-            
-            createBtn.connect('clicked', handleCreate);
-            createNewRow.connect('apply', handleCreate);
-            createNewRow.add_suffix(createBtn);
-            groupLayouts.add(createNewRow);
-            this._layoutRows.push(createNewRow);
+                
+                if (needsHealingSave) {
+                    settings.set_string('named-layouts', JSON.stringify(rawLayouts));
+                    return;
+                }
 
-            let currentZonesStr = settings.get_string('custom-sections');
-            let currentZones = {};
-            try { currentZones = JSON.parse(currentZonesStr) || {}; } catch {}
-            let currentKeys = Object.keys(currentZones).filter(k => k && k !== 'null' && k !== 'undefined');
+                // Strictly drop 'None' if valid layouts exist
+                let modelList = rawKeys.length > 0 ? rawKeys : ['None'];
+                rowDefaultLayout.model = Gtk.StringList.new(modelList);
+                
+                let currentDef = settings.get_string('default-layout');
+                let idx = modelList.indexOf(currentDef);
+                rowDefaultLayout.selected = (idx !== -1) ? idx : 0;
 
-            let currentExpander = new Adw.ExpanderRow({ 
-                title: 'Unassigned Drop Zones', 
-                subtitle: `${currentKeys.length} active zones not tied to a layout` 
-            });
-            
-            if (currentKeys.length === 0) {
-                let emptyRow = new Adw.ActionRow({ title: 'No floating zones active.' });
-                currentExpander.add_row(emptyRow);
-            } else {
-                for (let zName of currentKeys) {
-                    let zRow = new Adw.EntryRow({ title: 'Zone', text: zName });
-                    
-                    let handleZoneEdit = () => {
-                        let newName = zRow.get_text().trim();
-                        if (!newName || newName === zName) return;
-                        let fresh = JSON.parse(settings.get_string('custom-sections') || '{}');
-                        if (fresh[zName] !== undefined && !fresh[newName]) {
-                            fresh[newName] = fresh[zName];
-                            delete fresh[zName];
-                            settings.set_string('custom-sections', JSON.stringify(fresh));
+                let createNewRow = new Adw.EntryRow({ title: 'Create New Blank Layout', text: '' });
+                let createBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
+                createBtn.add_css_class('suggested-action');
+                
+                let handleCreate = () => {
+                    let newName = createNewRow.get_text().trim();
+                    if (!newName || newName === 'null') return;
+
+                    let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                    if (!fresh[newName]) {
+                        let usedSlots = Object.values(fresh).map(l => l.hotkeySlot).filter(s => s);
+                        let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
+
+                        fresh[newName] = { windows: {}, zones: {}, color: 'rgba(46, 204, 113, 1.0)', hotkeySlot: freeSlot };
+                        settings.set_string('named-layouts', JSON.stringify(fresh));
+                        if (!settings.get_string('default-layout')) {
+                            settings.set_string('default-layout', newName);
                         }
-                    };
-                    zRow.connect('apply', handleZoneEdit);
-                    
-                    let zEditBtn = new Gtk.Button({ icon_name: 'document-edit-symbolic', valign: Gtk.Align.CENTER });
-                    zEditBtn.connect('clicked', handleZoneEdit);
-
-                    let delBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
-                    delBtn.add_css_class('destructive-action');
-                    delBtn.connect('clicked', () => {
-                        let fresh = JSON.parse(settings.get_string('custom-sections') || '{}');
-                        delete fresh[zName];
-                        settings.set_string('custom-sections', JSON.stringify(fresh));
-                    });
-                    
-                    zRow.add_suffix(zEditBtn);
-                    zRow.add_suffix(delBtn);
-                    currentExpander.add_row(zRow);
-                }
-            }
-            groupLayouts.add(currentExpander);
-            this._layoutRows.push(currentExpander);
-
-            for (let name of rawKeys) {
-                let lZones = rawLayouts[name].zones || {};
-                let lZoneKeys = Object.keys(lZones).filter(k => k && k !== 'null' && k !== 'undefined');
-                let lSlot = rawLayouts[name].hotkeySlot || 1;
-                
-                let expander = new Adw.ExpanderRow({ 
-                    title: `Layout: ${name}`, 
-                    subtitle: `${lZoneKeys.length} zones saved` 
-                });
-
-                let renameRow = new Adw.EntryRow({ title: 'Layout Name', text: name });
-                let handleRename = () => {
-                    let newName = renameRow.get_text().trim();
-                    if (!newName || newName === name) return;
-                    let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                    if (fresh[name] !== undefined && !fresh[newName]) {
-                        fresh[newName] = fresh[name];
-                        delete fresh[name];
-                        settings.set_string('named-layouts', JSON.stringify(fresh));
                     }
+                    createNewRow.set_text('');
                 };
-                renameRow.connect('apply', handleRename);
-                let renameBtn = new Gtk.Button({ icon_name: 'document-edit-symbolic', valign: Gtk.Align.CENTER });
-                renameBtn.connect('clicked', handleRename);
-
-                let dupBtn = new Gtk.Button({ icon_name: 'edit-copy-symbolic', valign: Gtk.Align.CENTER });
-                dupBtn.connect('clicked', () => {
-                    let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                    let copyName = name + " (Copy)";
-                    let count = 1;
-                    while (fresh[copyName]) {
-                        copyName = `${name} (Copy ${count})`;
-                        count++;
-                    }
-                    fresh[copyName] = JSON.parse(JSON.stringify(fresh[name]));
-                    
-                    let usedSlots = Object.values(fresh).map(l => l.hotkeySlot).filter(s => s);
-                    let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
-                    fresh[copyName].hotkeySlot = freeSlot;
-                    settings.set_strv(`layout-hotkey-${freeSlot}`, []); 
-                    
-                    settings.set_string('named-layouts', JSON.stringify(fresh));
-
-                    if (!settings.get_string('default-layout')) {
-                        settings.set_string('default-layout', copyName);
-                    }
-                });
-
-                let delLayoutBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
-                delLayoutBtn.add_css_class('destructive-action');
-                delLayoutBtn.connect('clicked', () => {
-                    let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                    if (fresh[name] && fresh[name].hotkeySlot) {
-                        settings.set_strv(`layout-hotkey-${fresh[name].hotkeySlot}`, []);
-                    }
-                    delete fresh[name];
-                    settings.set_string('named-layouts', JSON.stringify(fresh));
-                });
-
-                renameRow.add_suffix(renameBtn);
-                renameRow.add_suffix(dupBtn);
-                renameRow.add_suffix(delLayoutBtn);
-                expander.add_row(renameRow);
-
-                let hotkeyRow = new Adw.ActionRow({ 
-                    title: 'Activation Hotkey', 
-                    subtitle: 'Click to capture keybinding' 
-                });
-                hotkeyRow.add_suffix(new ShortcutButton(settings, `layout-hotkey-${lSlot}`));
-                expander.add_row(hotkeyRow);
-
-                let colorRow = new Adw.ActionRow({ title: 'Layout Zone Color' });
-                let colorDialog = new Gtk.ColorDialog();
-                let colorBtn = new Gtk.ColorDialogButton({ dialog: colorDialog, valign: Gtk.Align.CENTER });
-                let rgbaObj = new Gdk.RGBA();
-                let savedColor = rawLayouts[name].color || 'rgba(46, 204, 113, 1.0)';
-                rgbaObj.parse(savedColor);
-                colorBtn.set_rgba(rgbaObj);
                 
-                colorBtn.connect('notify::rgba', () => {
-                    let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                    if (fresh[name]) {
-                        fresh[name].color = colorBtn.get_rgba().to_string();
-                        settings.set_string('named-layouts', JSON.stringify(fresh));
-                    }
-                });
-                colorRow.add_suffix(colorBtn);
-                expander.add_row(colorRow);
+                createBtn.connect('clicked', handleCreate);
+                createNewRow.connect('apply', handleCreate);
+                createNewRow.add_suffix(createBtn);
+                groupLayouts.add(createNewRow);
+                this._layoutRows.push(createNewRow);
 
-                if (lZoneKeys.length === 0) {
-                    let emptyZ = new Adw.ActionRow({ title: 'No drop zones', subtitle: 'Open Zone Designer to create some.' });
-                    expander.add_row(emptyZ);
+                let currentZonesStr = settings.get_string('custom-sections');
+                let currentZones = {};
+                try { currentZones = JSON.parse(currentZonesStr) || {}; } catch {}
+                let currentKeys = Object.keys(currentZones).filter(k => k && k !== 'null' && k !== 'undefined');
+
+                let currentExpander = new Adw.ExpanderRow({ 
+                    title: 'Unassigned Drop Zones', 
+                    subtitle: `${currentKeys.length} active zones not tied to a layout` 
+                });
+                
+                if (currentKeys.length === 0) {
+                    let emptyRow = new Adw.ActionRow({ title: 'No floating zones active.' });
+                    currentExpander.add_row(emptyRow);
                 } else {
-                    for (let zName of lZoneKeys) {
+                    for (let zName of currentKeys) {
                         let zRow = new Adw.EntryRow({ title: 'Zone', text: zName });
                         
-                        let handleZoneRename = () => {
+                        let handleZoneEdit = () => {
                             let newName = zRow.get_text().trim();
                             if (!newName || newName === zName) return;
-                            let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                            if (fresh[name] && fresh[name].zones && fresh[name].zones[zName] !== undefined && !fresh[name].zones[newName]) {
-                                fresh[name].zones[newName] = fresh[name].zones[zName];
-                                delete fresh[name].zones[zName];
-                                settings.set_string('named-layouts', JSON.stringify(fresh));
+                            let fresh = JSON.parse(settings.get_string('custom-sections') || '{}');
+                            if (fresh[zName] !== undefined && !fresh[newName]) {
+                                fresh[newName] = fresh[zName];
+                                delete fresh[zName];
+                                settings.set_string('custom-sections', JSON.stringify(fresh));
                             }
                         };
-                        zRow.connect('apply', handleZoneRename);
+                        zRow.connect('apply', handleZoneEdit);
+                        
                         let zEditBtn = new Gtk.Button({ icon_name: 'document-edit-symbolic', valign: Gtk.Align.CENTER });
-                        zEditBtn.connect('clicked', handleZoneRename);
+                        zEditBtn.connect('clicked', handleZoneEdit);
 
-                        let zDelBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
-                        zDelBtn.add_css_class('destructive-action');
-                        zDelBtn.connect('clicked', () => {
-                            let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                            if (fresh[name] && fresh[name].zones) {
-                                delete fresh[name].zones[zName];
-                                settings.set_string('named-layouts', JSON.stringify(fresh));
-                            }
+                        let delBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
+                        delBtn.add_css_class('destructive-action');
+                        delBtn.connect('clicked', () => {
+                            let fresh = JSON.parse(settings.get_string('custom-sections') || '{}');
+                            delete fresh[zName];
+                            settings.set_string('custom-sections', JSON.stringify(fresh));
                         });
                         
                         zRow.add_suffix(zEditBtn);
-                        zRow.add_suffix(zDelBtn);
-                        expander.add_row(zRow);
+                        zRow.add_suffix(delBtn);
+                        currentExpander.add_row(zRow);
                     }
                 }
+                groupLayouts.add(currentExpander);
+                this._layoutRows.push(currentExpander);
 
-                groupLayouts.add(expander);
-                this._layoutRows.push(expander);
+                for (let name of rawKeys) {
+                    let lZones = rawLayouts[name].zones || {};
+                    let lZoneKeys = Object.keys(lZones).filter(k => k && k !== 'null' && k !== 'undefined');
+                    let lSlot = rawLayouts[name].hotkeySlot || 1;
+                    
+                    let expander = new Adw.ExpanderRow({ 
+                        title: `Layout: ${name}`, 
+                        subtitle: `${lZoneKeys.length} zones saved` 
+                    });
+
+                    let renameRow = new Adw.EntryRow({ title: 'Layout Name', text: name });
+                    let handleRename = () => {
+                        let newName = renameRow.get_text().trim();
+                        if (!newName || newName === name) return;
+
+                        let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                        if (fresh[name] !== undefined && !fresh[newName]) {
+                            fresh[newName] = fresh[name];
+                            delete fresh[name];
+                            settings.set_string('named-layouts', JSON.stringify(fresh));
+                        }
+                    };
+                    renameRow.connect('apply', handleRename);
+
+                    let renameBtn = new Gtk.Button({ icon_name: 'document-edit-symbolic', valign: Gtk.Align.CENTER });
+                    renameBtn.connect('clicked', handleRename);
+
+                    let dupBtn = new Gtk.Button({ icon_name: 'edit-copy-symbolic', valign: Gtk.Align.CENTER });
+                    dupBtn.connect('clicked', () => {
+                        let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                        let copyName = name + " (Copy)";
+                        let count = 1;
+                        while (fresh[copyName]) {
+                            copyName = `${name} (Copy ${count})`;
+                            count++;
+                        }
+                        fresh[copyName] = JSON.parse(JSON.stringify(fresh[name]));
+                        
+                        let usedSlots = Object.values(fresh).map(l => l.hotkeySlot).filter(s => s);
+                        let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
+                        fresh[copyName].hotkeySlot = freeSlot;
+                        settings.set_strv(`layout-hotkey-${freeSlot}`, []);
+                        
+                        settings.set_string('named-layouts', JSON.stringify(fresh));
+                        if (!settings.get_string('default-layout')) {
+                            settings.set_string('default-layout', copyName);
+                        }
+                    });
+
+                    let delLayoutBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
+                    delLayoutBtn.add_css_class('destructive-action');
+                    delLayoutBtn.connect('clicked', () => {
+                        let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                        if (fresh[name] && fresh[name].hotkeySlot) {
+                            settings.set_strv(`layout-hotkey-${fresh[name].hotkeySlot}`, []);
+                        }
+                        delete fresh[name];
+                        settings.set_string('named-layouts', JSON.stringify(fresh));
+                    });
+
+                    renameRow.add_suffix(renameBtn);
+                    renameRow.add_suffix(dupBtn);
+                    renameRow.add_suffix(delLayoutBtn);
+                    expander.add_row(renameRow);
+
+                    let hotkeyRow = new Adw.ActionRow({ 
+                        title: 'Activation Hotkey', 
+                        subtitle: 'Click to capture keybinding' 
+                    });
+                    hotkeyRow.add_suffix(new ShortcutButton(settings, `layout-hotkey-${lSlot}`));
+                    expander.add_row(hotkeyRow);
+
+                    let colorRow = new Adw.ActionRow({ title: 'Layout Zone Color' });
+                    let colorDialog = new Gtk.ColorDialog();
+                    let colorBtn = new Gtk.ColorDialogButton({ dialog: colorDialog, valign: Gtk.Align.CENTER });
+                    let rgbaObj = new Gdk.RGBA();
+                    let savedColor = rawLayouts[name].color || 'rgba(46, 204, 113, 1.0)';
+                    rgbaObj.parse(savedColor);
+                    colorBtn.set_rgba(rgbaObj);
+                    
+                    colorBtn.connect('notify::rgba', () => {
+                        let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                        if (fresh[name]) {
+                            fresh[name].color = colorBtn.get_rgba().to_string();
+                            settings.set_string('named-layouts', JSON.stringify(fresh));
+                        }
+                    });
+                    colorRow.add_suffix(colorBtn);
+                    expander.add_row(colorRow);
+
+                    if (lZoneKeys.length === 0) {
+                        let emptyZ = new Adw.ActionRow({ title: 'No drop zones', subtitle: 'Open Zone Designer to create some.' });
+                        expander.add_row(emptyZ);
+                    } else {
+                        for (let zName of lZoneKeys) {
+                            let zRow = new Adw.EntryRow({ title: 'Zone', text: zName });
+                            
+                            let handleZoneRename = () => {
+                                let newName = zRow.get_text().trim();
+                                if (!newName || newName === zName) return;
+                                let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                                if (fresh[name] && fresh[name].zones && fresh[name].zones[zName] !== undefined && !fresh[name].zones[newName]) {
+                                    fresh[name].zones[newName] = fresh[name].zones[zName];
+                                    delete fresh[name].zones[zName];
+                                    settings.set_string('named-layouts', JSON.stringify(fresh));
+                                }
+                            };
+                            zRow.connect('apply', handleZoneRename);
+
+                            let zEditBtn = new Gtk.Button({ icon_name: 'document-edit-symbolic', valign: Gtk.Align.CENTER });
+                            zEditBtn.connect('clicked', handleZoneRename);
+
+                            let zDelBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
+                            zDelBtn.add_css_class('destructive-action');
+                            zDelBtn.connect('clicked', () => {
+                                let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                                if (fresh[name] && fresh[name].zones) {
+                                    delete fresh[name].zones[zName];
+                                    settings.set_string('named-layouts', JSON.stringify(fresh));
+                                }
+                            });
+                            
+                            zRow.add_suffix(zEditBtn);
+                            zRow.add_suffix(zDelBtn);
+                            expander.add_row(zRow);
+                        }
+                    }
+
+                    groupLayouts.add(expander);
+                    this._layoutRows.push(expander);
+                }
+            } finally {
+                this._isUpdatingLayouts = false;
             }
         };
+
         refreshLayoutsAndZones();
         settings.connect('changed::named-layouts', refreshLayoutsAndZones);
         settings.connect('changed::custom-sections', refreshLayoutsAndZones);
 
         rowDefaultLayout.connect('notify::selected', () => {
+            if (this._isUpdatingLayouts) return;
             let selectedItem = rowDefaultLayout.model.get_string(rowDefaultLayout.selected);
             if (selectedItem === 'None') {
                 settings.set_string('default-layout', '');
@@ -658,6 +677,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- About Section Group ---
         const groupAboutInfo = new Adw.PreferencesGroup({ title: 'Extension Information' });
+
         const logoRow = new Adw.ActionRow({ 
             title: 'OmniPanel', 
             subtitle: 'True multi-monitor capabilities for GNOME Shell.' 
@@ -679,6 +699,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
 
         // --- Advanced Settings Group ---
         const groupAdvanced = new Adw.PreferencesGroup({ title: 'Advanced' });
+
         const rowDebugLogs = new Adw.ActionRow({ 
             title: 'Enable Debug Logging', 
             subtitle: 'Outputs verbose troubleshooting logs to journalctl' 
