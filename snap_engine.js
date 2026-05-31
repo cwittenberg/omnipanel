@@ -1,14 +1,17 @@
+// snap_engine.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
 import { getSectionRect, hexToRgba, getLayoutColors, applyWindowTransform } from './layout_definitions.js';
 
 export class SnapEngine {
     constructor(manager) {
         this.manager = manager;
         this.settings = manager.settings;
+
         this._dragWindow = null;
         this._activeDragZones = [];
         this._dragLoopId = 0;
@@ -17,6 +20,7 @@ export class SnapEngine {
 
     _startBreathing(widget) {
         widget._breathing = true;
+
         let pulseOut = () => {
             if (!widget._breathing) return;
             widget.ease({
@@ -26,6 +30,7 @@ export class SnapEngine {
                 onComplete: pulseIn
             });
         };
+
         let pulseIn = () => {
             if (!widget._breathing) return;
             widget.ease({
@@ -35,6 +40,7 @@ export class SnapEngine {
                 onComplete: pulseOut
             });
         };
+
         pulseOut();
     }
 
@@ -49,12 +55,14 @@ export class SnapEngine {
         
         this._dragWindow = window;
         this._activeDragZones = [];
+
         let customSections = this.manager.storage.getCustomSections();
         let colors = getLayoutColors(this.manager);
 
         for (const [name, cs] of Object.entries(customSections)) {
             let mIndex = cs.monitorIndex !== undefined ? cs.monitorIndex : 0;
             let rect = getSectionRect(mIndex, name, customSections);
+            
             if (!rect) continue;
 
             let color = cs.color || colors.border;
@@ -80,6 +88,7 @@ export class SnapEngine {
             zoneBox._baseColor = color; 
 
             Main.layoutManager.uiGroup.add_child(zoneBox);
+
             this._activeDragZones.push({ 
                 name: name, 
                 rect: rect, 
@@ -94,9 +103,9 @@ export class SnapEngine {
         for (let i = 0; i < monitors.length; i++) {
             let m = monitors[i];
             let panelHeight = Main.panel.height;
-
             let w = 250;
             let h = 48;
+
             let rect = {
                 x: m.x + (m.width / 2) - (w / 2),
                 y: m.y + panelHeight,
@@ -115,7 +124,7 @@ export class SnapEngine {
             });
 
             let label = new St.Label({
-                text: '🗖 Maximize',
+                text: '  Maximize',
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
                 style: `color: ${color}; font-weight: bold; font-size: 16px; text-shadow: 0px 2px 4px rgba(0,0,0,0.8);`
@@ -127,6 +136,7 @@ export class SnapEngine {
             zoneBox._baseColor = color; 
 
             Main.layoutManager.uiGroup.add_child(zoneBox);
+
             this._activeDragZones.push({ 
                 name: 'Maximize', 
                 rect: rect, 
@@ -160,6 +170,7 @@ export class SnapEngine {
             if (zone.isHovered !== isHovered) {
                 zone.isHovered = isHovered;
                 let borderCol = hexToRgba(zone.widget._baseColor, 1.0);
+
                 let brRadius = zone.isMaximize ? '0 0 12px 12px' : '8px';
                 let bTop = zone.isMaximize ? 'border-top: none;' : '';
 
@@ -191,16 +202,19 @@ export class SnapEngine {
 
         if (this._currentSnapZone) {
             let zone = this._currentSnapZone;
+
             try {
                 this._dragWindow._omnipanel_zone = zone.name;
                 this._dragWindow._omnipanel_monitor = zone.monitorIndex;
                 
+                this.manager._log(`[Snap] Dropped window onto zone [${zone.name}]`);
                 if (zone.isMaximize) {
                     let fullRect = getSectionRect(zone.monitorIndex, 'maximized');
-                    applyWindowTransform(this._dragWindow, zone.monitorIndex, fullRect, true);
+                    applyWindowTransform(this._dragWindow, zone.monitorIndex, fullRect, true, null, this.manager._log.bind(this.manager));
                 } else {
-                    applyWindowTransform(this._dragWindow, zone.monitorIndex, zone.rect, false);
+                    applyWindowTransform(this._dragWindow, zone.monitorIndex, zone.rect, false, null, this.manager._log.bind(this.manager));
                 }
+
                 if (this.manager.stackManager) {
                     this.manager.stackManager.invalidateSignature();
                 }
@@ -210,6 +224,7 @@ export class SnapEngine {
                 this.manager.storage.saveCurrentLayoutStates();
                 return GLib.SOURCE_REMOVE;
             });
+
         } else {
             delete this._dragWindow._omnipanel_zone;
             delete this._dragWindow._omnipanel_monitor;
@@ -237,7 +252,8 @@ export class SnapEngine {
                 window._omnipanel_zone = targetZoneName;
                 window._omnipanel_monitor = mIndex;
                 
-                applyWindowTransform(window, mIndex, zRect, false);
+                this.manager._log(`[Snap] Hotkey snapped window to zone [${targetZoneName}]`);
+                applyWindowTransform(window, mIndex, zRect, false, null, this.manager._log.bind(this.manager));
                 if (this.manager.stackManager) this.manager.stackManager.invalidateSignature();
                 
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
@@ -259,6 +275,7 @@ export class SnapEngine {
         let cy = rect.y + rect.height / 2;
 
         let customSections = this.manager.storage.getCustomSections();
+
         let bestZone = null;
         let bestZoneName = null;
         let bestMonitorIndex = null;
@@ -275,7 +292,6 @@ export class SnapEngine {
             let dx = zx - cx;
             let dy = zy - cy;
             let dist = Math.sqrt(dx*dx + dy*dy);
-
             let valid = false;
             
             if (dir === 'left' && dx < -10 && Math.abs(dy) <= Math.abs(dx)) valid = true;
@@ -302,7 +318,8 @@ export class SnapEngine {
             window._omnipanel_zone = bestZoneName;
             window._omnipanel_monitor = bestMonitorIndex;
             
-            applyWindowTransform(window, bestMonitorIndex, bestZone, false);
+            this.manager._log(`[Snap] Directional snap (${dir}) applied window to zone [${bestZoneName}]`);
+            applyWindowTransform(window, bestMonitorIndex, bestZone, false, null, this.manager._log.bind(this.manager));
             if (this.manager.stackManager) this.manager.stackManager.invalidateSignature();
             
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
@@ -310,5 +327,24 @@ export class SnapEngine {
                 return GLib.SOURCE_REMOVE;
             });
         }
+    }
+
+    disable() {
+        if (this._dragLoopId) {
+            GLib.source_remove(this._dragLoopId);
+            this._dragLoopId = 0;
+        }
+
+        for (let zone of this._activeDragZones) {
+            this._stopBreathing(zone.widget);
+            if (zone.widget.get_parent()) {
+                Main.layoutManager.uiGroup.remove_child(zone.widget);
+            }
+            zone.widget.destroy();
+        }
+
+        this._activeDragZones = [];
+        this._dragWindow = null;
+        this._currentSnapZone = null;
     }
 }

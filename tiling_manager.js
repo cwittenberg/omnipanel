@@ -1,10 +1,11 @@
-// omnipanel/tiling_manager.js
+// tiling_manager.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
 import { ZoneDesignerRoot } from './zone_designer.js';
 import { LayoutStorage } from './layout_storage.js';
 import { SnapEngine } from './snap_engine.js';
@@ -20,12 +21,15 @@ export default class TilingManager {
         this._grabBeginId = 0;
         this._grabEndId = 0;
         this._timeoutId = 0;
-        this._trackedWindows = new Map();
         
+        this._trackedSignals = [];
+        this._trackedTimers = new Set();
+        this._activeOverlay = null;
+
         this.activeLayoutName = null;
         this.isDesignerActive = false;
         this._designerRoot = null;
-        this._indicator = null; 
+        this._indicator = null;
 
         this.storage = new LayoutStorage(this);
         this.snapEngine = new SnapEngine(this);
@@ -83,6 +87,7 @@ export default class TilingManager {
         this._log("Extension DISABLED.");
 
         this.stackManager.disable();
+        this.snapEngine.disable();
 
         if (this._monitorsChangedId) {
             Main.layoutManager.disconnect(this._monitorsChangedId);
@@ -105,6 +110,16 @@ export default class TilingManager {
             this._timeoutId = 0;
         }
         
+        for (let item of this._trackedSignals) {
+            try { item.obj.disconnect(item.id); } catch {}
+        }
+        this._trackedSignals = [];
+
+        for (let timerId of this._trackedTimers) {
+            GLib.source_remove(timerId);
+        }
+        this._trackedTimers.clear();
+
         try { Main.wm.removeKeybinding('snap-left'); } catch {}
         try { Main.wm.removeKeybinding('snap-right'); } catch {}
         try { Main.wm.removeKeybinding('snap-up'); } catch {}
@@ -115,13 +130,22 @@ export default class TilingManager {
             try { Main.wm.removeKeybinding(`layout-hotkey-${i}`); } catch {}
         }
 
+        if (this._activeOverlay) {
+            try { Main.popModal(this._activeOverlay); } catch {}
+            if (this._activeOverlay.get_parent()) {
+                Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
+            }
+            this._activeOverlay.destroy();
+            this._activeOverlay = null;
+        }
+
         this.stopZoneDesigner();
-        this._trackedWindows.clear();
     }
 
     activateLayoutBySlot(slotId) {
         let layouts = {};
         try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { return; }
+
         let targetName = Object.keys(layouts).find(k => layouts[k].hotkeySlot === slotId);
         if (targetName) {
             this.storage.restoreNamedLayout(targetName);
@@ -132,11 +156,13 @@ export default class TilingManager {
         let layoutsStr = this.settings.get_string('named-layouts');
         let layouts = {};
         try { layouts = JSON.parse(layoutsStr); } catch { return; }
+
         let keys = Object.keys(layouts);
         if (keys.length === 0) return;
         
         let idx = keys.indexOf(this.activeLayoutName);
         let nextIdx = (idx + 1) % keys.length;
+        
         this.storage.restoreNamedLayout(keys[nextIdx]);
     }
 
@@ -180,11 +206,12 @@ export default class TilingManager {
         dialogBox.add_child(label);
         dialogBox.add_child(entry);
         dialogBox.add_child(btnBox);
-
         monitorContainer.add_child(dialogBox);
         overlay.add_child(monitorContainer);
 
         Main.layoutManager.uiGroup.add_child(overlay);
+        this._activeOverlay = overlay;
+
         let pushedModal = Main.pushModal(overlay);
         entry.grab_key_focus();
 
@@ -208,6 +235,7 @@ export default class TilingManager {
                     Main.layoutManager.uiGroup.remove_child(overlay);
                 }
                 overlay.destroy();
+                this._activeOverlay = null;
 
                 if (runCallback && callback) {
                     callback(text);
@@ -276,9 +304,11 @@ export default class TilingManager {
                         if (customSections[win._omnipanel_zone].monitorIndex !== undefined) {
                             mIndex = customSections[win._omnipanel_zone].monitorIndex;
                         }
+
                         let rect = getSectionRect(mIndex, win._omnipanel_zone, customSections);
                         if (rect) {
-                            applyWindowTransform(win, mIndex, rect, false);
+                            this._log(`[Designer Sync] Repositioning window into [${win._omnipanel_zone}]`);
+                            applyWindowTransform(win, mIndex, rect, false, this._log.bind(this));
                         }
                     }
                 } catch {}
@@ -317,6 +347,7 @@ export default class TilingManager {
             }
 
             let savedData = null;
+
             if (this.activeLayoutName) {
                 let allLayouts = {};
                 try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
@@ -325,6 +356,7 @@ export default class TilingManager {
                 let signatures = this.getMonitorSignature();
                 let allLayouts = {};
                 try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
+
                 savedData = allLayouts[signatures.exact];
                 if (!savedData && this.settings.get_boolean('fuzzy-restore-monitors')) {
                     let possibleSignatures = Object.keys(allLayouts);
@@ -333,8 +365,9 @@ export default class TilingManager {
                 }
             }
 
+            // CRITICAL Fix: Pull the live current zones directly, ensuring newly drawn zones immediately capture windows
+            let liveZonesState = this.storage.getCustomSections();
             let windowsState = savedData ? (savedData.windows || savedData) : {};
-            let zonesState = savedData ? (savedData.zones || this.storage.getCustomSections()) : this.storage.getCustomSections();
 
             let layoutList = windowsState[wmClass] ? (Array.isArray(windowsState[wmClass]) ? windowsState[wmClass] : [windowsState[wmClass]]) : [];
             let layout = null;
@@ -351,13 +384,10 @@ export default class TilingManager {
             }
 
             let matchedZone = null;
-            let isExplicitOverride = false;
-
             if (this.settings.get_boolean('enable-smart-placement')) {
-                let fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(zonesState));
+                let fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState));
                 if (fuzzyData) {
                     matchedZone = fuzzyData.zone;
-                    isExplicitOverride = fuzzyData.isExplicit;
                 }
             }
 
@@ -366,35 +396,39 @@ export default class TilingManager {
             let isMax = false;
             let targetZoneName = null;
 
-            let hasExplicitSection = layout && layout.section && (zonesState[layout.section] || Object.values(Sections).includes(layout.section));
+            let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
 
-            if (isExplicitOverride && matchedZone) {
+            // CRITICAL Fix: Smart Placement (Live Zones) takes 100% priority over Auto-Saved memory fallbacks
+            if (matchedZone) {
                 targetZoneName = matchedZone;
             } else if (hasExplicitSection) {
                 targetZoneName = layout.section;
-            } else if (matchedZone) {
-                targetZoneName = matchedZone;
             }
 
             if (targetZoneName) {
                 this._log(`[${winId}] MATCH FOUND: Zone [${targetZoneName}]`);
-                targetMonitor = zonesState[targetZoneName] && zonesState[targetZoneName].monitorIndex !== undefined ? zonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
-                targetRect = getSectionRect(targetMonitor, targetZoneName, zonesState);
+                targetMonitor = liveZonesState[targetZoneName] && liveZonesState[targetZoneName].monitorIndex !== undefined ? liveZonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
+                targetRect = getSectionRect(targetMonitor, targetZoneName, liveZonesState);
                 isMax = (targetZoneName === 'maximized' || (hasExplicitSection && layout.section === 'maximized'));
 
                 if (targetRect) {
                     window._omnipanel_zone = targetZoneName;
                     window._omnipanel_monitor = targetMonitor;
                     
-                    applyWindowTransform(window, targetMonitor, targetRect, isMax);
+                    this._log(`[${winId}] Target zone resolved. Triggering applyWindowTransform on monitor ${targetMonitor}`);
+                    applyWindowTransform(window, targetMonitor, targetRect, isMax, this._log.bind(this));
                     
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                    let stackTid = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                        this._trackedTimers.delete(stackTid);
                         if (this.stackManager) {
                             this.stackManager.invalidateSignature(targetZoneName);
                             try { this.stackManager.updateOverlays(); } catch {}
                         }
                         return GLib.SOURCE_REMOVE;
                     });
+                    this._trackedTimers.add(stackTid);
+                } else {
+                     this._log(`[${winId}] ERROR: getSectionRect returned null for [${targetZoneName}]`);
                 }
             } else {
                 this._log(`[${winId}] NO MATCH: Ignoring window. Letting GNOME handle natively.`);
@@ -413,14 +447,18 @@ export default class TilingManager {
 
         try {
             window._omnipanel_is_dead = false;
+
             if (window._omnipanel_unmanaged_id === undefined) {
-                window._omnipanel_unmanaged_id = window.connect('unmanaged', () => {
+                let sigId = window.connect('unmanaged', () => {
                     window._omnipanel_is_dead = true;
                     if (window._omnipanel_creation_timer) {
                         GLib.source_remove(window._omnipanel_creation_timer);
+                        this._trackedTimers.delete(window._omnipanel_creation_timer);
                         window._omnipanel_creation_timer = 0;
                     }
                 });
+                window._omnipanel_unmanaged_id = sigId;
+                this._trackedSignals.push({ obj: window, id: sigId });
             }
 
             let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
@@ -442,11 +480,13 @@ export default class TilingManager {
                 this._log(`[${winId}] Ignoring non-normal/dialog window type (${wType}) early.`);
                 return;
             }
+
         } catch {}
 
         this._log(`[${winId}] >> Starting passive 750ms DBus yield timer...`);
 
-        window._omnipanel_creation_timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 750, () => {
+        let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 750, () => {
+            this._trackedTimers.delete(window._omnipanel_creation_timer);
             window._omnipanel_creation_timer = 0;
             
             if (window._omnipanel_is_dead || !isWindowValid(window)) {
@@ -457,6 +497,7 @@ export default class TilingManager {
             try {
                 let isSkipTaskbarNow = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
                 let isSkipPagerNow = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
+
                 if (isSkipTaskbarNow || isSkipPagerNow) {
                     this._log(`[${winId}] Window became skip_taskbar during yield. Aborting.`);
                     return GLib.SOURCE_REMOVE;
@@ -464,6 +505,7 @@ export default class TilingManager {
 
                 this._log(`[${winId}] Fetching get_frame_rect...`);
                 let rect = window.get_frame_rect();
+
                 if (rect.width <= 0) {
                     this._log(`[${winId}] Window has zero width. Aborting.`);
                     return GLib.SOURCE_REMOVE;
@@ -502,9 +544,12 @@ export default class TilingManager {
 
             return GLib.SOURCE_REMOVE;
         });
-        
+        window._omnipanel_creation_timer = timerId;
+        this._trackedTimers.add(timerId);
+
         try {
-            this._trackedWindows.set(window, window.connect('size-changed', () => {}));
+            let sizeSigId = window.connect('size-changed', () => {});
+            this._trackedSignals.push({ obj: window, id: sizeSigId });
         } catch {}
     }
 }

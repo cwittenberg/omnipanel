@@ -1,3 +1,4 @@
+// stack_manager.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -118,7 +119,7 @@ export class StackManager {
                 });
 
                 if (aliveWin && isWindowValid(aliveWin)) {
-                    applyWindowTransform(aliveWin, actualMonitor, finalRect, false);
+                    applyWindowTransform(aliveWin, actualMonitor, finalRect, false, this.manager._log.bind(this.manager));
                 }
                 return GLib.SOURCE_REMOVE;
             });
@@ -192,20 +193,26 @@ export class StackManager {
             topWindow: null, 
             monitor: actualMonitor, 
             lastSignature: '', 
-            activeMode: this.settings.get_string('default-stack-mode') || 'stack',
+            lastActualMode: 'stack', 
+            lastFitsFlags: { 'stack': true, 'columns': true, 'rows': true, 'grid': true },
+            isForcedStack: false,
             currentIndex: 0
         };
 
         data.syncModeStyles = () => {
-            let cs = this.manager.storage.getCustomSections();
-            data.activeMode = (cs[zone] && cs[zone].stackMode) ? cs[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
+            let actualMode = data.lastActualMode || 'stack';
+            let fitsFlags = data.lastFitsFlags || { 'stack': true, 'columns': true, 'rows': true, 'grid': true };
             
-            let evalMode = data.activeMode;
-            if (evalMode === 'horizontal') evalMode = 'rows';
-            if (evalMode === 'vertical') evalMode = 'columns';
-            
-            let applyStyle = (btn, mode) => {
-                if (mode === evalMode) {
+            let applyStyle = (btn, modeName) => {
+                let fits = fitsFlags[modeName];
+                btn.reactive = fits;
+
+                if (!fits) {
+                    btn.set_style(btnStyle + 'color: rgba(255,255,255,0.2);');
+                    return;
+                }
+
+                if (modeName === actualMode) {
                     btn.set_style(btnStyle + btnActiveStyle);
                 } else {
                     btn.set_style(btn.hover ? btnStyle + btnHoverStyle : btnStyle);
@@ -243,7 +250,7 @@ export class StackManager {
             let isHovered = widget.hover;
             
             if (isHovered) {
-                if (data.activeMode === 'stack') {
+                if (data.lastActualMode === 'stack') {
                     prevBtn.show();
                     nextBtn.show();
                 } else {
@@ -278,9 +285,8 @@ export class StackManager {
                 toggleMenuBtn.hide();
                 modeBox.hide();
                 
-                let cs = this.manager.storage.getCustomSections();
-                let savedMode = (cs[zone] && cs[zone].stackMode) ? cs[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
-                this.applyStackLayout(zone, data.windows, data.monitor, savedMode);
+                let actualMode = data.lastActualMode || 'stack';
+                this.applyStackLayout(zone, data.windows, data.monitor, actualMode);
                 
                 widget.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
                 
@@ -321,20 +327,26 @@ export class StackManager {
 
         let bindModePreviewAndClick = (btn, modeName) => {
             btn.connect('notify::hover', () => {
+                if (!btn.reactive) return;
                 if (btn.hover) {
                     this.applyStackLayout(zone, data.windows, data.monitor, modeName);
+                } else {
+                    this.applyStackLayout(zone, data.windows, data.monitor, data.lastActualMode || 'stack');
                 }
                 data.syncModeStyles();
             });
             btn.connect('clicked', () => {
+                if (!btn.reactive) return;
                 let cs = this.manager.storage.getCustomSections();
                 if (!cs[zone]) cs[zone] = {}; 
                 cs[zone].stackMode = modeName;
                 this.manager.storage.setCustomSectionsAndSave(cs);
                 
+                data.lastActualMode = modeName;
+                data.isForcedStack = false; 
                 data.syncModeStyles();
                 
-                if (data.activeMode === 'stack') {
+                if (data.lastActualMode === 'stack') {
                     prevBtn.show();
                     nextBtn.show();
                 } else {
@@ -343,6 +355,12 @@ export class StackManager {
                 }
                 
                 btn.set_style(btnStyle + 'background-color: #2ecc71; color: #111;');
+
+                // Clear the signature shield natively so users can force-refresh a layout by clicking
+                for (let w of data.windows) {
+                    w._omnipanel_last_req = '';
+                }
+
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
                     if (btn) data.syncModeStyles();
                     return GLib.SOURCE_REMOVE;
@@ -424,7 +442,7 @@ export class StackManager {
                 if (stacks[key] && stacks[key].windows.length === 1) {
                     let topWin = stacks[key].windows[0];
                     let zRect = getSectionRect(stacks[key].monitor, stacks[key].zone, customSections);
-                    if (zRect) applyWindowTransform(topWin, stacks[key].monitor, zRect, false);
+                    if (zRect) applyWindowTransform(topWin, stacks[key].monitor, zRect, false, this.manager._log.bind(this.manager));
                 }
 
                 Main.layoutManager.uiGroup.remove_child(overlay.widget);
@@ -438,6 +456,7 @@ export class StackManager {
             let zone = stackData.zone;
             let actualMonitor = stackData.monitor;
             let stackWindows = stackData.windows;
+            let count = stackWindows.length;
             
             let topWindow = [...stackWindows].sort((a, b) => {
                 return windows.indexOf(a) - windows.indexOf(b);
@@ -449,21 +468,61 @@ export class StackManager {
 
             let overlay = this._overlays.get(key);
             let zRect = getSectionRect(actualMonitor, zone, customSections);
-            let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
+            
+            // DYNAMIC CAPACITY CHECK: Ensure subdivided cells never force GTK apps below Wayland minimums
+            let minW = 450;
+            let minH = 400;
+            let fitsGrid = true, fitsCols = true, fitsRows = true;
+
+            if (zRect && count > 0) {
+                let cols = Math.ceil(Math.sqrt(count));
+                let rows = Math.ceil(count / cols);
+                fitsGrid = (zRect.width / cols >= minW) && (zRect.height / rows >= minH);
+                fitsCols = (zRect.width / count >= minW);
+                fitsRows = (zRect.height / count >= minH);
+            }
+
+            overlay.lastFitsFlags = {
+                'stack': true,
+                'grid': fitsGrid,
+                'columns': fitsCols,
+                'rows': fitsRows,
+                'vertical': fitsCols,
+                'horizontal': fitsRows
+            };
+
             let pMode = (customSections[zone] && customSections[zone].stackMode) ? customSections[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
             
+            let evalMode = pMode;
+            if (evalMode === 'horizontal') evalMode = 'rows';
+            if (evalMode === 'vertical') evalMode = 'columns';
+
+            let actualMode = evalMode;
+            if (evalMode !== 'stack' && !overlay.lastFitsFlags[evalMode]) {
+                actualMode = 'stack';
+                if (!overlay.isForcedStack) {
+                    overlay.isForcedStack = true;
+                    Main.notify('OmniPanel', `[${zone}] is full, switching layout mode to on-top`);
+                }
+            } else {
+                overlay.isForcedStack = false;
+            }
+
+            overlay.lastActualMode = actualMode;
+            
+            let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
             let currentSignature = stackWindows.map(w => {
                 try { return w.get_id(); } catch { return 0; }
-            }).join(',') + '|' + zRectStr + '|' + pMode;
+            }).join(',') + '|' + zRectStr + '|' + actualMode;
 
             if (overlay.lastSignature !== currentSignature) {
                 overlay.lastSignature = currentSignature;
                 overlay.windows = stackWindows;
                 overlay.topWindow = topWindow;
                 overlay.monitor = actualMonitor;
-                overlay.countLabel.set_text(stackWindows.length.toString());
+                overlay.countLabel.set_text(count.toString());
                 
-                this.applyStackLayout(zone, stackWindows, actualMonitor, pMode);
+                this.applyStackLayout(zone, stackWindows, actualMonitor, actualMode);
             } else {
                 overlay.topWindow = topWindow;
             }

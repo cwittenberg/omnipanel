@@ -1,8 +1,10 @@
+// extension.js
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import PanelMover from './panel_mover.js';
 import TilingManager from './tiling_manager.js';
 import { LayoutIndicator } from './layout_indicator.js';
 import { ShowDesktopButton } from './show_desktop_button.js';
+import { clearPendingTransforms } from './layout_definitions.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export default class OmniPanelExtension extends Extension {
@@ -20,14 +22,15 @@ export default class OmniPanelExtension extends Extension {
         this._panelMover = new PanelMover(this._settings, this);
         this._tilingManager = new TilingManager(this._settings);
         
-        this._indicator = new LayoutIndicator(this._settings, this._tilingManager);
+        this._indicator = new LayoutIndicator(this._settings, this._tilingManager, this);
         this._tilingManager._indicator = this._indicator;
 
         this._showDesktopBtn = new ShowDesktopButton(this._settings);
-        // Add at index 2 to place it immediately next to the LayoutIndicator (which uses index 1)
+
         Main.panel.addToStatusArea('omnipanel-show-desktop', this._showDesktopBtn, 2, 'right');
 
         this._settingsChangedId = this._settings.connect('changed', this._onSettingsChanged.bind(this));
+
         this._applyModules();
     }
 
@@ -56,6 +59,8 @@ export default class OmniPanelExtension extends Extension {
             this._showDesktopBtn.destroy();
             this._showDesktopBtn = null;
         }
+        
+        clearPendingTransforms();
 
         this._settings = null;
     }
@@ -82,6 +87,7 @@ export default class OmniPanelExtension extends Extension {
         if (this._settings.get_boolean('movement-enabled')) {
             this._panelMover.enable();
         }
+
         if (this._settings.get_boolean('enable-tiling')) {
             this._tilingManager.enable();
         }

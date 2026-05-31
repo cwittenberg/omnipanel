@@ -41,6 +41,13 @@ export const ZoneDesignerRoot = GObject.registerClass(
             });
             this.add_child(this._selection);
 
+            this._warningLabel = new St.Label({
+                text: 'Minimum size enforced: 200x150',
+                style: 'color: #ff7979; font-weight: bold; font-size: 14px; background-color: rgba(0,0,0,0.85); padding: 6px 12px; border-radius: 6px; border: 1px solid #ff7979; box-shadow: 0 2px 4px rgba(0,0,0,0.5);',
+                visible: false
+            });
+            this.add_child(this._warningLabel);
+
             this._promptBox = new St.BoxLayout({ 
                 vertical: false, 
                 visible: false, 
@@ -141,16 +148,26 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 if (!this._dragAction || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
                 let [x, y] = event.get_coords();
                 let m = this._monitors[this._currentDrawMonitorIndex];
+                let showWarning = false;
                 
                 if (this._dragAction === 'draw') {
-                    x = Math.max(m.x, Math.min(x, m.x + m.width));
-                    y = Math.max(m.y + 70, Math.min(y, m.y + m.height)); 
+                    let rawW = Math.abs(x - this._startX);
+                    let rawH = Math.abs(y - this._startY);
                     
-                    let rectX = Math.min(this._startX, x);
-                    let rectY = Math.min(this._startY, y);
-                    let rectW = Math.abs(x - this._startX);
-                    let rectH = Math.abs(y - this._startY);
+                    if (rawW < 200 || rawH < 150) {
+                        showWarning = true;
+                    }
                     
+                    // Relaxed design constraint to match stack subdivisions
+                    let rectW = Math.max(200, rawW);
+                    let rectH = Math.max(150, rawH);
+                    
+                    let rectX = x < this._startX ? this._startX - rectW : this._startX;
+                    let rectY = y < this._startY ? this._startY - rectH : this._startY;
+                    
+                    rectX = Math.max(m.x, Math.min(rectX, m.x + m.width - rectW));
+                    rectY = Math.max(m.y + 70, Math.min(rectY, m.y + m.height - rectH));
+
                     this._selection.set_position(rectX, rectY);
                     this._selection.set_size(rectW, rectH);
                 } 
@@ -175,14 +192,28 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
                         let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
                         
-                        let newW = Math.max(50, x - bxX);
-                        let newH = Math.max(50, y - bxY);
+                        let rawW = x - bxX;
+                        let rawH = y - bxY;
+                        
+                        if (rawW < 200 || rawH < 150) {
+                            showWarning = true;
+                        }
+                        
+                        let newW = Math.max(200, rawW);
+                        let newH = Math.max(150, rawH);
                         
                         newW = Math.min(newW, m.x + m.width - bxX);
                         newH = Math.min(newH, m.y + m.height - bxY);
                         
                         zoneBox.set_size(newW, newH);
                     }
+                }
+
+                if (showWarning) {
+                    this._warningLabel.set_position(x + 15, y + 15);
+                    if (!this._warningLabel.visible) this._warningLabel.show();
+                } else {
+                    if (this._warningLabel.visible) this._warningLabel.hide();
                 }
                 
                 return Clutter.EVENT_STOP;
@@ -191,34 +222,61 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.connect('button-release-event', () => {
                 if (!this._dragAction) return Clutter.EVENT_PROPAGATE;
                 
+                if (this._warningLabel && this._warningLabel.visible) {
+                    this._warningLabel.hide();
+                }
+                
                 if (this._dragAction === 'draw') {
                     let sW = this._selection.width !== undefined ? this._selection.width : this._selection.get_width();
                     let sH = this._selection.height !== undefined ? this._selection.height : this._selection.get_height();
                     let sX = this._selection.x !== undefined ? this._selection.x : this._selection.get_x();
                     let sY = this._selection.y !== undefined ? this._selection.y : this._selection.get_y();
 
-                    if (sW < 30 || sH < 30) {
-                        this._selection.hide(); 
-                    } else {
-                        this._lastRect = {
-                            x: sX,
-                            y: sY,
-                            width: sW,
-                            height: sH
-                        };
+                    let m = this._monitors[this._currentDrawMonitorIndex];
+                    let panelH = Main.panel.height;
+                    
+                    sW = Math.max(200, sW);
+                    sH = Math.max(150, sH);
 
-                        let m = this._monitors[this._currentDrawMonitorIndex];
-                        let px = sX;
-                        let py = sY + sH + 10;
-                        
-                        if (py + 60 > m.y + m.height) py = sY - 60; 
-                        if (px + 280 > m.x + m.width) px = m.x + m.width - 280; 
+                    if (sX + sW > m.x + m.width) sX = m.x + m.width - sW;
+                    if (sY + sH > m.y + m.height) sY = m.y + m.height - sH;
 
-                        this._entry.set_text('');
-                        this._promptBox.set_position(px, py);
-                        this._promptBox.show();
-                        this._entry.grab_key_focus();
+                    // EDGE SNAPPING (Maximally leverage the zone size)
+                    if (Math.abs(sX - m.x) < 30) {
+                        sW += (sX - m.x);
+                        sX = m.x;
                     }
+                    if (Math.abs(sY - (m.y + panelH)) < 30) {
+                        sH += (sY - (m.y + panelH));
+                        sY = m.y + panelH;
+                    }
+                    if (Math.abs((sX + sW) - (m.x + m.width)) < 30) {
+                        sW = (m.x + m.width) - sX;
+                    }
+                    if (Math.abs((sY + sH) - (m.y + m.height)) < 30) {
+                        sH = (m.y + m.height) - sY;
+                    }
+                    
+                    this._selection.set_position(sX, sY);
+                    this._selection.set_size(sW, sH);
+
+                    this._lastRect = {
+                        x: sX,
+                        y: sY,
+                        width: sW,
+                        height: sH
+                    };
+
+                    let px = sX;
+                    let py = sY + sH + 10;
+                    
+                    if (py + 60 > m.y + m.height) py = sY - 60; 
+                    if (px + 280 > m.x + m.width) px = m.x + m.width - 280; 
+
+                    this._entry.set_text('');
+                    this._promptBox.set_position(px, py);
+                    this._promptBox.show();
+                    this._entry.grab_key_focus();
                 } 
                 else if ((this._dragAction === 'move' || this._dragAction === 'resize') && this._activeZoneName) {
                     let zoneBox = this._zoneWidgets[this._activeZoneName];
@@ -242,12 +300,32 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             }
                         }
 
+                        let m = this._monitors[targetMonitorIndex];
+                        let panelH = Main.panel.height;
+
+                        // EDGE SNAPPING (Maximally leverage the zone size on move/resize)
+                        if (Math.abs(bxX - m.x) < 30) {
+                            bxW += (bxX - m.x);
+                            bxX = m.x;
+                        }
+                        if (Math.abs(bxY - (m.y + panelH)) < 30) {
+                            bxH += (bxY - (m.y + panelH));
+                            bxY = m.y + panelH;
+                        }
+                        if (Math.abs((bxX + bxW) - (m.x + m.width)) < 30) {
+                            bxW = (m.x + m.width) - bxX;
+                        }
+                        if (Math.abs((bxY + bxH) - (m.y + m.height)) < 30) {
+                            bxH = (m.y + m.height) - bxY;
+                        }
+
                         this._manager.storage.saveCustomZoneRect(
                             this._activeZoneName,
                             { x: bxX, y: bxY, width: bxW, height: bxH },
                             targetMonitorIndex
                         );
                         this._zonesModified = true;
+                        this._refreshZones(); 
                     }
                 }
 
@@ -303,8 +381,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
                     let rx = monitor.x + Math.round(monitor.width * crx);
                     let ry = monitor.y + panelHeight + Math.round(workAreaHeight * cry);
-                    let rw = Math.round(monitor.width * crw);
-                    let rh = Math.round(workAreaHeight * crh);
+                    
+                    let rw = Math.max(200, Math.round(monitor.width * crw));
+                    let rh = Math.max(150, Math.round(workAreaHeight * crh));
                     
                     let color = cs.color || '#2ecc71';
                     let borderCol = hexToRgba(color, 1.0);
@@ -354,7 +433,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         this._refreshZones();
                     });
 
-                    // FIX: Revert to a non-button Widget to prevent St.Button from swallowing the mouse-release event
                     let resizeHandle = new St.BoxLayout({
                         reactive: true,
                         style: `background-color: ${color}; border: 2px solid white; border-radius: 12px 0 8px 0; padding: 6px;`,

@@ -1,5 +1,4 @@
-// omnipanel/layout_definitions.js
-
+// layout_definitions.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
@@ -33,7 +32,8 @@ export function isWindowValid(window) {
 }
 
 export function hexToRgba(hex, alpha) {
-    let r = 46, g = 204, b = 113; 
+    let r = 46, g = 204, b = 113;
+    
     if (hex && hex.startsWith('#')) {
         hex = hex.replace('#', '');
         if (hex.length === 3) {
@@ -198,7 +198,6 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
 
-        // HARD SANITIZATION: Instantly heal NaN or negative numbers permanently
         let crx = Number(cs.rx);
         let cry = Number(cs.ry);
         let crw = Number(cs.rw);
@@ -206,14 +205,14 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
 
         crx = isNaN(crx) ? 0 : Math.max(0, Math.min(1, crx));
         cry = isNaN(cry) ? 0 : Math.max(0, Math.min(1, cry));
-        crw = isNaN(crw) ? 0.2 : Math.max(0.05, Math.min(1, crw)); // Force min 5% width
-        crh = isNaN(crh) ? 0.2 : Math.max(0.05, Math.min(1, crh)); // Force min 5% height
+        crw = isNaN(crw) ? 0.2 : Math.max(0.05, Math.min(1, crw)); 
+        crh = isNaN(crh) ? 0.2 : Math.max(0.05, Math.min(1, crh)); 
 
         rect.x = monitor.x + Math.round(monitor.width * crx);
         rect.y = workAreaY + Math.round(workAreaHeight * cry);
-        rect.width = Math.max(50, Math.round(monitor.width * crw));
-        rect.height = Math.max(50, Math.round(workAreaHeight * crh));
-
+        
+        rect.width = Math.max(150, Math.round(monitor.width * crw));
+        rect.height = Math.max(100, Math.round(workAreaHeight * crh));
     } else {
         let safeMonitorIndex = Math.max(0, Math.min(monitorIndex, mCount - 1));
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
@@ -314,16 +313,15 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
 export function identifySection(windowRect, monitorIndex, customSections = {}) {
     let bestMatch = null;
     let minDifference = Infinity;
-
     let allSections = [...Object.values(Sections), ...Object.keys(customSections)];
 
     for (const section of allSections) {
         let sectionRect = getSectionRect(monitorIndex, section, customSections);
         if (!sectionRect) continue;
 
-        let diff = Math.abs(windowRect.x - sectionRect.x) + 
-                   Math.abs(windowRect.y - sectionRect.y) + 
-                   Math.abs(windowRect.width - sectionRect.width) + 
+        let diff = Math.abs(windowRect.x - sectionRect.x) +
+                   Math.abs(windowRect.y - sectionRect.y) +
+                   Math.abs(windowRect.width - sectionRect.width) +
                    Math.abs(windowRect.height - sectionRect.height);
 
         if (diff < 400 && diff < minDifference) {
@@ -331,98 +329,118 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
             bestMatch = section;
         }
     }
-
     return bestMatch;
 }
 
-const _pendingTransforms = new Map();
+const _activeSources = new Set();
 
-export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, zoneBounds = null) {
+export function clearPendingTransforms() {
+    for (let id of _activeSources) {
+        GLib.source_remove(id);
+    }
+    _activeSources.clear();
+}
+
+export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null) {
     if (!isWindowValid(window)) return;
     
-    // Absolute barrier against NaN to prevent Wayland disconnects
+    let winTitle = 'unknown';
+    try { winTitle = window.get_title() || 'unknown'; } catch {}
+
+    // Safely clear overlapping layout requests for this window
+    if (window._omnipanel_transform_timeout) {
+        GLib.source_remove(window._omnipanel_transform_timeout);
+        _activeSources.delete(window._omnipanel_transform_timeout);
+        window._omnipanel_transform_timeout = 0;
+    }
+
     let targetX = Math.round(Number(targetRect.x));
     let targetY = Math.round(Number(targetRect.y));
     let targetW = Math.round(Number(targetRect.width));
     let targetH = Math.round(Number(targetRect.height));
 
-    // Hard reject poisoned measurements
-    if (isNaN(targetX) || isNaN(targetY) || isNaN(targetW) || isNaN(targetH) || targetW < 50 || targetH < 50) {
-        return; 
-    }
+    if (isNaN(targetX) || isNaN(targetY) || isNaN(targetW) || isNaN(targetH)) return;
 
-    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-        try {
-            if (!isWindowValid(window)) return GLib.SOURCE_REMOVE;
+    let dynamicMinW = 50;
+    let dynamicMinH = 50;
+
+    try {
+        if (typeof window.get_min_size === 'function') {
+            let minSize = window.get_min_size();
+            if (Array.isArray(minSize) && minSize.length >= 2) {
+                if (minSize[0] > 0) dynamicMinW = minSize[0];
+                if (minSize[1] > 0) dynamicMinH = minSize[1];
+            }
+        }
+    } catch {} // Removed unused e/err variable
+
+    targetW = Math.max(dynamicMinW, targetW);
+    targetH = Math.max(dynamicMinH, targetH);
+
+    let executeResize = () => {
+        if (!isWindowValid(window)) return;
+
+        let frame = window.get_frame_rect();
+        let currentMonitor = window.get_monitor();
+        let isAlreadyMax = window.get_maximized() === Meta.MaximizeFlags.BOTH || window.get_maximized() === 3 || window.get_maximized() === true;
+        
+        if (isMaximized) {
+            // Delta bypass stops Wayland flooding
+            if (isAlreadyMax && currentMonitor === targetMonitorIndex) return; 
+
+            if (logger) logger(`[applyWindowTransform] Maximizing [${winTitle}] on Monitor ${targetMonitorIndex}`);
             
-            let winId = 0;
-            try { winId = window.get_id(); } catch {}
-
-            if (winId && _pendingTransforms.has(winId)) {
-                GLib.source_remove(_pendingTransforms.get(winId));
-                _pendingTransforms.delete(winId);
+            // Explicitly force the window to the correct monitor BEFORE maximizing
+            if (currentMonitor !== targetMonitorIndex) {
+                window.move_to_monitor(targetMonitorIndex);
+            }
+            if (!isAlreadyMax) {
+                window.maximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
+            }
+        } else {
+            // Delta Bypass: Protects Wayland Ping Serial from being flooded if window is already perfectly positioned
+            if (Math.abs(frame.x - targetX) <= 5 && Math.abs(frame.y - targetY) <= 5 && 
+                Math.abs(frame.width - targetW) <= 5 && Math.abs(frame.height - targetH) <= 5 &&
+                !isAlreadyMax && currentMonitor === targetMonitorIndex) {
+                return; 
             }
 
-            let apply = () => {
-                if (isMaximized) {
-                    if (!window.get_maximized()) {
-                        window.maximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
-                    }
-                } else {
-                    if (window.get_maximized()) {
-                        window.unmaximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
-                    }
-                    // IMPORTANT: Setting `true` flag below denotes a "user operation"
-                    // This forces Wayland constraints to be respected (like a client's hard minimum width)
-                    // If set to false, GTK4 clients (like Nautilus) crash immediately when resized too small!
-                    window.move_resize_frame(true, targetX, targetY, targetW, targetH);
-                }
-            };
-
-            apply();
-
-            let tId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-                try {
+            if (isAlreadyMax) {
+                window.unmaximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
+                // Safe Wayland Unmaximize: Wait 50ms for GTK client state resolution before applying geometry
+                let t = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                    _activeSources.delete(t);
                     if (isWindowValid(window)) {
-                        apply();
-                        
-                        if (!isMaximized && zoneBounds) {
-                            let cRect = window.get_frame_rect();
-                            let fixY = cRect.y;
-                            let fixX = cRect.x;
-                            let changed = false;
-
-                            if (cRect.y + cRect.height > zoneBounds.y + zoneBounds.height) {
-                                fixY = (zoneBounds.y + zoneBounds.height) - cRect.height;
-                                changed = true;
-                            }
-                            if (cRect.x + cRect.width > zoneBounds.x + zoneBounds.width) {
-                                fixX = (zoneBounds.x + zoneBounds.width) - cRect.width;
-                                changed = true;
-                            }
-                            
-                            if (fixY < zoneBounds.y) {
-                                fixY = zoneBounds.y;
-                                changed = true;
-                            }
-                            if (fixX < zoneBounds.x) {
-                                fixX = zoneBounds.x;
-                                changed = true;
-                            }
-
-                            if (changed) {
-                                window.move_resize_frame(true, fixX, fixY, cRect.width, cRect.height);
-                            }
+                        if (window.get_monitor() !== targetMonitorIndex) {
+                            window.move_to_monitor(targetMonitorIndex);
                         }
+                        window.move_resize_frame(true, targetX, targetY, targetW, targetH);
                     }
-                } catch {}
-                if (winId) _pendingTransforms.delete(winId);
-                return GLib.SOURCE_REMOVE;
-            });
-            
-            if (winId) _pendingTransforms.set(winId, tId);
+                    return GLib.SOURCE_REMOVE;
+                });
+                _activeSources.add(t);
+            } else {
+                if (logger) logger(`[applyWindowTransform] Executing move_resize_frame() on [${winTitle}] -> [X:${targetX} Y:${targetY} W:${targetW} H:${targetH}]`);
+                // Explicit monitor attachment for floating snaps
+                if (currentMonitor !== targetMonitorIndex) {
+                    window.move_to_monitor(targetMonitorIndex);
+                }
+                window.move_resize_frame(true, targetX, targetY, targetW, targetH);
+            }
+        }
+    };
 
-        } catch { }
+    // First execution ensures snappy layout responsiveness
+    executeResize();
+
+    // Second execution guarantees the app spreads to the FULL ZONE EXTENT in case it was slow to initialize
+    let tid = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+        window._omnipanel_transform_timeout = 0;
+        _activeSources.delete(tid);
+        executeResize();
         return GLib.SOURCE_REMOVE;
     });
+    
+    window._omnipanel_transform_timeout = tid;
+    _activeSources.add(tid);
 }

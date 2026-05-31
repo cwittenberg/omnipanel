@@ -1,3 +1,4 @@
+// layout_indicator.js
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
@@ -7,10 +8,11 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 export const LayoutIndicator = GObject.registerClass(
     class LayoutIndicator extends PanelMenu.Button {
-        _init(settings, tilingManager) {
+        _init(settings, tilingManager, extensionObj) {
             super._init(0.0, 'OmniPanel Command Center', false);
             this.settings = settings;
             this._tilingManager = tilingManager;
+            this._extensionObj = extensionObj;
 
             let icon = new St.Icon({
                 icon_name: 'view-grid-symbolic',
@@ -21,6 +23,7 @@ export const LayoutIndicator = GObject.registerClass(
             this.menu.connect('open-state-changed', (menu, open) => {
                 if (open) this._rebuildMenu();
             });
+
             this._rebuildMenu();
             
             Main.panel.addToStatusArea('omnipanel-layouts', this, 1, 'right');
@@ -41,11 +44,10 @@ export const LayoutIndicator = GObject.registerClass(
             this.menu.addMenuItem(panelToggle);
 
             let isTilingEnabled = this.settings.get_boolean('enable-tiling');
-
             let tilingToggle = new PopupMenu.PopupSwitchMenuItem('Window Layouts', isTilingEnabled);
             tilingToggle.connect('toggled', (_, state) => {
                 this.settings.set_boolean('enable-tiling', state);
-                this._rebuildMenu(); // Instantly show/hide the layout items below
+                this._rebuildMenu(); 
             });
             this.menu.addMenuItem(tilingToggle);
 
@@ -68,7 +70,6 @@ export const LayoutIndicator = GObject.registerClass(
                 
                 let keys = Object.keys(layouts);
 
-                // FIX: Auto-select if there is exactly 1 layout available and none is currently active
                 if (keys.length === 1 && (!this._tilingManager.activeLayoutName || !layouts[this._tilingManager.activeLayoutName])) {
                     this._tilingManager.activeLayoutName = keys[0];
                     if (!this.settings.get_string('default-layout')) {
@@ -78,16 +79,18 @@ export const LayoutIndicator = GObject.registerClass(
 
                 if (keys.length > 0) {
                     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
                     for (let name of keys) {
                         let isActive = (this._tilingManager.activeLayoutName === name);
                         let hotkey = layouts[name].hotkeyText ? `(${layouts[name].hotkeyText})` : '';
+
                         let escapedName = this._escapeMarkup(name);
                         let escapedHotkey = this._escapeMarkup(hotkey);
 
                         let item = new PopupMenu.PopupMenuItem('');
                         
                         if (isActive) {
-                            item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71">✔</span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
+                            item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71"> </span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
                         } else {
                             item.label.get_clutter_text().set_markup(`   ${escapedName} <span size="small" color="gray">${escapedHotkey}</span>`);
                         }
@@ -102,17 +105,20 @@ export const LayoutIndicator = GObject.registerClass(
             }
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
             let prefsItem = new PopupMenu.PopupMenuItem('OmniPanel Settings');
             prefsItem.connect('activate', () => {
-                try {
-                    let app = Gio.AppInfo.create_from_commandline(
-                        'gnome-extensions prefs omnipanel@christian', 
-                        'OmniPanel Prefs', 
-                        Gio.AppInfoCreateFlags.NONE
-                    );
-                    app.launch([], null);
-                } catch { }
+                if (this._extensionObj && typeof this._extensionObj.openPreferences === 'function') {
+                    this._extensionObj.openPreferences();
+                } else {
+                    try {
+                        let app = Gio.AppInfo.create_from_commandline(
+                            'gnome-extensions prefs omnipanel@christian', 
+                            'OmniPanel Prefs', 
+                            Gio.AppInfoCreateFlags.NONE
+                        );
+                        app.launch([], null);
+                    } catch { }
+                }
             });
             this.menu.addMenuItem(prefsItem);
         }
