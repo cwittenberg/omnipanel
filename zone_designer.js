@@ -25,6 +25,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this._isClosed = false;
             this._pushedModal = false;
             this._captureId = 0;
+            this._cycleBtns = [];
             
             this.set_position(0, 0);
             this.set_size(global.stage.width, global.stage.height);
@@ -84,10 +85,66 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 toolbar.set_size(m.width, 70);
                 
                 let titleLabel = new St.Label({
-                    text: `Zone Designer Mode  |  Monitor ${i + 1}  |  Active Layout: ${manager.activeLayoutName || 'None'}  |  Draw, Move, or Resize zones`,
+                    text: `Zone Designer Mode  |  Monitor ${i + 1}`,
                     y_align: Clutter.ActorAlign.CENTER,
-                    style: 'font-weight: bold; font-size: 16px; color: white;'
+                    style: 'font-weight: bold; font-size: 16px; color: white; margin-right: 24px;'
                 });
+
+                let cycleBtn = new St.Button({
+                    label: `Layout: ${manager.activeLayoutName || 'None'} (Click to Cycle)`,
+                    style: 'background-color: #34495e; color: white; border-radius: 6px; padding: 6px 16px; font-weight: bold; margin-right: 16px;',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    reactive: true, track_hover: true, can_focus: true
+                });
+                cycleBtn.connect('clicked', () => {
+                    manager.cycleLayouts();
+                    this._refreshToolbars();
+                    this._refreshZones();
+                });
+                this._cycleBtns.push(cycleBtn);
+
+                let newLayoutBox = new St.BoxLayout({ vertical: false, style: 'margin-right: 24px;', y_align: Clutter.ActorAlign.CENTER });
+                let newLayoutEntry = new St.Entry({
+                    hint_text: 'New Layout Name...',
+                    style: 'min-width: 150px; padding: 6px; border-radius: 6px 0 0 6px; background-color: #333; color: white; border: 1px solid #555;',
+                    can_focus: true, reactive: true
+                });
+                newLayoutEntry.add_style_class_name('new-layout-entry');
+                let newLayoutBtn = new St.Button({
+                    label: 'Create',
+                    style: 'background-color: #2ecc71; color: #111; border-radius: 0 6px 6px 0; padding: 6px 16px; font-weight: bold;',
+                    reactive: true, track_hover: true, can_focus: true
+                });
+                
+                let handleCreateLayout = () => {
+                    let name = newLayoutEntry.get_text().trim();
+                    if (name) {
+                        let allLayouts = {};
+                        try { allLayouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}'); } catch { }
+                        
+                        if (!allLayouts[name]) {
+                            let usedSlots = Object.values(allLayouts).map(l => l.hotkeySlot).filter(s => s);
+                            let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
+                            
+                            // Explicitly provision a new blank layout owning exactly 0 zones
+                            allLayouts[name] = { windows: {}, zones: {}, color: '#2ecc71', hotkeySlot: freeSlot };
+                            manager.settings.set_string('named-layouts', JSON.stringify(allLayouts));
+                        }
+                        
+                        // Switch to the newly created blank layout. 
+                        // This wipes `custom-sections` clean and clears the screen.
+                        manager.storage.restoreNamedLayout(name);
+                        
+                        newLayoutEntry.set_text('');
+                        this._refreshToolbars();
+                        this._refreshZones(); 
+                    }
+                };
+                newLayoutBtn.connect('clicked', handleCreateLayout);
+                newLayoutEntry.clutter_text.connect('activate', handleCreateLayout);
+
+                newLayoutBox.add_child(newLayoutEntry);
+                newLayoutBox.add_child(newLayoutBtn);
                 
                 let spacer = new St.Widget({ x_expand: true, y_expand: true });
                 
@@ -104,6 +161,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 quitBtn.connect('clicked', () => this.close());
                 
                 toolbar.add_child(titleLabel);
+                toolbar.add_child(cycleBtn);
+                toolbar.add_child(newLayoutBox);
                 toolbar.add_child(spacer);
                 toolbar.add_child(quitBtn);
                 
@@ -119,15 +178,15 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     return Clutter.EVENT_PROPAGATE; 
                 }
                 
-                this._currentDrawMonitorIndex = this._monitors.findIndex(m => 
-                    x >= m.x && x < m.x + m.width && y >= m.y && y < m.y + m.height
+                this._currentDrawMonitorIndex = this._monitors.findIndex(mon => 
+                    x >= mon.x && x < mon.x + mon.width && y >= mon.y && y < mon.y + mon.height
                 );
                 
                 if (this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
                 
-                let m = this._monitors[this._currentDrawMonitorIndex];
+                let mon = this._monitors[this._currentDrawMonitorIndex];
                 
-                if (y <= m.y + 70) return Clutter.EVENT_PROPAGATE; 
+                if (y <= mon.y + 70) return Clutter.EVENT_PROPAGATE; 
 
                 if (this._promptBox.visible) {
                     this._hidePromptSafe();
@@ -230,7 +289,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let sX = this._selection.x !== undefined ? this._selection.x : this._selection.get_x();
                     let sY = this._selection.y !== undefined ? this._selection.y : this._selection.get_y();
 
-                    let m = this._monitors[this._currentDrawMonitorIndex];
                     let panelH = Main.panel.height;
                     
                     sW = Math.max(450, sW);
@@ -264,8 +322,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let px = sX;
                     let py = sY + sH + 10;
                     
-                    if (py + 60 > m.y + m.height) py = sY - 60; 
-                    if (px + 280 > m.x + m.width) px = m.x + m.width - 280; 
+                    let currMon = this._monitors[this._currentDrawMonitorIndex];
+                    if (py + 60 > currMon.y + currMon.height) py = sY - 60; 
+                    if (px + 280 > currMon.x + currMon.width) px = currMon.x + currMon.width - 280; 
 
                     this._entry.set_text('');
                     this._promptBox.set_position(px, py);
@@ -324,6 +383,13 @@ export const ZoneDesignerRoot = GObject.registerClass(
             });
 
             this._refreshZones();
+        }
+
+        _refreshToolbars() {
+            let name = this._manager.activeLayoutName || 'None';
+            for (let btn of this._cycleBtns) {
+                btn.set_label(`Layout: ${name} (Click to Cycle)`);
+            }
         }
 
         _hidePromptSafe() {
@@ -476,9 +542,14 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
                     if (this._promptBox && this._promptBox.visible) {
                         this._hidePromptSafe();
-                    } else {
-                        this.close();
+                        return Clutter.EVENT_STOP;
                     }
+                    let focus = global.stage.get_key_focus();
+                    if (focus && focus.has_style_class_name && focus.has_style_class_name('new-layout-entry')) {
+                        global.stage.set_key_focus(this);
+                        return Clutter.EVENT_STOP;
+                    }
+                    this.close();
                     return Clutter.EVENT_STOP;
                 }
                 return Clutter.EVENT_PROPAGATE;

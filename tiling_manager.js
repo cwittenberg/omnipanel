@@ -53,6 +53,33 @@ export default class TilingManager {
         this._enabled = true;
         this._log("Extension ENABLED. Registering listeners.");
 
+        this.settings.set_boolean('designer-active', false);
+        let dActiveId = this.settings.connect('changed::designer-active', () => {
+            let isActive = this.settings.get_boolean('designer-active');
+            if (isActive && !this.isDesignerActive) {
+                this.startZoneDesigner();
+            } else if (!isActive && this.isDesignerActive) {
+                this.stopZoneDesigner();
+            }
+        });
+        this._trackedSignals.push({ obj: this.settings, id: dActiveId });
+
+        // LAYOUT DELETION INTERCEPT: Destroys floating unmanaged zones immediately if the active layout is deleted
+        let layoutsChangedId = this.settings.connect('changed::named-layouts', () => {
+            let layouts = {};
+            try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch {}
+            if (this.activeLayoutName && !layouts[this.activeLayoutName]) {
+                this._log(`Active layout [${this.activeLayoutName}] was deleted. Purging unmanaged zones.`);
+                this.activeLayoutName = null;
+                this.settings.set_string('custom-sections', '{}');
+                this.stackManager.clearOverlays();
+                if (this.isDesignerActive) {
+                    this.settings.set_boolean('designer-active', false);
+                }
+            }
+        });
+        this._trackedSignals.push({ obj: this.settings, id: layoutsChangedId });
+
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => this.storage.onMonitorsChanged());
         this._windowCreatedId = global.display.connect('window-created', this._onWindowCreated.bind(this));
         
@@ -274,6 +301,8 @@ export default class TilingManager {
                     this.isDesignerActive = true;
                     this._designerRoot = new ZoneDesignerRoot(this);
                     this._designerRoot.open();
+                } else {
+                    this.settings.set_boolean('designer-active', false);
                 }
             });
         } else {
@@ -292,6 +321,7 @@ export default class TilingManager {
     onDesignerClosed(zonesModified) {
         this.isDesignerActive = false;
         this._designerRoot = null;
+        this.settings.set_boolean('designer-active', false);
 
         if (zonesModified) {
             let customSections = this.storage.getCustomSections();
@@ -365,7 +395,6 @@ export default class TilingManager {
                 }
             }
 
-            // CRITICAL Fix: Pull the live current zones directly, ensuring newly drawn zones immediately capture windows
             let liveZonesState = this.storage.getCustomSections();
             let windowsState = savedData ? (savedData.windows || savedData) : {};
 
@@ -398,7 +427,6 @@ export default class TilingManager {
 
             let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
 
-            // CRITICAL Fix: Smart Placement (Live Zones) takes 100% priority over Auto-Saved memory fallbacks
             if (matchedZone) {
                 targetZoneName = matchedZone;
             } else if (hasExplicitSection) {

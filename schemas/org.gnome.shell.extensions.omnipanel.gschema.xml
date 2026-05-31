@@ -50,6 +50,10 @@
       <default>false</default>
       <summary>Enable Window Snapping &amp; Layouts</summary>
     </key>
+    <key name="designer-active" type="b">
+      <default>false</default>
+      <summary>Toggle Zone Designer Mode</summary>
+    </key>
     <key name="auto-restore-layouts" type="b">
       <default>true</default>
       <summary>Remember Layouts per Monitor Setup</summary>

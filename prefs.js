@@ -305,6 +305,18 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
         rowTilingEnabled.add_suffix(switchTilingEnabled);
         groupCoreTiling.add(rowTilingEnabled);
 
+        const rowDesigner = new Adw.ActionRow({ 
+            title: 'Zone Designer Mode', 
+            subtitle: 'Draw and configure drop zones visually across your screens' 
+        });
+        const switchDesigner = new Gtk.Switch({ 
+            active: settings.get_boolean('designer-active'), 
+            valign: Gtk.Align.CENTER 
+        });
+        settings.bind('designer-active', switchDesigner, 'active', Gio.SettingsBindFlags.DEFAULT);
+        rowDesigner.add_suffix(switchDesigner);
+        groupCoreTiling.add(rowDesigner);
+
         const rowAutoRestore = new Adw.ActionRow({ 
             title: 'Auto-Restore Layouts', 
             subtitle: 'Remember window positions based on monitor setups' 
@@ -428,10 +440,8 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
                 let rawLayouts = {};
                 try { rawLayouts = JSON.parse(rawLayoutsStr) || {}; } catch {}
                 
-                // Ensure no empty or invalid layout names sneak into the list
                 let rawKeys = Object.keys(rawLayouts).filter(k => k && k.trim() !== '' && k !== 'null' && k !== 'undefined');
                 
-                // Auto-promote to a valid default if one isn't set, or clear if empty
                 if (rawKeys.length > 0) {
                     let currentDef = settings.get_string('default-layout');
                     if (!rawKeys.includes(currentDef)) {
@@ -456,7 +466,6 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
                     return;
                 }
 
-                // Strictly drop 'None' if valid layouts exist
                 let modelList = rawKeys.length > 0 ? rawKeys : ['None'];
                 rowDefaultLayout.model = Gtk.StringList.new(modelList);
                 
@@ -492,54 +501,7 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
                 groupLayouts.add(createNewRow);
                 this._layoutRows.push(createNewRow);
 
-                let currentZonesStr = settings.get_string('custom-sections');
-                let currentZones = {};
-                try { currentZones = JSON.parse(currentZonesStr) || {}; } catch {}
-                let currentKeys = Object.keys(currentZones).filter(k => k && k !== 'null' && k !== 'undefined');
-
-                let currentExpander = new Adw.ExpanderRow({ 
-                    title: 'Unassigned Drop Zones', 
-                    subtitle: `${currentKeys.length} active zones not tied to a layout` 
-                });
-                
-                if (currentKeys.length === 0) {
-                    let emptyRow = new Adw.ActionRow({ title: 'No floating zones active.' });
-                    currentExpander.add_row(emptyRow);
-                } else {
-                    for (let zName of currentKeys) {
-                        let zRow = new Adw.EntryRow({ title: 'Zone', text: zName });
-                        
-                        let handleZoneEdit = () => {
-                            let newName = zRow.get_text().trim();
-                            if (!newName || newName === zName) return;
-                            let fresh = JSON.parse(settings.get_string('custom-sections') || '{}');
-                            if (fresh[zName] !== undefined && !fresh[newName]) {
-                                fresh[newName] = fresh[zName];
-                                delete fresh[zName];
-                                settings.set_string('custom-sections', JSON.stringify(fresh));
-                            }
-                        };
-                        zRow.connect('apply', handleZoneEdit);
-                        
-                        let zEditBtn = new Gtk.Button({ icon_name: 'document-edit-symbolic', valign: Gtk.Align.CENTER });
-                        zEditBtn.connect('clicked', handleZoneEdit);
-
-                        let delBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
-                        delBtn.add_css_class('destructive-action');
-                        delBtn.connect('clicked', () => {
-                            let fresh = JSON.parse(settings.get_string('custom-sections') || '{}');
-                            delete fresh[zName];
-                            settings.set_string('custom-sections', JSON.stringify(fresh));
-                        });
-                        
-                        zRow.add_suffix(zEditBtn);
-                        zRow.add_suffix(delBtn);
-                        currentExpander.add_row(zRow);
-                    }
-                }
-                groupLayouts.add(currentExpander);
-                this._layoutRows.push(currentExpander);
-
+                // Replaced the entire 'Unassigned Drop Zones' floating list with absolute Layout isolation.
                 for (let name of rawKeys) {
                     let lZones = rawLayouts[name].zones || {};
                     let lZoneKeys = Object.keys(lZones).filter(k => k && k !== 'null' && k !== 'undefined');
@@ -598,6 +560,13 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
                         }
                         delete fresh[name];
                         settings.set_string('named-layouts', JSON.stringify(fresh));
+                        
+                        let currentDef = settings.get_string('default-layout');
+                        if (currentDef === name) {
+                            let remaining = Object.keys(fresh);
+                            let newDef = remaining.length > 0 ? remaining[0] : '';
+                            settings.set_string('default-layout', newDef);
+                        }
                     });
 
                     renameRow.add_suffix(renameBtn);

@@ -16,6 +16,8 @@ export class LayoutStorage {
     }
     
     setCustomSectionsAndSave(zones) {
+        if (!this.manager.activeLayoutName) return; // Strict Guard: A zone must belong to an active Layout.
+        
         this.settings.set_string('custom-sections', JSON.stringify(zones));
         if (this.manager.activeLayoutName) {
             let allLayouts = {};
@@ -135,6 +137,8 @@ export class LayoutStorage {
     }
 
     saveCustomZoneRect(name, rect, monitorIndex) {
+        if (!this.manager.activeLayoutName) return; // Strict Guard: A zone must belong to an active Layout.
+
         let safeMonitorIndex = Math.max(0, monitorIndex);
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
         if (!monitor) return;
@@ -148,7 +152,6 @@ export class LayoutStorage {
         let rw = rect.width / monitor.width;
         let rh = rect.height / workAreaHeight;
 
-        // Unclamped coordinates allow regions to freely span across multiple monitors
         rx = isNaN(rx) ? 0 : rx;
         ry = isNaN(ry) ? 0 : ry;
         rw = isNaN(rw) ? 0.2 : Math.max(0.05, rw);
