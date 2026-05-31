@@ -148,11 +148,11 @@ export class LayoutStorage {
         let rw = rect.width / monitor.width;
         let rh = rect.height / workAreaHeight;
 
-        // Prevent NaN poisoning of storage JSON that kills Wayland later
-        rx = isNaN(rx) ? 0 : Math.max(0, Math.min(1, rx));
-        ry = isNaN(ry) ? 0 : Math.max(0, Math.min(1, ry));
-        rw = isNaN(rw) ? 0.2 : Math.max(0.05, Math.min(1, rw)); // Force min 5% width
-        rh = isNaN(rh) ? 0.2 : Math.max(0.05, Math.min(1, rh)); // Force min 5% height
+        // Unclamped coordinates allow regions to freely span across multiple monitors
+        rx = isNaN(rx) ? 0 : rx;
+        ry = isNaN(ry) ? 0 : ry;
+        rw = isNaN(rw) ? 0.2 : Math.max(0.05, rw);
+        rh = isNaN(rh) ? 0.2 : Math.max(0.05, rh);
 
         const COLORS = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#2ecc71', '#34495e', '#ff7979', '#badc58'];
         let allZones = this.getCustomSections();

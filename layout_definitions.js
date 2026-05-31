@@ -203,11 +203,12 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let crw = Number(cs.rw);
         let crh = Number(cs.rh);
 
-        crx = isNaN(crx) ? 0 : Math.max(0, Math.min(1, crx));
-        cry = isNaN(cry) ? 0 : Math.max(0, Math.min(1, cry));
-        crw = isNaN(crw) ? 0.2 : Math.max(0.05, Math.min(1, crw)); 
-        crh = isNaN(crh) ? 0.2 : Math.max(0.05, Math.min(1, crh)); 
+        crx = isNaN(crx) ? 0 : crx;
+        cry = isNaN(cry) ? 0 : cry;
+        crw = isNaN(crw) ? 0.2 : Math.max(0.05, crw); 
+        crh = isNaN(crh) ? 0.2 : Math.max(0.05, crh); 
 
+        // Uses the anchor monitor natively, allows dimensions to exceed anchor monitor (cross-monitor spanning)
         rect.x = monitor.x + Math.round(monitor.width * crx);
         rect.y = workAreaY + Math.round(workAreaHeight * cry);
         
@@ -347,7 +348,7 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
     let winTitle = 'unknown';
     try { winTitle = window.get_title() || 'unknown'; } catch {}
 
-    // Safely clear overlapping layout requests for this window
+    // Debounce to clear any pending resizing timers for this specific window
     if (window._omnipanel_transform_timeout) {
         GLib.source_remove(window._omnipanel_transform_timeout);
         _activeSources.delete(window._omnipanel_transform_timeout);
@@ -356,26 +357,20 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
 
     let targetX = Math.round(Number(targetRect.x));
     let targetY = Math.round(Number(targetRect.y));
-    let targetW = Math.round(Number(targetRect.width));
-    let targetH = Math.round(Number(targetRect.height));
+    let targetW = Math.max(150, Math.round(Number(targetRect.width)));
+    let targetH = Math.max(100, Math.round(Number(targetRect.height)));
 
     if (isNaN(targetX) || isNaN(targetY) || isNaN(targetW) || isNaN(targetH)) return;
 
-    let dynamicMinW = 50;
-    let dynamicMinH = 50;
+    // INFINITE LOOP SHIELD: If the requested geometry hasn't changed since the last request,
+    // silently abort to prevent tug-of-war loops with stubborn GTK clients.
+    let reqSig = `${targetX},${targetY},${targetW},${targetH},${isMaximized}`;
+    if (window._omnipanel_last_req === reqSig) {
+        return; 
+    }
+    window._omnipanel_last_req = reqSig;
 
-    try {
-        if (typeof window.get_min_size === 'function') {
-            let minSize = window.get_min_size();
-            if (Array.isArray(minSize) && minSize.length >= 2) {
-                if (minSize[0] > 0) dynamicMinW = minSize[0];
-                if (minSize[1] > 0) dynamicMinH = minSize[1];
-            }
-        }
-    } catch {} // Removed unused e/err variable
-
-    targetW = Math.max(dynamicMinW, targetW);
-    targetH = Math.max(dynamicMinH, targetH);
+    if (logger) logger(`[applyWindowTransform] Queued Wayland-safe transform for [${winTitle}] -> ${targetW}x${targetH} at (${targetX},${targetY})`);
 
     let executeResize = () => {
         if (!isWindowValid(window)) return;
@@ -401,7 +396,7 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
             // Delta Bypass: Protects Wayland Ping Serial from being flooded if window is already perfectly positioned
             if (Math.abs(frame.x - targetX) <= 5 && Math.abs(frame.y - targetY) <= 5 && 
                 Math.abs(frame.width - targetW) <= 5 && Math.abs(frame.height - targetH) <= 5 &&
-                !isAlreadyMax && currentMonitor === targetMonitorIndex) {
+                !isAlreadyMax) {
                 return; 
             }
 
@@ -411,9 +406,7 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
                 let t = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
                     _activeSources.delete(t);
                     if (isWindowValid(window)) {
-                        if (window.get_monitor() !== targetMonitorIndex) {
-                            window.move_to_monitor(targetMonitorIndex);
-                        }
+                        // NO move_to_monitor here: Absolute X/Y allows smooth cross-monitor spanning
                         window.move_resize_frame(true, targetX, targetY, targetW, targetH);
                     }
                     return GLib.SOURCE_REMOVE;
@@ -421,19 +414,16 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
                 _activeSources.add(t);
             } else {
                 if (logger) logger(`[applyWindowTransform] Executing move_resize_frame() on [${winTitle}] -> [X:${targetX} Y:${targetY} W:${targetW} H:${targetH}]`);
-                // Explicit monitor attachment for floating snaps
-                if (currentMonitor !== targetMonitorIndex) {
-                    window.move_to_monitor(targetMonitorIndex);
-                }
+                // NO move_to_monitor here: Absolute X/Y allows smooth cross-monitor spanning
                 window.move_resize_frame(true, targetX, targetY, targetW, targetH);
             }
         }
     };
 
-    // First execution ensures snappy layout responsiveness
+    // First execution attempts immediate snappy sizing
     executeResize();
 
-    // Second execution guarantees the app spreads to the FULL ZONE EXTENT in case it was slow to initialize
+    // Second execution guarantees FULL ZONE EXTENT for Wayland apps that draw slowly upon creation
     let tid = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
         window._omnipanel_transform_timeout = 0;
         _activeSources.delete(tid);

@@ -42,7 +42,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.add_child(this._selection);
 
             this._warningLabel = new St.Label({
-                text: 'Minimum size enforced: 200x150',
+                text: 'Minimum size enforced: 450x400',
                 style: 'color: #ff7979; font-weight: bold; font-size: 14px; background-color: rgba(0,0,0,0.85); padding: 6px 12px; border-radius: 6px; border: 1px solid #ff7979; box-shadow: 0 2px 4px rgba(0,0,0,0.5);',
                 visible: false
             });
@@ -147,26 +147,24 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.connect('motion-event', (_, event) => {
                 if (!this._dragAction || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
                 let [x, y] = event.get_coords();
-                let m = this._monitors[this._currentDrawMonitorIndex];
                 let showWarning = false;
                 
                 if (this._dragAction === 'draw') {
                     let rawW = Math.abs(x - this._startX);
                     let rawH = Math.abs(y - this._startY);
                     
-                    if (rawW < 200 || rawH < 150) {
+                    if (rawW < 450 || rawH < 400) {
                         showWarning = true;
                     }
                     
-                    // Relaxed design constraint to match stack subdivisions
-                    let rectW = Math.max(200, rawW);
-                    let rectH = Math.max(150, rawH);
+                    let rectW = Math.max(450, rawW);
+                    let rectH = Math.max(400, rawH);
                     
                     let rectX = x < this._startX ? this._startX - rectW : this._startX;
                     let rectY = y < this._startY ? this._startY - rectH : this._startY;
                     
-                    rectX = Math.max(m.x, Math.min(rectX, m.x + m.width - rectW));
-                    rectY = Math.max(m.y + 70, Math.min(rectY, m.y + m.height - rectH));
+                    rectX = Math.max(0, Math.min(rectX, global.stage.width - rectW));
+                    rectY = Math.max(70, Math.min(rectY, global.stage.height - rectH));
 
                     this._selection.set_position(rectX, rectY);
                     this._selection.set_size(rectW, rectH);
@@ -195,15 +193,15 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         let rawW = x - bxX;
                         let rawH = y - bxY;
                         
-                        if (rawW < 200 || rawH < 150) {
+                        if (rawW < 450 || rawH < 400) {
                             showWarning = true;
                         }
                         
-                        let newW = Math.max(200, rawW);
-                        let newH = Math.max(150, rawH);
+                        let newW = Math.max(450, rawW);
+                        let newH = Math.max(400, rawH);
                         
-                        newW = Math.min(newW, m.x + m.width - bxX);
-                        newH = Math.min(newH, m.y + m.height - bxY);
+                        newW = Math.min(newW, global.stage.width - bxX);
+                        newH = Math.min(newH, global.stage.height - bxY);
                         
                         zoneBox.set_size(newW, newH);
                     }
@@ -235,27 +233,23 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let m = this._monitors[this._currentDrawMonitorIndex];
                     let panelH = Main.panel.height;
                     
-                    sW = Math.max(200, sW);
-                    sH = Math.max(150, sH);
+                    sW = Math.max(450, sW);
+                    sH = Math.max(400, sH);
 
-                    if (sX + sW > m.x + m.width) sX = m.x + m.width - sW;
-                    if (sY + sH > m.y + m.height) sY = m.y + m.height - sH;
+                    if (sX + sW > global.stage.width) sX = global.stage.width - sW;
+                    if (sY + sH > global.stage.height) sY = global.stage.height - sH;
 
-                    // EDGE SNAPPING (Maximally leverage the zone size)
-                    if (Math.abs(sX - m.x) < 30) {
-                        sW += (sX - m.x);
-                        sX = m.x;
+                    let snapX = sX, snapY = sY, snapR = sX + sW, snapB = sY + sH;
+                    for (let mon of this._monitors) {
+                        if (Math.abs(snapX - mon.x) < 30) snapX = mon.x;
+                        if (Math.abs(snapY - (mon.y + panelH)) < 30) snapY = mon.y + panelH;
+                        if (Math.abs(snapR - (mon.x + mon.width)) < 30) snapR = mon.x + mon.width;
+                        if (Math.abs(snapB - (mon.y + mon.height)) < 30) snapB = mon.y + mon.height;
                     }
-                    if (Math.abs(sY - (m.y + panelH)) < 30) {
-                        sH += (sY - (m.y + panelH));
-                        sY = m.y + panelH;
-                    }
-                    if (Math.abs((sX + sW) - (m.x + m.width)) < 30) {
-                        sW = (m.x + m.width) - sX;
-                    }
-                    if (Math.abs((sY + sH) - (m.y + m.height)) < 30) {
-                        sH = (m.y + m.height) - sY;
-                    }
+                    sX = snapX;
+                    sY = snapY;
+                    sW = snapR - sX;
+                    sH = snapB - sY;
                     
                     this._selection.set_position(sX, sY);
                     this._selection.set_size(sW, sH);
@@ -300,24 +294,19 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             }
                         }
 
-                        let m = this._monitors[targetMonitorIndex];
                         let panelH = Main.panel.height;
 
-                        // EDGE SNAPPING (Maximally leverage the zone size on move/resize)
-                        if (Math.abs(bxX - m.x) < 30) {
-                            bxW += (bxX - m.x);
-                            bxX = m.x;
+                        let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
+                        for (let mon of this._monitors) {
+                            if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
+                            if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
+                            if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
+                            if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
                         }
-                        if (Math.abs(bxY - (m.y + panelH)) < 30) {
-                            bxH += (bxY - (m.y + panelH));
-                            bxY = m.y + panelH;
-                        }
-                        if (Math.abs((bxX + bxW) - (m.x + m.width)) < 30) {
-                            bxW = (m.x + m.width) - bxX;
-                        }
-                        if (Math.abs((bxY + bxH) - (m.y + m.height)) < 30) {
-                            bxH = (m.y + m.height) - bxY;
-                        }
+                        bxX = snapBxX;
+                        bxY = snapBxY;
+                        bxW = snapBxR - bxX;
+                        bxH = snapBxB - bxY;
 
                         this._manager.storage.saveCustomZoneRect(
                             this._activeZoneName,
@@ -373,7 +362,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let panelHeight = Main.panel.height;
                     let workAreaHeight = monitor.height - panelHeight;
 
-                    // Ensure safe math reads to prevent Wayland corruption locally
                     let crx = Number(cs.rx) || 0;
                     let cry = Number(cs.ry) || 0;
                     let crw = Number(cs.rw) || 0.2;
@@ -382,8 +370,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let rx = monitor.x + Math.round(monitor.width * crx);
                     let ry = monitor.y + panelHeight + Math.round(workAreaHeight * cry);
                     
-                    let rw = Math.max(200, Math.round(monitor.width * crw));
-                    let rh = Math.max(150, Math.round(workAreaHeight * crh));
+                    let rw = Math.max(450, Math.round(monitor.width * crw));
+                    let rh = Math.max(400, Math.round(workAreaHeight * crh));
                     
                     let color = cs.color || '#2ecc71';
                     let borderCol = hexToRgba(color, 1.0);
