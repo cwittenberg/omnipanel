@@ -3,53 +3,108 @@
   <schema id="org.gnome.shell.extensions.omnipanel" path="/org/gnome/shell/extensions/omnipanel/">
     <key name="movement-enabled" type="b">
       <default>true</default>
-      <summary>Enable Active Toolbar Movement</summary>
-      <description>Master switch to enable or disable moving the toolbar to the active screen.</description>
+      <summary>Enable Multi-Monitor Top Panel</summary>
     </key>
     <key name="movement-speed" type="i">
       <default>200</default>
       <summary>Movement Polling Speed</summary>
-      <description>Interval in milliseconds. Lower is faster but uses more CPU.</description>
     </key>
     <key name="animation-style" type="s">
       <default>'slide'</default>
       <summary>Animation Style</summary>
-      <description>Visual effect when toolbar elements teleport (none, fade, slide, pop).</description>
     </key>
     <key name="animation-duration" type="i">
       <default>300</default>
       <summary>Animation Duration</summary>
-      <description>Duration of the teleport animation in milliseconds.</description>
     </key>
     <key name="highlight-active" type="b">
       <default>false</default>
       <summary>Highlight Active Panel</summary>
-      <description>Apply a background color to the active monitor's panel.</description>
     </key>
     <key name="active-panel-color" type="s">
       <default>'rgba(255, 100, 0, 0.3)'</default>
       <summary>Active Panel Color</summary>
-      <description>The RGBA string applied to the active panel.</description>
     </key>
     <key name="translucent-inactive" type="b">
       <default>false</default>
       <summary>Translucent Inactive Bars</summary>
-      <description>Make inactive monitor top bars translucent.</description>
     </key>
     <key name="inactive-opacity" type="d">
       <default>0.5</default>
       <summary>Inactive Opacity</summary>
-      <description>Opacity level for inactive top bars (0.0 to 1.0).</description>
     </key>
     <key name="show-clock" type="b">
       <default>true</default>
       <summary>Show Static Clock</summary>
-      <description>Show the time on secondary monitors.</description>
     </key>
     <key name="hide-inactive-panels" type="b">
       <default>false</default>
       <summary>Hide toolbars on inactive screens</summary>
-      <description>Completely hide the top bar on inactive monitors.</description>
     </key>
+
+    <key name="enable-tiling" type="b">
+      <default>false</default>
+      <summary>Enable Window Snapping &amp; Layouts</summary>
+    </key>
+    <key name="auto-restore-layouts" type="b">
+      <default>true</default>
+      <summary>Remember Layouts per Monitor Setup</summary>
+    </key>
+    <key name="fuzzy-restore-monitors" type="b">
+      <default>true</default>
+      <summary>Fuzzy Monitor Matching</summary>
+    </key>
+    <key name="enable-smart-placement" type="b">
+      <default>true</default>
+      <summary>Fuzzy Auto-Placement</summary>
+    </key>
+    <key name="enable-stack-indicators" type="b">
+      <default>true</default>
+      <summary>Enable Zone Stack Indicators</summary>
+    </key>
+    <key name="stack-indicator-position" type="s">
+      <default>'bottom-right'</default>
+      <summary>Stack Indicator Position</summary>
+    </key>
+    <key name="default-layout" type="s">
+      <default>''</default>
+      <summary>Default Startup Layout</summary>
+    </key>
+    <key name="switch-layout" type="as">
+      <default><![CDATA[['<Alt>minus']]]></default>
+      <summary>Cycle Layouts Shortcut</summary>
+    </key>
+    <key name="saved-tiling-layouts" type="s">
+      <default>'{}'</default>
+      <summary>Internal Tiling State</summary>
+    </key>
+    <key name="named-layouts" type="s">
+      <default>'{}'</default>
+      <summary>User Named Layouts</summary>
+    </key>
+    <key name="custom-sections" type="s">
+      <default>'{}'</default>
+      <summary>User Custom Drop Zones</summary>
+    </key>
+
+    <key name="enable-debug-logs" type="b">
+      <default>false</default>
+      <summary>Enable Debug Logging</summary>
+    </key>
+
+    <key name="snap-left" type="as"><default><![CDATA[['<Alt>Left']]]></default><summary>Snap Window Left</summary></key>
+    <key name="snap-right" type="as"><default><![CDATA[['<Alt>Right']]]></default><summary>Snap Window Right</summary></key>
+    <key name="snap-up" type="as"><default><![CDATA[['<Alt>Up']]]></default><summary>Snap Window Up</summary></key>
+    <key name="snap-down" type="as"><default><![CDATA[['<Alt>Down']]]></default><summary>Snap Window Down</summary></key>
+
+    <key name="layout-hotkey-1" type="as"><default>[]</default><summary>Layout Hotkey 1</summary></key>
+    <key name="layout-hotkey-2" type="as"><default>[]</default><summary>Layout Hotkey 2</summary></key>
+    <key name="layout-hotkey-3" type="as"><default>[]</default><summary>Layout Hotkey 3</summary></key>
+    <key name="layout-hotkey-4" type="as"><default>[]</default><summary>Layout Hotkey 4</summary></key>
+    <key name="layout-hotkey-5" type="as"><default>[]</default><summary>Layout Hotkey 5</summary></key>
+    <key name="layout-hotkey-6" type="as"><default>[]</default><summary>Layout Hotkey 6</summary></key>
+    <key name="layout-hotkey-7" type="as"><default>[]</default><summary>Layout Hotkey 7</summary></key>
+    <key name="layout-hotkey-8" type="as"><default>[]</default><summary>Layout Hotkey 8</summary></key>
+    <key name="layout-hotkey-9" type="as"><default>[]</default><summary>Layout Hotkey 9</summary></key>
   </schema>
 </schemalist>

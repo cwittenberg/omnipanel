@@ -1,0 +1,12 @@
+{
+  "name": "omnipanel",
+  "version": "1.0.0",
+  "description": "OmniPanel GNOME Extension",
+  "type": "module",
+  "scripts": {
+    "test": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  }
+}

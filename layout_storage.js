@@ -1,0 +1,271 @@
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { getSectionRect, identifySection, applyWindowTransform, calculateTitleSimilarity } from './layout_definitions.js';
+
+export class LayoutStorage {
+    constructor(manager) {
+        this.manager = manager;
+        this.settings = manager.settings;
+    }
+
+    getCustomSections() {
+        try { return JSON.parse(this.settings.get_string('custom-sections') || '{}'); } 
+        catch { return {}; }
+    }
+    
+    setCustomSectionsAndSave(zones) {
+        this.settings.set_string('custom-sections', JSON.stringify(zones));
+        if (this.manager.activeLayoutName) {
+            let allLayouts = {};
+            try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+            if (allLayouts[this.manager.activeLayoutName]) {
+                allLayouts[this.manager.activeLayoutName].zones = zones;
+                this.settings.set_string('named-layouts', JSON.stringify(allLayouts));
+            }
+        }
+    }
+
+    getCurrentLayoutState() {
+        let windows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
+        let customSections = this.getCustomSections();
+        let layoutState = {};
+        
+        for (let window of windows) {
+            try {
+                if (!window || !window.get_display()) continue;
+                if (window.is_override_redirect()) continue;
+                if (window.get_transient_for() !== null) continue;
+                
+                let monitorIndex = window.get_monitor();
+                let section = null;
+                
+                if (window._omnipanel_zone && customSections[window._omnipanel_zone]) {
+                    section = window._omnipanel_zone;
+                } else {
+                    let rect = window.get_frame_rect();
+                    section = identifySection(rect, monitorIndex, customSections);
+                }
+                
+                let wmClass = window.get_wm_class();
+                if (!wmClass) continue;
+
+                if (!layoutState[wmClass]) layoutState[wmClass] = [];
+                
+                let title = window.get_title() || '';
+
+                if (section) {
+                    layoutState[wmClass].push({ title: title, monitor: monitorIndex, section: section });
+                }
+            } catch { }
+        }
+        return layoutState;
+    }
+
+    saveCurrentLayoutStates() {
+        let state = this.getCurrentLayoutState();
+        let zones = this.getCustomSections();
+        
+        if (this.settings.get_boolean('auto-restore-layouts')) {
+            let signatures = this.manager.getMonitorSignature();
+            let allLayouts = {};
+            try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
+
+            let existingWindows = allLayouts[signatures.exact] ? (allLayouts[signatures.exact].windows || {}) : {};
+            let mergedWindows = { ...existingWindows, ...state };
+
+            allLayouts[signatures.exact] = { windows: mergedWindows, zones: zones };
+            this.settings.set_string('saved-tiling-layouts', JSON.stringify(allLayouts));
+        }
+
+        if (this.manager.activeLayoutName) {
+            let namedLayouts = {};
+            try { namedLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+            
+            if (namedLayouts[this.manager.activeLayoutName]) {
+                let target = namedLayouts[this.manager.activeLayoutName];
+                let existingWindows = target.windows || {};
+                
+                let mergedWindows = { ...existingWindows, ...state };
+                
+                let existingColor = target.color || 'rgba(46, 204, 113, 1.0)';
+                let existingSlot = target.hotkeySlot || null;
+                let existingText = target.hotkeyText || null;
+                
+                namedLayouts[this.manager.activeLayoutName] = { windows: mergedWindows, zones: zones, color: existingColor };
+                if (existingSlot) namedLayouts[this.manager.activeLayoutName].hotkeySlot = existingSlot;
+                if (existingText) namedLayouts[this.manager.activeLayoutName].hotkeyText = existingText;
+
+                this.settings.set_string('named-layouts', JSON.stringify(namedLayouts));
+            }
+        }
+    }
+
+    saveNamedLayout(name) {
+        let state = this.getCurrentLayoutState();
+        let zones = this.getCustomSections();
+        let allLayouts = {};
+        try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+        
+        let existingWindows = allLayouts[name] ? (allLayouts[name].windows || {}) : {};
+        let mergedWindows = { ...existingWindows, ...state };
+
+        let existingColor = allLayouts[name] && allLayouts[name].color ? allLayouts[name].color : 'rgba(46, 204, 113, 1.0)';
+        let existingSlot = allLayouts[name] && allLayouts[name].hotkeySlot ? allLayouts[name].hotkeySlot : null;
+        let existingText = allLayouts[name] && allLayouts[name].hotkeyText ? allLayouts[name].hotkeyText : null;
+        
+        if (!existingSlot) {
+            let usedSlots = Object.values(allLayouts).map(l => l.hotkeySlot).filter(s => s);
+            existingSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
+        }
+        
+        allLayouts[name] = { windows: mergedWindows, zones: zones, color: existingColor, hotkeySlot: existingSlot };
+        if (existingText) allLayouts[name].hotkeyText = existingText;
+        
+        this.settings.set_string('named-layouts', JSON.stringify(allLayouts));
+        this.manager.activeLayoutName = name;
+        if (this.manager._indicator) {
+            this.manager._indicator._rebuildMenu();
+        }
+
+        if (!this.settings.get_string('default-layout')) {
+            this.settings.set_string('default-layout', name);
+        }
+
+        Main.notify('OmniPanel', `Layout '${name}' saved successfully.`);
+    }
+
+    saveCustomZoneRect(name, rect, monitorIndex) {
+        let monitor = Main.layoutManager.monitors[monitorIndex];
+        let panelHeight = Main.panel.height;
+        let workAreaY = monitor.y + panelHeight;
+        let workAreaHeight = monitor.height - panelHeight;
+
+        let rx = (rect.x - monitor.x) / monitor.width;
+        let ry = (rect.y - workAreaY) / workAreaHeight;
+        let rw = rect.width / monitor.width;
+        let rh = rect.height / workAreaHeight;
+
+        const COLORS = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#2ecc71', '#34495e', '#ff7979', '#badc58'];
+        let allZones = this.getCustomSections();
+        let used = Object.values(allZones).map(z => z.color);
+        let available = COLORS.filter(c => !used.includes(c));
+        let color = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : COLORS[Math.floor(Math.random() * COLORS.length)];
+
+        allZones[name] = { rx, ry, rw, rh, monitorIndex, color: color, hotkeySlot: 0 };
+        this.setCustomSectionsAndSave(allZones);
+        Main.notify('OmniPanel', `Drop Zone '${name}' created on Monitor ${monitorIndex + 1}.`);
+    }
+
+    restoreNamedLayout(name) {
+        let allLayouts = {};
+        try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+        
+        let savedData = allLayouts[name];
+        if (savedData) {
+            this.manager.activeLayoutName = name;
+            let windowsState = savedData.windows || savedData;
+            let zonesState = savedData.zones || {};
+            
+            this.settings.set_string('custom-sections', JSON.stringify(zonesState));
+            
+            this.restoreLayout(windowsState, zonesState);
+            if (this.manager._indicator) {
+                this.manager._indicator._rebuildMenu();
+            }
+            Main.notify('OmniPanel', `Layout restored: ${name}`);
+        }
+    }
+
+    onMonitorsChanged() {
+        if (!this.settings.get_boolean('auto-restore-layouts')) return;
+
+        let signatures = this.manager.getMonitorSignature();
+        let allLayouts = {};
+        try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
+
+        let savedData = allLayouts[signatures.exact];
+
+        if (!savedData && this.settings.get_boolean('fuzzy-restore-monitors')) {
+            let possibleSignatures = Object.keys(allLayouts);
+            let fuzzyMatch = possibleSignatures.find(sig => sig.split('|').length.toString() === signatures.fuzzy);
+            if (fuzzyMatch) {
+                savedData = allLayouts[fuzzyMatch];
+            }
+        }
+
+        if (savedData) {
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                let windowsState = savedData.windows || savedData;
+                let zonesState = savedData.zones || {};
+                
+                this.settings.set_string('custom-sections', JSON.stringify(zonesState));
+                this.restoreLayout(windowsState, zonesState);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    restoreLayout(savedState, zonesOverride = null) {
+        let windows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
+        let customSections = zonesOverride || this.getCustomSections();
+        let delay = 0; 
+
+        let availableLayouts = {};
+        for (let wmClass in savedState) {
+            availableLayouts[wmClass] = Array.isArray(savedState[wmClass]) ? 
+                JSON.parse(JSON.stringify(savedState[wmClass])) : 
+                [JSON.parse(JSON.stringify(savedState[wmClass]))];
+        }
+
+        for (let window of windows) {
+            try {
+                if (!window || !window.get_display() || window.is_override_redirect()) continue;
+                if (window.get_transient_for() !== null) continue;
+
+                let wmClass = window.get_wm_class();
+                if (!wmClass) continue;
+
+                if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
+                    let list = availableLayouts[wmClass];
+                    let winTitle = window.get_title() || '';
+                    
+                    let bestIdx = 0;
+                    let bestScore = -1;
+                    for (let i = 0; i < list.length; i++) {
+                        let score = calculateTitleSimilarity(winTitle, list[i].title);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestIdx = i;
+                        }
+                    }
+
+                    let layout = list[bestIdx];
+                    list.splice(bestIdx, 1);
+                    
+                    let finalMonitor = layout.monitor;
+                    if (layout.section && customSections[layout.section] && customSections[layout.section].monitorIndex !== undefined) {
+                        finalMonitor = customSections[layout.section].monitorIndex;
+                    }
+
+                    let targetRect = null;
+                    if (layout.section) {
+                        targetRect = getSectionRect(finalMonitor, layout.section, customSections);
+                    }
+                    
+                    if (targetRect) {
+                        window._omnipanel_zone = layout.section;
+                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                            applyWindowTransform(window, finalMonitor, targetRect, layout.section === 'maximized');
+                            if (this.manager.stackManager && layout.section) {
+                                this.manager.stackManager.invalidateSignature(layout.section);
+                            }
+                            return GLib.SOURCE_REMOVE;
+                        });
+                        delay += 80;
+                    }
+                }
+            } catch {}
+        }
+    }
+}
