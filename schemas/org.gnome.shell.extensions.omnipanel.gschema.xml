@@ -66,6 +66,10 @@
       <default>'bottom-right'</default>
       <summary>Stack Indicator Position</summary>
     </key>
+    <key name="default-stack-mode" type="s">
+      <default>'stack'</default>
+      <summary>Default Stack Layout Mode</summary>
+    </key>
     <key name="default-layout" type="s">
       <default>''</default>
       <summary>Default Startup Layout</summary>

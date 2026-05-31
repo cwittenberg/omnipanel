@@ -67,6 +67,15 @@ export const LayoutIndicator = GObject.registerClass(
                 try { layouts = JSON.parse(layoutsStr); } catch { }
                 
                 let keys = Object.keys(layouts);
+
+                // FIX: Auto-select if there is exactly 1 layout available and none is currently active
+                if (keys.length === 1 && (!this._tilingManager.activeLayoutName || !layouts[this._tilingManager.activeLayoutName])) {
+                    this._tilingManager.activeLayoutName = keys[0];
+                    if (!this.settings.get_string('default-layout')) {
+                        this.settings.set_string('default-layout', keys[0]);
+                    }
+                }
+
                 if (keys.length > 0) {
                     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
                     for (let name of keys) {

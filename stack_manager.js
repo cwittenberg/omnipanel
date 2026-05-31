@@ -3,7 +3,7 @@ import Meta from 'gi://Meta';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { applyWindowTransform, getSectionRect, Sections } from './layout_definitions.js';
+import { applyWindowTransform, getSectionRect, Sections, isWindowValid } from './layout_definitions.js';
 
 export class StackManager {
     constructor(tilingManager) {
@@ -71,10 +71,13 @@ export class StackManager {
         let count = validWindows.length;
         if (count === 0) return;
 
+        let staggerStep = count > 10 ? 10 : 100;
         let delay = 0;
 
         for (let i = 0; i < count; i++) {
             let win = validWindows[i];
+            let winId = 0;
+            try { winId = win.get_id(); } catch { continue; }
             
             let rx = zRect.x;
             let ry = zRect.y;
@@ -109,11 +112,17 @@ export class StackManager {
             };
 
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-                // Pass zRect (the master zone boundary) as the zoneBounds clamp constraint
-                applyWindowTransform(win, actualMonitor, finalRect, false, zRect);
+                let aliveWindows = global.display.list_all_windows();
+                let aliveWin = aliveWindows.find(w => {
+                    try { return w.get_id() === winId; } catch { return false; }
+                });
+
+                if (aliveWin && isWindowValid(aliveWin)) {
+                    applyWindowTransform(aliveWin, actualMonitor, finalRect, false);
+                }
                 return GLib.SOURCE_REMOVE;
             });
-            delay += 100;
+            delay += staggerStep;
         }
     }
 
@@ -155,34 +164,42 @@ export class StackManager {
         let modeBox = new St.BoxLayout({ vertical: false, visible: false });
         let separator = new St.Widget({ style: 'width: 1px; background-color: rgba(255,255,255,0.2); margin: 0 6px;' });
 
-        let modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
+        let modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
         let modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
         let modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
-        let modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
+        let modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
 
         modeBox.add_child(separator);
-        modeBox.add_child(modeStackBtn);
+        modeBox.add_child(modeGridBtn);
         modeBox.add_child(modeColsBtn);
         modeBox.add_child(modeRowsBtn);
-        modeBox.add_child(modeGridBtn);
+        modeBox.add_child(modeStackBtn);
 
         prevBtn.hide();
         nextBtn.hide();
         toggleMenuBtn.hide();
 
-        widget.add_child(prevBtn);
         widget.add_child(countLabel);
-        widget.add_child(nextBtn);
         widget.add_child(toggleMenuBtn);
         widget.add_child(modeBox);
+        widget.add_child(prevBtn);
+        widget.add_child(nextBtn);
 
-        let data = { widget, countLabel, windows: [], topWindow: null, monitor: actualMonitor, lastSignature: '', activeMode: 'stack' };
+        let data = { 
+            widget, 
+            countLabel, 
+            windows: [], 
+            topWindow: null, 
+            monitor: actualMonitor, 
+            lastSignature: '', 
+            activeMode: this.settings.get_string('default-stack-mode') || 'stack',
+            currentIndex: 0
+        };
 
         data.syncModeStyles = () => {
             let cs = this.manager.storage.getCustomSections();
-            data.activeMode = (cs[zone] && cs[zone].stackMode) ? cs[zone].stackMode : 'stack';
+            data.activeMode = (cs[zone] && cs[zone].stackMode) ? cs[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
             
-            // Reconcile legacy save states
             let evalMode = data.activeMode;
             if (evalMode === 'horizontal') evalMode = 'rows';
             if (evalMode === 'vertical') evalMode = 'columns';
@@ -202,29 +219,15 @@ export class StackManager {
         };
 
         let doPrev = () => {
-            if (!data.topWindow || data.windows.length === 0) return;
-            let activeWs = global.workspace_manager.get_active_workspace();
-            let rawList = global.display.list_all_windows().filter(w => {
-                let ws = w.get_workspace();
-                return (ws === activeWs || w.is_on_all_workspaces() || !ws) && data.windows.includes(w);
-            });
-            if (rawList.length === 0) return;
-            let idx = rawList.indexOf(data.topWindow);
-            let nextIdx = (idx + 1) % rawList.length; 
-            Main.activateWindow(rawList[nextIdx]);
+            if (data.windows.length === 0) return;
+            data.currentIndex = (data.currentIndex - 1 + data.windows.length) % data.windows.length;
+            Main.activateWindow(data.windows[data.currentIndex]);
         };
 
         let doNext = () => {
-            if (!data.topWindow || data.windows.length === 0) return;
-            let activeWs = global.workspace_manager.get_active_workspace();
-            let rawList = global.display.list_all_windows().filter(w => {
-                let ws = w.get_workspace();
-                return (ws === activeWs || w.is_on_all_workspaces() || !ws) && data.windows.includes(w);
-            });
-            if (rawList.length === 0) return;
-            let idx = rawList.indexOf(data.topWindow);
-            let nextIdx = (idx - 1 + rawList.length) % rawList.length;
-            Main.activateWindow(rawList[nextIdx]);
+            if (data.windows.length === 0) return;
+            data.currentIndex = (data.currentIndex + 1) % data.windows.length;
+            Main.activateWindow(data.windows[data.currentIndex]);
         };
 
         let keyPressId = 0;
@@ -240,8 +243,13 @@ export class StackManager {
             let isHovered = widget.hover;
             
             if (isHovered) {
-                prevBtn.show();
-                nextBtn.show();
+                if (data.activeMode === 'stack') {
+                    prevBtn.show();
+                    nextBtn.show();
+                } else {
+                    prevBtn.hide();
+                    nextBtn.hide();
+                }
                 
                 if (!modeBox.visible) {
                     toggleMenuBtn.show();
@@ -271,7 +279,7 @@ export class StackManager {
                 modeBox.hide();
                 
                 let cs = this.manager.storage.getCustomSections();
-                let savedMode = (cs[zone] && cs[zone].stackMode) ? cs[zone].stackMode : 'stack';
+                let savedMode = (cs[zone] && cs[zone].stackMode) ? cs[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
                 this.applyStackLayout(zone, data.windows, data.monitor, savedMode);
                 
                 widget.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
@@ -326,6 +334,14 @@ export class StackManager {
                 
                 data.syncModeStyles();
                 
+                if (data.activeMode === 'stack') {
+                    prevBtn.show();
+                    nextBtn.show();
+                } else {
+                    prevBtn.hide();
+                    nextBtn.hide();
+                }
+                
                 btn.set_style(btnStyle + 'background-color: #2ecc71; color: #111;');
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
                     if (btn) data.syncModeStyles();
@@ -356,8 +372,14 @@ export class StackManager {
         let activeWs = global.workspace_manager.get_active_workspace();
         
         let windows = allWindows.filter(w => {
-            let ws = w.get_workspace();
-            return ws === activeWs || w.is_on_all_workspaces() || !ws;
+            try {
+                if (!w._omnipanel_zone) return false;
+                let actor = w.get_compositor_private();
+                if (!actor || actor.is_destroyed()) return false;
+
+                let ws = w.get_workspace();
+                return ws === activeWs || w.is_on_all_workspaces() || !ws;
+            } catch { return false; }
         });
 
         let focusWindow = global.display.get_focus_window();
@@ -365,26 +387,35 @@ export class StackManager {
         let stacks = {};
 
         for (let win of windows) {
-            let wType = win.get_window_type();
-            if (win.is_override_redirect() || (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG)) continue;
+            try {
+                try { win.get_id(); } catch { continue; }
+                
+                let wType = win.get_window_type();
+                if (win.is_override_redirect() || (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG)) continue;
 
-            let stackZone = this._getStackZoneForWindow(win, customSections);
-            if (stackZone) {
-                let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : win.get_monitor();
-                if (customSections[stackZone] && customSections[stackZone].monitorIndex !== undefined) {
-                    mIndex = customSections[stackZone].monitorIndex;
+                let stackZone = this._getStackZoneForWindow(win, customSections);
+                if (stackZone) {
+                    let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : win.get_monitor();
+                    if (customSections[stackZone] && customSections[stackZone].monitorIndex !== undefined) {
+                        mIndex = customSections[stackZone].monitorIndex;
+                    }
+                    let key = stackZone + '|' + mIndex;
+                    if (!stacks[key]) stacks[key] = { zone: stackZone, monitor: mIndex, windows: [] };
+                    stacks[key].windows.push(win);
                 }
-                let key = stackZone + '|' + mIndex;
-                if (!stacks[key]) stacks[key] = { zone: stackZone, monitor: mIndex, windows: [] };
-                stacks[key].windows.push(win);
-            }
+            } catch { continue; }
         }
 
         let currentStackKeys = new Set();
         for (let [key, stackData] of Object.entries(stacks)) {
             if (stackData.windows.length > 1) {
                 currentStackKeys.add(key);
-                stackData.windows.sort((a, b) => a.get_id() - b.get_id());
+                stackData.windows.sort((a, b) => {
+                    let aId = 0, bId = 0;
+                    try { aId = a.get_id(); } catch {}
+                    try { bId = b.get_id(); } catch {}
+                    return aId - bId;
+                });
             }
         }
 
@@ -419,9 +450,11 @@ export class StackManager {
             let overlay = this._overlays.get(key);
             let zRect = getSectionRect(actualMonitor, zone, customSections);
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
-            let pMode = (customSections[zone] && customSections[zone].stackMode) ? customSections[zone].stackMode : 'stack';
+            let pMode = (customSections[zone] && customSections[zone].stackMode) ? customSections[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
             
-            let currentSignature = stackWindows.map(w => w.get_id()).join(',') + '|' + zRectStr + '|' + pMode;
+            let currentSignature = stackWindows.map(w => {
+                try { return w.get_id(); } catch { return 0; }
+            }).join(',') + '|' + zRectStr + '|' + pMode;
 
             if (overlay.lastSignature !== currentSignature) {
                 overlay.lastSignature = currentSignature;
@@ -450,6 +483,7 @@ export class StackManager {
             let isActiveStack = focusWindow && stackWindows.includes(focusWindow);
             if (isActiveStack) {
                 if (!overlay.widget.visible) overlay.widget.show();
+                overlay.currentIndex = stackWindows.indexOf(focusWindow);
             } else {
                 if (overlay.widget.visible) overlay.widget.hide();
             }

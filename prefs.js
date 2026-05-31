@@ -359,6 +359,25 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
         });
         groupStacks.add(rowStackPos);
 
+        const rowDefaultStackMode = new Adw.ComboRow({
+            title: 'Default Stack Layout',
+            subtitle: 'Initial view behavior when multiple windows enter a zone',
+            model: Gtk.StringList.new(['Stack (On Top)', 'Columns (Side by Side)', 'Rows (Vertical List)', 'Grid (Tiled)'])
+        });
+        const currentStackMode = settings.get_string('default-stack-mode');
+        if (currentStackMode === 'columns') rowDefaultStackMode.selected = 1;
+        else if (currentStackMode === 'rows') rowDefaultStackMode.selected = 2;
+        else if (currentStackMode === 'grid') rowDefaultStackMode.selected = 3;
+        else rowDefaultStackMode.selected = 0;
+
+        rowDefaultStackMode.connect('notify::selected', () => {
+            if (rowDefaultStackMode.selected === 1) settings.set_string('default-stack-mode', 'columns');
+            else if (rowDefaultStackMode.selected === 2) settings.set_string('default-stack-mode', 'rows');
+            else if (rowDefaultStackMode.selected === 3) settings.set_string('default-stack-mode', 'grid');
+            else settings.set_string('default-stack-mode', 'stack');
+        });
+        groupStacks.add(rowDefaultStackMode);
+
         // --- Tiling Settings -> Shortcuts ---
         const groupShortcuts = new Adw.PreferencesGroup({ title: 'Keyboard Shortcuts' });
         let rowShortcut = new Adw.ActionRow({
@@ -386,6 +405,18 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
             try { rawLayouts = JSON.parse(rawLayoutsStr) || {}; } catch {}
             let rawKeys = Object.keys(rawLayouts).filter(k => k && k !== 'null' && k !== 'undefined');
             
+            // Auto-promote to Default if only 1 layout exists
+            if (rawKeys.length === 1) {
+                let currentDef = settings.get_string('default-layout');
+                if (currentDef !== rawKeys[0]) {
+                    settings.set_string('default-layout', rawKeys[0]);
+                }
+            } else if (rawKeys.length === 0) {
+                if (settings.get_string('default-layout') !== '') {
+                    settings.set_string('default-layout', '');
+                }
+            }
+
             let needsHealingSave = false;
             for (let name of rawKeys) {
                 if (!rawLayouts[name].hotkeySlot) {

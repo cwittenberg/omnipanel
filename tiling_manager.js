@@ -8,7 +8,7 @@ import { ZoneDesignerRoot } from './zone_designer.js';
 import { LayoutStorage } from './layout_storage.js';
 import { SnapEngine } from './snap_engine.js';
 import { StackManager } from './stack_manager.js';
-import { getSectionRect, fuzzyMatchAppToZone, applyWindowTransform, Sections, calculateTitleSimilarity } from './layout_definitions.js';
+import { getSectionRect, fuzzyMatchAppToZone, applyWindowTransform, Sections, calculateTitleSimilarity, isWindowValid } from './layout_definitions.js';
 
 export default class TilingManager {
     constructor(settings) {
@@ -386,8 +386,30 @@ export default class TilingManager {
         this._log(`[${winId}] >> window-created signal fired.`);
 
         try {
-            if (window.is_override_redirect()) {
-                this._log(`[${winId}] Ignoring override-redirect window.`);
+            // STRUCTURAL FIX: Track window lifecycle strictly to prevent all dead-object crashes
+            window._omnipanel_is_dead = false;
+            if (window._omnipanel_unmanaged_id === undefined) {
+                window._omnipanel_unmanaged_id = window.connect('unmanaged', () => {
+                    window._omnipanel_is_dead = true;
+                    if (window._omnipanel_creation_timer) {
+                        GLib.source_remove(window._omnipanel_creation_timer);
+                        window._omnipanel_creation_timer = 0;
+                    }
+                });
+            }
+
+            // Deep heuristic filter for browser tabs and transient mapping overlays
+            let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
+            let isSkipPager = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
+
+            if (window.is_override_redirect() || isSkipTaskbar || isSkipPager) {
+                this._log(`[${winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
+                return;
+            }
+
+            let role = typeof window.get_role === 'function' ? window.get_role() : '';
+            if (role === 'browser-tab' || role === 'pop-up') {
+                this._log(`[${winId}] Ignoring browser tab or popup.`);
                 return;
             }
 
@@ -400,9 +422,24 @@ export default class TilingManager {
 
         this._log(`[${winId}] >> Starting passive 750ms DBus yield timer...`);
 
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 750, () => {
-            this._log(`[${winId}] >> 750ms Yield Complete. Waking up to process window.`);
+        window._omnipanel_creation_timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 750, () => {
+            window._omnipanel_creation_timer = 0;
+            
+            // STRUCTURAL LIVENESS VERIFICATION
+            if (window._omnipanel_is_dead || !isWindowValid(window)) {
+                this._log(`[${winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
+                return GLib.SOURCE_REMOVE;
+            }
+
             try {
+                // Secondary heuristic check in case properties shifted during the 750ms yield (e.g. detaching a tab)
+                let isSkipTaskbarNow = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
+                let isSkipPagerNow = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
+                if (isSkipTaskbarNow || isSkipPagerNow) {
+                    this._log(`[${winId}] Window became skip_taskbar during yield. Aborting.`);
+                    return GLib.SOURCE_REMOVE;
+                }
+
                 this._log(`[${winId}] Fetching get_frame_rect...`);
                 let rect = window.get_frame_rect();
                 if (rect.width <= 0) {

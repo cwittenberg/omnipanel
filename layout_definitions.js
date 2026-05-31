@@ -18,6 +18,19 @@ export const Sections = {
     BOTTOM_RIGHT_QUAD: 'bottom_right_quad'
 };
 
+// STRUCTURAL LIVENESS GATEKEEPER
+export function isWindowValid(window) {
+    if (!window) return false;
+    if (window._omnipanel_is_dead === true) return false;
+    try {
+        if (typeof window.is_disposed === 'function' && window.is_disposed()) return false;
+        let actor = window.get_compositor_private();
+        if (!actor) return false;
+        if (typeof actor.is_destroyed === 'function' && actor.is_destroyed()) return false;
+    } catch { return false; }
+    return true;
+}
+
 export function hexToRgba(hex, alpha) {
     let r = 46, g = 204, b = 113; 
     if (hex && hex.startsWith('#')) {
@@ -307,11 +320,10 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
     return bestMatch;
 }
 
-// Global map to track pending transforms and prevent race conditions using strict Window IDs
 const _pendingTransforms = new Map();
 
 export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, zoneBounds = null) {
-    if (!window || !window.get_display()) return;
+    if (!isWindowValid(window)) return;
     
     let targetX = Math.round(targetRect.x);
     let targetY = Math.round(targetRect.y);
@@ -320,12 +332,11 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
 
     GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
         try {
-            if (!window || !window.get_display()) return GLib.SOURCE_REMOVE;
+            if (!isWindowValid(window)) return GLib.SOURCE_REMOVE;
             
             let winId = 0;
             try { winId = window.get_id(); } catch {}
 
-            // Clear any previously queued timeout for this exact window ID to prevent race conditions
             if (winId && _pendingTransforms.has(winId)) {
                 GLib.source_remove(_pendingTransforms.get(winId));
                 _pendingTransforms.delete(winId);
@@ -344,35 +355,28 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
                 }
             };
 
-            // Apply size immediately
             apply();
 
-            // Queue secondary fallback size to override app-default map initializations
             let tId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
                 try {
-                    if (window && window.get_display()) {
+                    if (isWindowValid(window)) {
                         apply(); 
                         
-                        // Post-resize bounds check to prevent spillover from GTK4 minimum sizes
                         if (!isMaximized && zoneBounds) {
                             let cRect = window.get_frame_rect();
                             let fixY = cRect.y;
                             let fixX = cRect.x;
                             let changed = false;
 
-                            // If bottom edge goes past zone bottom, pull it up
                             if (cRect.y + cRect.height > zoneBounds.y + zoneBounds.height) {
                                 fixY = (zoneBounds.y + zoneBounds.height) - cRect.height;
                                 changed = true;
                             }
-                            // If right edge goes past zone right, pull it left
                             if (cRect.x + cRect.width > zoneBounds.x + zoneBounds.width) {
                                 fixX = (zoneBounds.x + zoneBounds.width) - cRect.width;
                                 changed = true;
                             }
                             
-                            // Never pull the window out of the top or left of the zone
-                            // This ensures if the window is completely larger than the entire zone, it anchors top-left.
                             if (fixY < zoneBounds.y) {
                                 fixY = zoneBounds.y;
                                 changed = true;
