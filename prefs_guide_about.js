@@ -26,7 +26,7 @@ function createFeatureRow(title, subtitle, iconName) {
     return row;
 }
 
-export function buildGuidePage() {
+export function buildGuidePage(dir) {
     const pageGuide = new Adw.PreferencesPage({
         title: 'Guide',
         icon_name: 'system-help-symbolic'
@@ -44,10 +44,23 @@ export function buildGuidePage() {
         margin_end: 24
     });
     
-    const heroIcon = new Gtk.Image({ 
-        icon_name: 'view-dual-symbolic', 
-        pixel_size: 80 
+    
+    // Resolve the local path using the extension directory
+    const imagePath = dir.get_child('logo.png').get_path();
+    const gfile = Gio.File.new_for_path(imagePath);
+    
+    // Gtk.Picture is ideal for local files with explicit dimension requests in GTK4
+    const heroIcon = new Gtk.Picture({
+        file: gfile,
+        can_shrink: true,
+        width_request: 80,
+        height_request: 80,
+        content_fit: Gtk.ContentFit.CONTAIN
     });
+    
+    // Add built-in GTK CSS classes to make the image rounded and cast a subtle shadow
+    heroIcon.add_css_class('circular');
+    heroIcon.add_css_class('icon-dropshadow');
     
     const heroTitle = new Gtk.Label({ 
         label: '<span size="xx-large" weight="bold">OmniPanel</span>', 
@@ -130,7 +143,7 @@ export function buildGuidePage() {
     return pageGuide;
 }
 
-export function buildAboutPage(settings, metadata) {
+export function buildAboutPage(settings, metadata, dir) {
     const pageAbout = new Adw.PreferencesPage({
         title: 'About',
         icon_name: 'dialog-information-symbolic'
@@ -143,11 +156,22 @@ export function buildAboutPage(settings, metadata) {
         subtitle: 'True multi-monitor capabilities for GNOME Shell.'
     });
 
-    const logoImg = new Gtk.Image({
-        icon_name: 'view-dual-symbolic',
-        pixel_size: 48,
+    // Resolve the local path using the extension directory for the About page as well
+    const imagePath = dir.get_child('logo.png').get_path();
+    const gfile = Gio.File.new_for_path(imagePath);
+
+    const logoImg = new Gtk.Picture({
+        file: gfile,
+        can_shrink: true,
+        width_request: 48,
+        height_request: 48,
+        content_fit: Gtk.ContentFit.CONTAIN,
         margin_end: 16
     });
+    
+    // Add built-in GTK CSS classes to make the image rounded and cast a subtle shadow
+    logoImg.add_css_class('circular');
+    logoImg.add_css_class('icon-dropshadow');
     
     logoRow.add_prefix(logoImg);
     
