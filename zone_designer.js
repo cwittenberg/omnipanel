@@ -6,6 +6,13 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { hexToRgba, getLayoutColors } from './layout_definitions.js';
 
+// --- USER ADJUSTABLE UI VARIABLES ---
+const TOPBAR_HEIGHT = 110; // Adjust the height of the top toolbar
+const BUTTON_PADDING = '4px 8px'; // Adjust button inner padding (top/bottom left/right)
+const ENTRY_PADDING = '4px'; // Adjust text entry inner padding
+const QUIT_BUTTON_HEIGHT = 55; // Adjust the total height of the Quit Designer button
+// ------------------------------------
+
 export const ZoneDesignerRoot = GObject.registerClass(
     class ZoneDesignerRoot extends St.Widget {
         _init(manager) {
@@ -26,6 +33,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this._pushedModal = false;
             this._captureId = 0;
             this._cycleBtns = [];
+            this._lastRect = null;
             
             this.set_position(0, 0);
             this.set_size(global.stage.width, global.stage.height);
@@ -36,27 +44,68 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.add_child(this._zonesContainer);
 
             let colors = getLayoutColors(manager);
+
             this._selection = new St.Widget({
-                style: `background-color: transparent; border: 2px solid ${colors.border};`,
+                style: `background-color: rgba(255,255,255,0.1); border: 2px solid ${colors.border}; border-radius: 12px;`,
                 visible: false
             });
             this.add_child(this._selection);
 
             this._warningLabel = new St.Label({
-                text: 'Minimum size enforced: 450x400',
-                style: 'color: #ff7979; font-weight: bold; font-size: 14px; background-color: rgba(0,0,0,0.85); padding: 6px 12px; border-radius: 6px; border: 1px solid #ff7979; box-shadow: 0 2px 4px rgba(0,0,0,0.5);',
+                text: 'Hold and drag to draw and expand zone (Min: 450x400)',
+                style: 'color: #ff7a7a; font-weight: bold; font-size: 14px; background-color: rgba(30,30,30,0.95); padding: 8px 16px; border-radius: 99px; border: 1px solid rgba(255,122,122,0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.5);',
                 visible: false
             });
             this.add_child(this._warningLabel);
 
             this._promptBox = new St.BoxLayout({ 
-                vertical: false, 
-                visible: false, 
+                 vertical: false, 
+                 visible: false, 
+                 reactive: true,
+                 style: 'background-color: rgba(40,40,40,0.95); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.5);' 
+             });
+            
+            this._entry = new St.Entry({ 
+                 hint_text: 'Name this Zone...', 
+                 style: `min-width: 220px; margin-right: 12px; padding: ${ENTRY_PADDING};`, 
+                 can_focus: true, 
+                 reactive: true 
+             });
+
+            let cancelBox = new St.BoxLayout({ vertical: false });
+            let cancelIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
+            let cancelLabel = new St.Label({ text: 'Cancel', y_align: Clutter.ActorAlign.CENTER });
+            cancelBox.add_child(cancelIcon);
+            cancelBox.add_child(cancelLabel);
+
+            this._cancelBtn = new St.Button({
+                child: cancelBox,
+                style_class: 'button',
+                style: `padding: ${BUTTON_PADDING}; margin-right: 8px;`,
                 reactive: true,
-                style: 'background-color: #242424; padding: 8px; border-radius: 8px; border: 1px solid #555; box-shadow: 0 4px 8px rgba(0,0,0,0.5);' 
+                track_hover: true,
+                can_focus: true
             });
-            this._entry = new St.Entry({ hint_text: 'Name this Zone...', style: 'min-width: 180px; margin-right: 8px;', can_focus: true, reactive: true });
-            this._saveBtn = new St.Button({ label: 'Save', style: 'background-color: #0078d4; color: white; border-radius: 4px; padding: 4px 16px; font-weight: bold;', reactive: true, track_hover: true, can_focus: true });
+            
+            this._cancelBtn.connect('clicked', () => {
+                this._hidePromptSafe();
+                this._dragAction = null;
+            });
+
+            let saveBox = new St.BoxLayout({ vertical: false });
+            let saveIcon = new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
+            let saveLabel = new St.Label({ text: 'Save', y_align: Clutter.ActorAlign.CENTER });
+            saveBox.add_child(saveIcon);
+            saveBox.add_child(saveLabel);
+
+            this._saveBtn = new St.Button({
+                 child: saveBox,
+                 style_class: 'button suggested-action',
+                 style: `padding: ${BUTTON_PADDING};`,
+                 reactive: true,
+                 track_hover: true,
+                 can_focus: true
+             });
             
             let saveAction = () => {
                 let name = this._entry.get_text().trim();
@@ -71,18 +120,19 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this._entry.clutter_text.connect('activate', saveAction);
             
             this._promptBox.add_child(this._entry);
+            this._promptBox.add_child(this._cancelBtn);
             this._promptBox.add_child(this._saveBtn);
             this.add_child(this._promptBox);
 
             this._monitors.forEach((m, i) => {
                 let toolbar = new St.BoxLayout({
                     vertical: false,
-                    style: 'background-color: rgba(30, 30, 30, 0.95); padding: 0px 16px; border-bottom: 2px solid #444;',
+                    style: 'background-color: rgba(30, 30, 30, 0.95); padding: 12px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); box-shadow: 0 2px 4px rgba(0,0,0,0.2);',
                     reactive: true
                 });
                 
                 toolbar.set_position(m.x, m.y);
-                toolbar.set_size(m.width, 70);
+                toolbar.set_size(m.width, TOPBAR_HEIGHT);
                 
                 let titleLabel = new St.Label({
                     text: `Zone Designer Mode  |  Monitor ${i + 1}`,
@@ -92,7 +142,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
                 let cycleBtn = new St.Button({
                     label: `Layout: ${manager.activeLayoutName || 'None'} (Click to Cycle)`,
-                    style: 'background-color: #34495e; color: white; border-radius: 6px; padding: 6px 16px; font-weight: bold; margin-right: 16px;',
+                    style_class: 'button',
+                    style: `margin-right: 24px; padding: ${BUTTON_PADDING};`,
                     y_align: Clutter.ActorAlign.CENTER,
                     reactive: true, track_hover: true, can_focus: true
                 });
@@ -104,15 +155,18 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 this._cycleBtns.push(cycleBtn);
 
                 let newLayoutBox = new St.BoxLayout({ vertical: false, style: 'margin-right: 24px;', y_align: Clutter.ActorAlign.CENTER });
+                
                 let newLayoutEntry = new St.Entry({
                     hint_text: 'New Layout Name...',
-                    style: 'min-width: 150px; padding: 6px; border-radius: 6px 0 0 6px; background-color: #333; color: white; border: 1px solid #555;',
+                    style: `min-width: 180px; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                     can_focus: true, reactive: true
                 });
                 newLayoutEntry.add_style_class_name('new-layout-entry');
+
                 let newLayoutBtn = new St.Button({
                     label: 'Create',
-                    style: 'background-color: #2ecc71; color: #111; border-radius: 0 6px 6px 0; padding: 6px 16px; font-weight: bold;',
+                    style_class: 'button',
+                    style: `padding: ${BUTTON_PADDING};`,
                     reactive: true, track_hover: true, can_focus: true
                 });
                 
@@ -126,13 +180,10 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             let usedSlots = Object.values(allLayouts).map(l => l.hotkeySlot).filter(s => s);
                             let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
                             
-                            // Explicitly provision a new blank layout owning exactly 0 zones
                             allLayouts[name] = { windows: {}, zones: {}, color: '#2ecc71', hotkeySlot: freeSlot };
                             manager.settings.set_string('named-layouts', JSON.stringify(allLayouts));
                         }
                         
-                        // Switch to the newly created blank layout. 
-                        // This wipes `custom-sections` clean and clears the screen.
                         manager.storage.restoreNamedLayout(name);
                         
                         newLayoutEntry.set_text('');
@@ -148,15 +199,29 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 
                 let spacer = new St.Widget({ x_expand: true, y_expand: true });
                 
+                let quitBox = new St.BoxLayout({ vertical: false });
+                let quitIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px; color: white;' });
+                let quitLabel = new St.Label({ text: 'Quit Designer', y_align: Clutter.ActorAlign.CENTER, style: 'color: white; font-weight: bold;' });
+                quitBox.add_child(quitIcon);
+                quitBox.add_child(quitLabel);
+
                 let quitBtn = new St.Button({
-                    label: 'Quit Designer',
+                    child: quitBox,
                     style_class: 'button',
-                    style: 'background-color: #c01c28; color: white; border-radius: 6px; padding: 8px 16px; font-weight: bold; margin: 0px;',
+                    style: `padding: ${BUTTON_PADDING}; height: ${QUIT_BUTTON_HEIGHT}px; background-color: #E95420; border: 1px solid #C84617; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);`,
                     y_align: Clutter.ActorAlign.CENTER,
                     x_align: Clutter.ActorAlign.CENTER,
                     reactive: true,
                     can_focus: true,
                     track_hover: true
+                });
+                
+                quitBtn.connect('notify::hover', () => {
+                    if (quitBtn.hover) {
+                        quitBtn.set_style(`padding: ${BUTTON_PADDING}; height: ${QUIT_BUTTON_HEIGHT}px; background-color: #F37343; border: 1px solid #E95420; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);`);
+                    } else {
+                        quitBtn.set_style(`padding: ${BUTTON_PADDING}; height: ${QUIT_BUTTON_HEIGHT}px; background-color: #E95420; border: 1px solid #C84617; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);`);
+                    }
                 });
                 quitBtn.connect('clicked', () => this.close());
                 
@@ -186,7 +251,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 
                 let mon = this._monitors[this._currentDrawMonitorIndex];
                 
-                if (y <= mon.y + 70) return Clutter.EVENT_PROPAGATE; 
+                if (y <= mon.y + TOPBAR_HEIGHT) return Clutter.EVENT_PROPAGATE; 
 
                 if (this._promptBox.visible) {
                     this._hidePromptSafe();
@@ -205,6 +270,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
             this.connect('motion-event', (_, event) => {
                 if (!this._dragAction || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
+
                 let [x, y] = event.get_coords();
                 let showWarning = false;
                 
@@ -223,7 +289,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let rectY = y < this._startY ? this._startY - rectH : this._startY;
                     
                     rectX = Math.max(0, Math.min(rectX, global.stage.width - rectW));
-                    rectY = Math.max(70, Math.min(rectY, global.stage.height - rectH));
+                    rectY = Math.max(TOPBAR_HEIGHT, Math.min(rectY, global.stage.height - rectH));
 
                     this._selection.set_position(rectX, rectY);
                     this._selection.set_size(rectW, rectH);
@@ -288,7 +354,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let sH = this._selection.height !== undefined ? this._selection.height : this._selection.get_height();
                     let sX = this._selection.x !== undefined ? this._selection.x : this._selection.get_x();
                     let sY = this._selection.y !== undefined ? this._selection.y : this._selection.get_y();
-
                     let panelH = Main.panel.height;
                     
                     sW = Math.max(450, sW);
@@ -324,7 +389,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     
                     let currMon = this._monitors[this._currentDrawMonitorIndex];
                     if (py + 60 > currMon.y + currMon.height) py = sY - 60; 
-                    if (px + 280 > currMon.x + currMon.width) px = currMon.x + currMon.width - 280; 
+                    if (px + 360 > currMon.x + currMon.width) px = currMon.x + currMon.width - 360; 
 
                     this._entry.set_text('');
                     this._promptBox.set_position(px, py);
@@ -335,6 +400,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let zoneBox = this._zoneWidgets[this._activeZoneName];
                     if (zoneBox) {
                         let targetMonitorIndex = this._currentDrawMonitorIndex;
+
                         let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
                         let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
                         let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
@@ -354,14 +420,15 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         }
 
                         let panelH = Main.panel.height;
-
                         let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
+                        
                         for (let mon of this._monitors) {
                             if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
                             if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
                             if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
                             if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
                         }
+                        
                         bxX = snapBxX;
                         bxY = snapBxY;
                         bxW = snapBxR - bxX;
@@ -397,6 +464,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 this._entry.clutter_text.set_cursor_visible(false);
             }
             global.stage.set_key_focus(this);
+
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 if (this._promptBox) {
                     this._promptBox.hide();
@@ -412,6 +480,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 if (!this._zonesContainer) return GLib.SOURCE_REMOVE;
+
                 this._zonesContainer.destroy_all_children();
                 this._zoneWidgets = {};
                 
@@ -445,24 +514,25 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let zoneBox = new St.Widget({
                         reactive: true,
                         x: rx, y: ry, width: rw, height: rh,
-                        style: `background-color: rgba(0,0,0,0.15); border: 2px dashed ${borderCol};`
+                        style: `background-color: rgba(0,0,0,0.15); border: 2px dashed ${borderCol}; border-radius: 12px;`
                     });
+
                     zoneBox.set_layout_manager(new Clutter.BinLayout());
 
                     let labelBox = new St.BoxLayout({
                         vertical: false,
-                        style: 'background-color: rgba(0,0,0,0.85); border-radius: 6px; padding: 6px 10px;',
+                        style: 'background-color: rgba(40,40,40,0.95); border-radius: 8px; padding: 6px 8px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3);',
                         x_align: Clutter.ActorAlign.CENTER,
                         y_align: Clutter.ActorAlign.CENTER
                     });
                     
                     let nameEntry = new St.Entry({
                         text: name,
-                        style: 'background-color: transparent; border: none; color: white; font-weight: bold;',
+                        style: `min-width: 120px; background-color: rgba(0,0,0,0.2); border-radius: 4px; color: white; font-weight: bold; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                         can_focus: true, reactive: true
                     });
                     
-                    nameEntry.clutter_text.connect('activate', () => {
+                    let handleZoneRename = () => {
                         let newName = nameEntry.get_text().trim();
                         if (newName && newName !== name) {
                             let zones = this._manager.storage.getCustomSections();
@@ -472,11 +542,31 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             this._zonesModified = true;
                             this._refreshZones();
                         }
+                    };
+                    
+                    nameEntry.clutter_text.connect('activate', handleZoneRename);
+
+                    let zSaveBtn = new St.Button({
+                        child: new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16 }),
+                        style_class: 'button suggested-action',
+                        style: `padding: 6px; margin-right: 8px;`,
+                        reactive: true, can_focus: true, track_hover: true,
+                        visible: false
+                    });
+                    zSaveBtn.connect('clicked', handleZoneRename);
+
+                    nameEntry.clutter_text.connect('text-changed', () => {
+                        if (nameEntry.get_text().trim() !== name) {
+                            if (!zSaveBtn.visible) zSaveBtn.show();
+                        } else {
+                            if (zSaveBtn.visible) zSaveBtn.hide();
+                        }
                     });
 
                     let delBtn = new St.Button({
                         child: new St.Icon({ icon_name: 'user-trash-symbolic', icon_size: 16 }),
-                        style: 'padding: 6px; margin-left: 12px; background-color: #c01c28; border-radius: 4px;',
+                        style_class: 'button destructive-action',
+                        style: `padding: 6px;`,
                         reactive: true, can_focus: true, track_hover: true
                     });
                     delBtn.connect('clicked', () => {
@@ -489,7 +579,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
                     let resizeHandle = new St.BoxLayout({
                         reactive: true,
-                        style: `background-color: ${color}; border: 2px solid white; border-radius: 12px 0 8px 0; padding: 6px;`,
+                        style: `background-color: rgba(40,40,40,0.8); border-top: 1px solid rgba(255,255,255,0.2); border-left: 1px solid rgba(255,255,255,0.2); border-radius: 8px 0 12px 0; padding: 8px;`,
                         x_align: Clutter.ActorAlign.END,
                         y_align: Clutter.ActorAlign.END,
                         x_expand: true, 
@@ -499,20 +589,38 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     resizeHandle.add_child(new St.Icon({ icon_name: 'view-fullscreen-symbolic', icon_size: 16, style: 'color: white;' }));
 
                     labelBox.add_child(nameEntry);
+                    labelBox.add_child(zSaveBtn);
                     labelBox.add_child(delBtn);
                     zoneBox.add_child(labelBox);
                     zoneBox.add_child(resizeHandle);
                     
                     zoneBox.connect('button-press-event', (_, event) => {
+                        let source = event.get_source();
+                        let temp = source;
+                        let isInteractive = false;
+                        while (temp && temp !== zoneBox) {
+                            if (temp instanceof St.Button || temp instanceof St.Entry) {
+                                isInteractive = true;
+                                break;
+                            }
+                            temp = temp.get_parent();
+                        }
+                        if (isInteractive) return Clutter.EVENT_PROPAGATE;
+
                         if (this._promptBox.visible) this._hidePromptSafe();
+
                         let [x, y] = event.get_coords();
+                        
                         this._dragAction = 'move';
                         this._activeZoneName = name;
+
                         let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
                         let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
+
                         this._dragOffsetX = x - bxX;
                         this._dragOffsetY = y - bxY;
                         this._currentDrawMonitorIndex = safeIndex;
+
                         return Clutter.EVENT_STOP;
                     });
 
@@ -524,12 +632,10 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         return Clutter.EVENT_STOP;
                     });
 
-                    delBtn.connect('button-press-event', () => Clutter.EVENT_STOP);
-                    nameEntry.connect('button-press-event', () => Clutter.EVENT_STOP);
-
                     this._zoneWidgets[name] = zoneBox;
                     this._zonesContainer.add_child(zoneBox);
                 }
+
                 return GLib.SOURCE_REMOVE;
             });
         }
@@ -540,6 +646,14 @@ export const ZoneDesignerRoot = GObject.registerClass(
             
             this._captureId = global.stage.connect('captured-event', (_, event) => {
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
+                    if (this._dragAction) {
+                        this._dragAction = null;
+                        this._activeZoneName = null;
+                        if (this._selection) this._selection.hide();
+                        if (this._warningLabel) this._warningLabel.hide();
+                        this._refreshZones(); 
+                        return Clutter.EVENT_STOP;
+                    }
                     if (this._promptBox && this._promptBox.visible) {
                         this._hidePromptSafe();
                         return Clutter.EVENT_STOP;
@@ -554,7 +668,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 }
                 return Clutter.EVENT_PROPAGATE;
             });
-
             this.grab_key_focus();
         }
 
@@ -583,6 +696,11 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 if (this.get_parent()) {
                     Main.layoutManager.uiGroup.remove_child(this);
                 }
+                
+                this._cycleBtns = [];
+                this._zoneWidgets = {};
+                this._lastRect = null;
+                
                 this.destroy();
                 this._manager.onDesignerClosed(didModify);
                 return GLib.SOURCE_REMOVE;

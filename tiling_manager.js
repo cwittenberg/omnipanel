@@ -1,4 +1,4 @@
-// tiling_manager.js
+// omnipanel/tiling_manager.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -362,6 +362,12 @@ export default class TilingManager {
     _executePlacement(window, wmClass, winTitle, winId) {
         this._log(`[${winId}] Starting Layout Evaluation. Class=${wmClass} Title=${winTitle}`);
         try {
+            let ignoreList = this.settings.get_strv('ignore-wm-classes') || [];
+            if (ignoreList.some(cls => cls.toLowerCase() === wmClass.toLowerCase())) {
+                this._log(`[${winId}] Ignoring WM_CLASS [${wmClass}] due to user ignore-list configuration.`);
+                return;
+            }
+
             let categories = '';
             try {
                 let tracker = Shell.WindowTracker.get_default();
@@ -473,7 +479,6 @@ export default class TilingManager {
         this._log(`[${winId}] 🪲 EXTREME DEBUG: NEW WINDOW DETECTED`);
         this._log(`[${winId}] 🪲 APP: ${wmClass} | TITLE: ${title}`);
         
-        // WAYLAND IMMEDIATE HEALER: Intercept poisoned preferences before 750ms timer allows crash
         try {
             let rect = window.get_frame_rect();
             this._log(`[${winId}] 🪲 INITIAL WAYLAND SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);

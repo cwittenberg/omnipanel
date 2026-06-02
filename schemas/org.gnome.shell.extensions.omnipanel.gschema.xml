@@ -66,6 +66,18 @@
       <default>true</default>
       <summary>Fuzzy Auto-Placement</summary>
     </key>
+    <key name="remember-app-affinity" type="b">
+      <default>true</default>
+      <summary>Remember App Affinity per Zone</summary>
+    </key>
+    <key name="app-dictionary" type="s">
+      <default>''</default>
+      <summary>Custom App Dictionary JSON</summary>
+    </key>
+    <key name="category-map" type="s">
+      <default>''</default>
+      <summary>Custom Category Map JSON</summary>
+    </key>
     <key name="enable-stack-indicators" type="b">
       <default>true</default>
       <summary>Enable Zone Stack Indicators</summary>
@@ -97,6 +109,11 @@
     <key name="custom-sections" type="s">
       <default>'{}'</default>
       <summary>User Custom Drop Zones</summary>
+    </key>
+
+    <key name="ignore-wm-classes" type="as">
+      <default>[]</default>
+      <summary>Ignored WM Classes</summary>
     </key>
 
     <key name="enable-debug-logs" type="b">
