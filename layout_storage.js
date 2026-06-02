@@ -53,11 +53,9 @@ export class LayoutStorage {
                 
                 let wmClass = window.get_wm_class();
                 if (!wmClass) continue;
-
                 if (!layoutState[wmClass]) layoutState[wmClass] = [];
                 
                 let title = window.get_title() || '';
-
                 if (section) {
                     layoutState[wmClass].push({ title: title, monitor: monitorIndex, section: section });
                 }
@@ -74,10 +72,8 @@ export class LayoutStorage {
             let signatures = this.manager.getMonitorSignature();
             let allLayouts = {};
             try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
-
             let existingWindows = allLayouts[signatures.exact] ? (allLayouts[signatures.exact].windows || {}) : {};
             let mergedWindows = { ...existingWindows, ...state };
-
             allLayouts[signatures.exact] = { windows: mergedWindows, zones: zones };
             this.settings.set_string('saved-tiling-layouts', JSON.stringify(allLayouts));
         }
@@ -99,7 +95,6 @@ export class LayoutStorage {
                 namedLayouts[this.manager.activeLayoutName] = { windows: mergedWindows, zones: zones, color: existingColor };
                 if (existingSlot) namedLayouts[this.manager.activeLayoutName].hotkeySlot = existingSlot;
                 if (existingText) namedLayouts[this.manager.activeLayoutName].hotkeyText = existingText;
-
                 this.settings.set_string('named-layouts', JSON.stringify(namedLayouts));
             }
         }
@@ -113,7 +108,6 @@ export class LayoutStorage {
         
         let existingWindows = allLayouts[name] ? (allLayouts[name].windows || {}) : {};
         let mergedWindows = { ...existingWindows, ...state };
-
         let existingColor = allLayouts[name] && allLayouts[name].color ? allLayouts[name].color : 'rgba(46, 204, 113, 1.0)';
         let existingSlot = allLayouts[name] && allLayouts[name].hotkeySlot ? allLayouts[name].hotkeySlot : null;
         let existingText = allLayouts[name] && allLayouts[name].hotkeyText ? allLayouts[name].hotkeyText : null;
@@ -128,10 +122,10 @@ export class LayoutStorage {
         
         this.settings.set_string('named-layouts', JSON.stringify(allLayouts));
         this.manager.activeLayoutName = name;
+
         if (this.manager._indicator) {
             this.manager._indicator._rebuildMenu();
         }
-
         if (!this.settings.get_string('default-layout')) {
             this.settings.set_string('default-layout', name);
         }
@@ -178,11 +172,31 @@ export class LayoutStorage {
         this.setCustomSectionsAndSave(allZones);
     }
 
+    restoreNamedLayout(name) {
+        if (!name) return;
+        let namedLayouts = {};
+        try { namedLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { return; }
+        
+        let layout = namedLayouts[name];
+        if (layout) {
+            this.manager.activeLayoutName = name;
+            let zones = layout.zones || {};
+            let windows = layout.windows || {};
+            
+            this.settings.set_string('custom-sections', JSON.stringify(zones));
+            this.restoreLayout(windows, zones);
+            
+            if (this.manager._indicator) {
+                this.manager._indicator._rebuildMenu();
+            }
+        }
+    }
+
     restoreLayout(savedState, zonesOverride = null) {
         let windows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
         let customSections = zonesOverride || this.getCustomSections();
-
         let availableLayouts = {};
+
         for (let wmClass in savedState) {
             availableLayouts[wmClass] = Array.isArray(savedState[wmClass]) ? 
                 JSON.parse(JSON.stringify(savedState[wmClass])) : 
@@ -207,6 +221,7 @@ export class LayoutStorage {
                     
                     let bestIdx = 0;
                     let bestScore = -1;
+
                     for (let i = 0; i < list.length; i++) {
                         let score = calculateTitleSimilarity(winTitle, list[i].title);
                         if (score > bestScore) {
@@ -253,6 +268,7 @@ export class LayoutStorage {
                     if (mRect) {
                         let safeW = 800;
                         let safeH = 600;
+
                         try {
                             if (typeof window.get_min_size === 'function') {
                                 let min = window.get_min_size();
@@ -277,7 +293,6 @@ export class LayoutStorage {
                         });
                     }
                 }
-
             } catch {}
         }
     }
@@ -305,6 +320,7 @@ export class LayoutStorage {
                 let zonesState = savedData.zones || {};
                 
                 this.settings.set_string('custom-sections', JSON.stringify(zonesState));
+
                 this.restoreLayout(windowsState, zonesState);
                 return GLib.SOURCE_REMOVE;
             });

@@ -170,12 +170,13 @@ export class SnapEngine {
             if (zone.isHovered !== isHovered) {
                 zone.isHovered = isHovered;
                 let borderCol = hexToRgba(zone.widget._baseColor, 1.0);
+                let fillCol = hexToRgba(zone.widget._baseColor, 0.2);
 
                 let brRadius = zone.isMaximize ? '0 0 12px 12px' : '8px';
                 let bTop = zone.isMaximize ? 'border-top: none;' : '';
 
                 if (isHovered) {
-                    zone.widget.set_style(`background-color: transparent; border: 4px solid ${borderCol}; ${bTop} border-radius: ${brRadius}; transition-duration: 250ms;`);
+                    zone.widget.set_style(`background-color: ${fillCol}; border: 4px solid ${borderCol}; ${bTop} border-radius: ${brRadius}; transition-duration: 250ms;`);
                     this._startBreathing(zone.widget);
                 } else {
                     this._stopBreathing(zone.widget);
