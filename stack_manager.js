@@ -4,7 +4,7 @@ import Meta from 'gi://Meta';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { applyWindowTransform, getSectionRect, Sections } from './layout_definitions.js';
+import { applyWindowTransform, getSectionRect, Sections, isWindowIgnored } from './layout_definitions.js';
 
 export class StackManager {
     constructor(tilingManager) {
@@ -443,6 +443,7 @@ export class StackManager {
         
         let windows = allWindows.filter(w => {
             try {
+                if (isWindowIgnored(w, this.settings)) return false;
                 if (!w._omnipanel_zone) return false;
                 let actor = w.get_compositor_private();
                 if (!actor || actor.is_destroyed()) return false;

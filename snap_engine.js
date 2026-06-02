@@ -5,7 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { getSectionRect, hexToRgba, getLayoutColors, applyWindowTransform } from './layout_definitions.js';
+import { getSectionRect, hexToRgba, getLayoutColors, applyWindowTransform, isWindowIgnored } from './layout_definitions.js';
 
 export class SnapEngine {
     constructor(manager) {
@@ -52,6 +52,7 @@ export class SnapEngine {
 
     onGrabBegin(display, window, op) {
         if (op !== Meta.GrabOp.MOVING || !this.settings.get_boolean('enable-tiling')) return;
+        if (isWindowIgnored(window, this.settings)) return;
         
         this._dragWindow = window;
         this._activeDragZones = [];
@@ -253,6 +254,7 @@ export class SnapEngine {
         let window = global.display.get_focus_window();
         try {
             if (!window || !window.get_display() || window.get_window_type() !== Meta.WindowType.NORMAL) return;
+            if (isWindowIgnored(window, this.settings)) return;
         } catch { return; }
 
         let customSections = this.manager.storage.getCustomSections();
@@ -283,6 +285,7 @@ export class SnapEngine {
         let window = global.display.get_focus_window();
         try {
             if (!window || !window.get_display() || window.get_window_type() !== Meta.WindowType.NORMAL) return;
+            if (isWindowIgnored(window, this.settings)) return;
         } catch { return; }
 
         let rect = window.get_frame_rect();

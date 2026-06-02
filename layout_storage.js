@@ -2,7 +2,7 @@
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { getSectionRect, identifySection, applyWindowTransform, calculateTitleSimilarity, isWindowValid } from './layout_definitions.js';
+import { getSectionRect, identifySection, applyWindowTransform, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
 
 export class LayoutStorage {
     constructor(manager) {
@@ -39,6 +39,7 @@ export class LayoutStorage {
                 if (!window || !window.get_display()) continue;
                 if (window.is_override_redirect()) continue;
                 if (window.get_transient_for() !== null) continue;
+                if (isWindowIgnored(window, this.settings)) continue;
                 
                 let monitorIndex = window.get_monitor();
                 let section = null;
@@ -177,54 +178,6 @@ export class LayoutStorage {
         this.setCustomSectionsAndSave(allZones);
     }
 
-    restoreNamedLayout(name) {
-        let allLayouts = {};
-        try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
-        
-        let savedData = allLayouts[name];
-        if (savedData) {
-            this.manager.activeLayoutName = name;
-            let windowsState = savedData.windows || savedData;
-            let zonesState = savedData.zones || {};
-            
-            this.settings.set_string('custom-sections', JSON.stringify(zonesState));
-            
-            this.restoreLayout(windowsState, zonesState);
-            if (this.manager._indicator) {
-                this.manager._indicator._rebuildMenu();
-            }
-        }
-    }
-
-    onMonitorsChanged() {
-        if (!this.settings.get_boolean('auto-restore-layouts')) return;
-
-        let signatures = this.manager.getMonitorSignature();
-        let allLayouts = {};
-        try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
-
-        let savedData = allLayouts[signatures.exact];
-
-        if (!savedData && this.settings.get_boolean('fuzzy-restore-monitors')) {
-            let possibleSignatures = Object.keys(allLayouts);
-            let fuzzyMatch = possibleSignatures.find(sig => sig.split('|').length.toString() === signatures.fuzzy);
-            if (fuzzyMatch) {
-                savedData = allLayouts[fuzzyMatch];
-            }
-        }
-
-        if (savedData) {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                let windowsState = savedData.windows || savedData;
-                let zonesState = savedData.zones || {};
-                
-                this.settings.set_string('custom-sections', JSON.stringify(zonesState));
-                this.restoreLayout(windowsState, zonesState);
-                return GLib.SOURCE_REMOVE;
-            });
-        }
-    }
-
     restoreLayout(savedState, zonesOverride = null) {
         let windows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
         let customSections = zonesOverride || this.getCustomSections();
@@ -240,6 +193,7 @@ export class LayoutStorage {
             try {
                 if (!window || !window.get_display() || window.is_override_redirect()) continue;
                 if (window.get_transient_for() !== null) continue;
+                if (isWindowIgnored(window, this.settings)) continue;
 
                 let wmClass = window.get_wm_class();
                 if (!wmClass) continue;
@@ -325,6 +279,35 @@ export class LayoutStorage {
                 }
 
             } catch {}
+        }
+    }
+
+    onMonitorsChanged() {
+        if (!this.settings.get_boolean('auto-restore-layouts')) return;
+
+        let signatures = this.manager.getMonitorSignature();
+        let allLayouts = {};
+        try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
+
+        let savedData = allLayouts[signatures.exact];
+
+        if (!savedData && this.settings.get_boolean('fuzzy-restore-monitors')) {
+            let possibleSignatures = Object.keys(allLayouts);
+            let fuzzyMatch = possibleSignatures.find(sig => sig.split('|').length.toString() === signatures.fuzzy);
+            if (fuzzyMatch) {
+                savedData = allLayouts[fuzzyMatch];
+            }
+        }
+
+        if (savedData) {
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                let windowsState = savedData.windows || savedData;
+                let zonesState = savedData.zones || {};
+                
+                this.settings.set_string('custom-sections', JSON.stringify(zonesState));
+                this.restoreLayout(windowsState, zonesState);
+                return GLib.SOURCE_REMOVE;
+            });
         }
     }
 }

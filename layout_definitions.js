@@ -2,6 +2,7 @@
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
+import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { DEFAULT_APP_DICTIONARY, DEFAULT_CATEGORY_MAP } from './defaults.js';
 
@@ -19,6 +20,33 @@ export const Sections = {
     BOTTOM_LEFT_QUAD: 'bottom_left_quad',
     BOTTOM_RIGHT_QUAD: 'bottom_right_quad'
 };
+
+export function isWindowIgnored(window, settings) {
+    if (!window || !settings) return false;
+    try {
+        let wmClass = (window.get_wm_class() || '').toLowerCase();
+        let winTitle = (window.get_title() || '').toLowerCase();
+        let appName = '';
+        
+        try {
+            let tracker = Shell.WindowTracker.get_default();
+            let app = tracker.get_window_app(window);
+            if (app && typeof app.get_name === 'function') {
+                appName = (app.get_name() || '').toLowerCase();
+            }
+        } catch {}
+
+        let ignoreList = settings.get_strv('ignore-wm-classes') || [];
+        
+        return ignoreList.some(cls => {
+            let term = cls.trim().toLowerCase();
+            if (term.length < 2) return false; // Prevent empty strings from catching everything
+            return wmClass.includes(term) || winTitle.includes(term) || appName.includes(term);
+        });
+    } catch {
+        return false;
+    }
+}
 
 export function isWindowValid(window) {
     if (!window) return false;

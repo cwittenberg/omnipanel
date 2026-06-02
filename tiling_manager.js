@@ -10,7 +10,7 @@ import { ZoneDesignerRoot } from './zone_designer.js';
 import { LayoutStorage } from './layout_storage.js';
 import { SnapEngine } from './snap_engine.js';
 import { StackManager } from './stack_manager.js';
-import { getSectionRect, fuzzyMatchAppToZone, applyWindowTransform, Sections, calculateTitleSimilarity, isWindowValid } from './layout_definitions.js';
+import { getSectionRect, fuzzyMatchAppToZone, applyWindowTransform, Sections, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
 
 export default class TilingManager {
     constructor(settings) {
@@ -362,9 +362,8 @@ export default class TilingManager {
     _executePlacement(window, wmClass, winTitle, winId) {
         this._log(`[${winId}] Starting Layout Evaluation. Class=${wmClass} Title=${winTitle}`);
         try {
-            let ignoreList = this.settings.get_strv('ignore-wm-classes') || [];
-            if (ignoreList.some(cls => cls.toLowerCase() === wmClass.toLowerCase())) {
-                this._log(`[${winId}] Ignoring WM_CLASS [${wmClass}] due to user ignore-list configuration.`);
+            if (isWindowIgnored(window, this.settings)) {
+                this._log(`[${winId}] Ignoring WM_CLASS/Title [${wmClass} / ${winTitle}] due to user ignore-list configuration.`);
                 return;
             }
 
