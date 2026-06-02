@@ -540,13 +540,15 @@ export default class TilingManager {
 
         } catch {}
 
-        this._log(`[${winId}] >> Starting passive 750ms DBus yield timer...`);
+        this._log(`[${winId}] >> Starting rapid DBus metadata polling (50ms intervals)...`);
 
-        let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 750, () => {
-            this._trackedTimers.delete(window._omnipanel_creation_timer);
-            window._omnipanel_creation_timer = 0;
-            
+        let attempts = 0;
+        let maxAttempts = 15; // 15 * 50ms = 750ms max wait
+
+        let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
             if (window._omnipanel_is_dead || !isWindowValid(window)) {
+                this._trackedTimers.delete(window._omnipanel_creation_timer);
+                window._omnipanel_creation_timer = 0;
                 this._log(`[${winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
                 return GLib.SOURCE_REMOVE;
             }
@@ -556,21 +558,31 @@ export default class TilingManager {
                 let isSkipPagerNow = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
 
                 if (isSkipTaskbarNow || isSkipPagerNow) {
+                    this._trackedTimers.delete(window._omnipanel_creation_timer);
                     this._log(`[${winId}] Window became skip_taskbar during yield. Aborting.`);
                     return GLib.SOURCE_REMOVE;
                 }
 
-                this._log(`[${winId}] Fetching get_wm_class...`);
                 let finalWmClass = window.get_wm_class() || '';
+                
+                if (!finalWmClass && attempts < maxAttempts) {
+                    attempts++;
+                    return GLib.SOURCE_CONTINUE; // Keep polling
+                }
+
+                this._trackedTimers.delete(window._omnipanel_creation_timer);
+                window._omnipanel_creation_timer = 0;
+
                 if (!finalWmClass) {
-                    this._log(`[${winId}] Window has no wm_class yet. Aborting.`);
+                    this._log(`[${winId}] Window has no wm_class after max attempts. Aborting.`);
                     return GLib.SOURCE_REMOVE;
                 }
                 
-                this._log(`[${winId}] Metadata retrieved safely. Moving to execution phase.`);
+                this._log(`[${winId}] Metadata retrieved safely on attempt ${attempts + 1}. Moving to execution phase.`);
                 this._executePlacement(window, finalWmClass, window.get_title() || '', winId);
                 
             } catch {
+                this._trackedTimers.delete(window._omnipanel_creation_timer);
                 this._log(`[${winId}] FATAL CATCH in Timer`);
             }
 

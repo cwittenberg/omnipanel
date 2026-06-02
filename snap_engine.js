@@ -156,12 +156,27 @@ export class SnapEngine {
     }
 
     updateDrag() {
-        let [x, y] = global.get_pointer();
+        let pointer = global.get_pointer();
+        let x = pointer[0];
+        let y = pointer[1];
+        let mods = pointer[2] || 0;
+        
+        // Detect if Alt (MOD1) or Right Alt/Alt Gr (MOD5) is currently being held down
+        let isAltPressed = (mods & (Clutter.ModifierType.MOD1_MASK | Clutter.ModifierType.MOD5_MASK)) !== 0;
+
         this._currentSnapZone = null;
 
         for (let zone of this._activeDragZones) {
+            // Hide the zones dynamically for instant visual feedback that snapping is disabled
+            if (isAltPressed) {
+                if (zone.widget.visible) zone.widget.hide();
+            } else {
+                if (!zone.widget.visible) zone.widget.show();
+            }
+
             let r = zone.rect;
-            let isHovered = (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height);
+            // Prevent hovering/selection while Alt is pressed
+            let isHovered = !isAltPressed && (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height);
             
             if (isHovered) {
                 this._currentSnapZone = zone;
@@ -243,6 +258,8 @@ export class SnapEngine {
             });
 
         } else {
+            // Because _currentSnapZone is bypassed by the Alt modifier, it triggers this branch
+            // freeing the window naturally and dropping its affinity.
             delete this._dragWindow._omnipanel_zone;
             delete this._dragWindow._omnipanel_monitor;
         }

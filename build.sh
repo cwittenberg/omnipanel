@@ -32,6 +32,7 @@ echo "[4/5] Packaging extension..."
 # The pack command points to the extension folder from the parent directory
 gnome-extensions pack "$EXT_NAME" \
     --extra-source=schemas/ \
+    --extra-source=logo.png \
     --force
 
 echo "[5/5] Verifying build..."

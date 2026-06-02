@@ -53,8 +53,8 @@ export function buildGuidePage(dir) {
     const heroIcon = new Gtk.Picture({
         file: gfile,
         can_shrink: true,
-        width_request: 80,
-        height_request: 80,
+        width_request: 34,
+        height_request: 34,
         content_fit: Gtk.ContentFit.CONTAIN
     });
     
@@ -69,7 +69,7 @@ export function buildGuidePage(dir) {
     });
     
     const heroDesc = new Gtk.Label({ 
-        label: 'True multi-monitor capabilities. OmniPanel replaces rigid grids with intelligent, user-drawn "Drop Zones" and teleports a single, active Top Bar to seamlessly follow your focus.', 
+        label: 'Multi-monitor productivity with configurable layouts for windows and a GNOME Top Bar that seamlessly follows your focus.', 
         justify: Gtk.Justification.CENTER, 
         wrap: true 
     });
