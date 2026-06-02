@@ -1,4 +1,4 @@
-// layout_definitions.js
+// omnipanel/layout_definitions.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
@@ -198,22 +198,16 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
 
-        let crx = Number(cs.rx);
-        let cry = Number(cs.ry);
-        let crw = Number(cs.rw);
-        let crh = Number(cs.rh);
+        let crx = Number.isFinite(Number(cs.rx)) ? Number(cs.rx) : 0;
+        let cry = Number.isFinite(Number(cs.ry)) ? Number(cs.ry) : 0;
+        let crw = Number.isFinite(Number(cs.rw)) ? Math.max(0.05, Number(cs.rw)) : 0.2;
+        let crh = Number.isFinite(Number(cs.rh)) ? Math.max(0.05, Number(cs.rh)) : 0.2;
 
-        crx = isNaN(crx) ? 0 : crx;
-        cry = isNaN(cry) ? 0 : cry;
-        crw = isNaN(crw) ? 0.2 : Math.max(0.05, crw); 
-        crh = isNaN(crh) ? 0.2 : Math.max(0.05, crh); 
-
-        // Uses the anchor monitor natively, allows dimensions to exceed anchor monitor (cross-monitor spanning)
         rect.x = monitor.x + Math.round(monitor.width * crx);
         rect.y = workAreaY + Math.round(workAreaHeight * cry);
-        
-        rect.width = Math.max(150, Math.round(monitor.width * crw));
-        rect.height = Math.max(100, Math.round(workAreaHeight * crh));
+        rect.width = Math.max(50, Math.round(monitor.width * crw));
+        rect.height = Math.max(50, Math.round(workAreaHeight * crh));
+
     } else {
         let safeMonitorIndex = Math.max(0, Math.min(monitorIndex, mCount - 1));
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
@@ -333,104 +327,119 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
     return bestMatch;
 }
 
-const _activeSources = new Set();
-
 export function clearPendingTransforms() {
-    for (let id of _activeSources) {
-        GLib.source_remove(id);
-    }
-    _activeSources.clear();
+    _waylandQueue.length = 0;
 }
 
-export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null) {
-    if (!isWindowValid(window)) return;
+// ----------------------------------------------------------------------------
+// THE GLOBAL WAYLAND EXECUTION QUEUE
+// ----------------------------------------------------------------------------
+const _waylandQueue = [];
+let _waylandQueueRunning = false;
+
+function _processWaylandQueue() {
+    if (_waylandQueue.length === 0) {
+        _waylandQueueRunning = false;
+        return;
+    }
     
-    let winTitle = 'unknown';
-    try { winTitle = window.get_title() || 'unknown'; } catch {}
-
-    // Debounce to clear any pending resizing timers for this specific window
-    if (window._omnipanel_transform_timeout) {
-        GLib.source_remove(window._omnipanel_transform_timeout);
-        _activeSources.delete(window._omnipanel_transform_timeout);
-        window._omnipanel_transform_timeout = 0;
-    }
-
-    let targetX = Math.round(Number(targetRect.x));
-    let targetY = Math.round(Number(targetRect.y));
-    let targetW = Math.max(150, Math.round(Number(targetRect.width)));
-    let targetH = Math.max(100, Math.round(Number(targetRect.height)));
-
-    if (isNaN(targetX) || isNaN(targetY) || isNaN(targetW) || isNaN(targetH)) return;
-
-    // INFINITE LOOP SHIELD: If the requested geometry hasn't changed since the last request,
-    // silently abort to prevent tug-of-war loops with stubborn GTK clients.
-    let reqSig = `${targetX},${targetY},${targetW},${targetH},${isMaximized}`;
-    if (window._omnipanel_last_req === reqSig) {
-        return; 
-    }
-    window._omnipanel_last_req = reqSig;
-
-    if (logger) logger(`[applyWindowTransform] Queued Wayland-safe transform for [${winTitle}] -> ${targetW}x${targetH} at (${targetX},${targetY})`);
-
-    let executeResize = () => {
-        if (!isWindowValid(window)) return;
-
-        let frame = window.get_frame_rect();
-        let currentMonitor = window.get_monitor();
-        let isAlreadyMax = window.get_maximized() === Meta.MaximizeFlags.BOTH || window.get_maximized() === 3 || window.get_maximized() === true;
-        
-        if (isMaximized) {
-            // Delta bypass stops Wayland flooding
-            if (isAlreadyMax && currentMonitor === targetMonitorIndex) return; 
-
-            if (logger) logger(`[applyWindowTransform] Maximizing [${winTitle}] on Monitor ${targetMonitorIndex}`);
+    _waylandQueueRunning = true;
+    let task = _waylandQueue.shift();
+    
+    if (task.window && !task.window._omnipanel_is_dead) {
+        try {
+            let isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
             
-            // Explicitly force the window to the correct monitor BEFORE maximizing
-            if (currentMonitor !== targetMonitorIndex) {
-                window.move_to_monitor(targetMonitorIndex);
-            }
-            if (!isAlreadyMax) {
-                window.maximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
-            }
-        } else {
-            // Delta Bypass: Protects Wayland Ping Serial from being flooded if window is already perfectly positioned
-            if (Math.abs(frame.x - targetX) <= 5 && Math.abs(frame.y - targetY) <= 5 && 
-                Math.abs(frame.width - targetW) <= 5 && Math.abs(frame.height - targetH) <= 5 &&
-                !isAlreadyMax) {
-                return; 
-            }
+            if (task.isMax) {
+                if (task.logger) task.logger(`[WaylandQueue] Maximizing [${task.title}]`);
+                if (!isAlreadyMax) task.window.maximize(Meta.MaximizeFlags.BOTH);
+            } else {
+                if (task.logger) task.logger(`[WaylandQueue] Applying spanning geometry on [${task.title}] -> [X:${task.x} Y:${task.y} W:${task.w} H:${task.h}]`);
+                
+                if (isAlreadyMax) {
+                    task.window.unmaximize(Meta.MaximizeFlags.BOTH);
+                }
+                
+                // CRITICAL FOR GTK4 WAYLAND CLIENTS (like GNOME Files):
+                // user_op MUST be true. If false, Mutter treats it as a programmatic 
+                // window-manager layout request and strictly clamps GTK4 apps to a single monitor.
+                // By passing true, we explicitly bypass Mutter's monitor boundary clamping.
+                task.window.move_resize_frame(true, task.x, task.y, task.w, task.h);
 
-            if (isAlreadyMax) {
-                window.unmaximize(Meta.MaximizeFlags.HORIZONTAL | Meta.MaximizeFlags.VERTICAL);
-                // Safe Wayland Unmaximize: Wait 50ms for GTK client state resolution before applying geometry
-                let t = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-                    _activeSources.delete(t);
-                    if (isWindowValid(window)) {
-                        // NO move_to_monitor here: Absolute X/Y allows smooth cross-monitor spanning
-                        window.move_resize_frame(true, targetX, targetY, targetW, targetH);
+                // Trailing Wayland Sync Catch
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                    if (task.window && !task.window._omnipanel_is_dead) {
+                        task.window.move_resize_frame(true, task.x, task.y, task.w, task.h);
                     }
                     return GLib.SOURCE_REMOVE;
                 });
-                _activeSources.add(t);
-            } else {
-                if (logger) logger(`[applyWindowTransform] Executing move_resize_frame() on [${winTitle}] -> [X:${targetX} Y:${targetY} W:${targetW} H:${targetH}]`);
-                // NO move_to_monitor here: Absolute X/Y allows smooth cross-monitor spanning
-                window.move_resize_frame(true, targetX, targetY, targetW, targetH);
             }
+        } catch (err) {
+            if (task.logger) task.logger(`[WaylandQueue Error] ${err}`);
         }
-    };
-
-    // First execution attempts immediate snappy sizing
-    executeResize();
-
-    // Second execution guarantees FULL ZONE EXTENT for Wayland apps that draw slowly upon creation
-    let tid = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-        window._omnipanel_transform_timeout = 0;
-        _activeSources.delete(tid);
-        executeResize();
+    }
+    
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+        _processWaylandQueue();
         return GLib.SOURCE_REMOVE;
     });
+}
+
+export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null) {
+    if (!window) return;
     
-    window._omnipanel_transform_timeout = tid;
-    _activeSources.add(tid);
+    let winTitle = 'unknown';
+    let winId = 'unknown';
+    try { 
+        winTitle = window.get_title() || 'unknown'; 
+        winId = window.get_id ? window.get_id() : Math.random().toString();
+    } catch {}
+
+    if (window._omnipanel_is_dead) return;
+
+    let targetX = Number.isFinite(Number(targetRect.x)) ? targetRect.x : 0;
+    let targetY = Number.isFinite(Number(targetRect.y)) ? targetRect.y : 0;
+    let targetW = Number.isFinite(Number(targetRect.width)) ? targetRect.width : 400;
+    let targetH = Number.isFinite(Number(targetRect.height)) ? targetRect.height : 300;
+
+    let minW = 50, minH = 50;
+    try {
+        if (typeof window.get_min_size === 'function') {
+            let minSize = window.get_min_size();
+            if (Array.isArray(minSize) && minSize.length >= 2) {
+                if (minSize[0] > 0) minW = Math.max(minW, minSize[0]);
+                if (minSize[1] > 0) minH = Math.max(minH, minSize[1]);
+            }
+        }
+    } catch {}
+
+    let safeW = Math.max(minW, Math.round(targetW));
+    let safeH = Math.max(minH, Math.round(targetH));
+    let safeX = Math.round(targetX);
+    let safeY = Math.round(targetY);
+
+    // PURGED REQUEST CACHE
+    // We completely removed the `window._omnipanel_last_req` equality check here.
+    // This ensures GTK4 clients dropping/ignoring early frame configure events 
+    // will no longer result in a silent return on repeated drops.
+
+    let existingIdx = _waylandQueue.findIndex(t => t.id === winId);
+    if (existingIdx !== -1) {
+        _waylandQueue.splice(existingIdx, 1);
+    }
+
+    if (logger) logger(`[applyWindowTransform] Queued programmatic resize on [${winTitle}] -> [X:${safeX} Y:${safeY} W:${safeW} H:${safeH}]`);
+
+    _waylandQueue.push({
+        id: winId,
+        window: window,
+        x: safeX, y: safeY, w: safeW, h: safeH,
+        isMax: isMaximized,
+        title: winTitle,
+        logger: logger
+    });
+
+    if (!_waylandQueueRunning) {
+        _processWaylandQueue();
+    }
 }

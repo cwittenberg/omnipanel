@@ -2,7 +2,7 @@
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { getSectionRect, identifySection, applyWindowTransform, calculateTitleSimilarity } from './layout_definitions.js';
+import { getSectionRect, identifySection, applyWindowTransform, calculateTitleSimilarity, isWindowValid } from './layout_definitions.js';
 
 export class LayoutStorage {
     constructor(manager) {
@@ -16,7 +16,7 @@ export class LayoutStorage {
     }
     
     setCustomSectionsAndSave(zones) {
-        if (!this.manager.activeLayoutName) return; // Strict Guard: A zone must belong to an active Layout.
+        if (!this.manager.activeLayoutName) return; 
         
         this.settings.set_string('custom-sections', JSON.stringify(zones));
         if (this.manager.activeLayoutName) {
@@ -137,7 +137,7 @@ export class LayoutStorage {
     }
 
     saveCustomZoneRect(name, rect, monitorIndex) {
-        if (!this.manager.activeLayoutName) return; // Strict Guard: A zone must belong to an active Layout.
+        if (!this.manager.activeLayoutName) return; 
 
         let safeMonitorIndex = Math.max(0, monitorIndex);
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
@@ -152,10 +152,10 @@ export class LayoutStorage {
         let rw = rect.width / monitor.width;
         let rh = rect.height / workAreaHeight;
 
-        rx = isNaN(rx) ? 0 : rx;
-        ry = isNaN(ry) ? 0 : ry;
-        rw = isNaN(rw) ? 0.2 : Math.max(0.05, rw);
-        rh = isNaN(rh) ? 0.2 : Math.max(0.05, rh);
+        rx = Number.isFinite(rx) ? rx : 0;
+        ry = Number.isFinite(ry) ? ry : 0;
+        rw = Number.isFinite(rw) ? Math.max(0.05, rw) : 0.2;
+        rh = Number.isFinite(rh) ? Math.max(0.05, rh) : 0.2;
 
         const COLORS = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#2ecc71', '#34495e', '#ff7979', '#badc58'];
         let allZones = this.getCustomSections();
@@ -228,7 +228,6 @@ export class LayoutStorage {
     restoreLayout(savedState, zonesOverride = null) {
         let windows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
         let customSections = zonesOverride || this.getCustomSections();
-        let delay = 0; 
 
         let availableLayouts = {};
         for (let wmClass in savedState) {
@@ -244,6 +243,9 @@ export class LayoutStorage {
 
                 let wmClass = window.get_wm_class();
                 if (!wmClass) continue;
+
+                let hadZone = !!window._omnipanel_zone;
+                let isPlaced = false;
 
                 if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
                     let list = availableLayouts[wmClass];
@@ -273,17 +275,55 @@ export class LayoutStorage {
                     }
                     
                     if (targetRect) {
+                        isPlaced = true;
                         window._omnipanel_zone = layout.section;
-                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-                            applyWindowTransform(window, finalMonitor, targetRect, layout.section === 'maximized');
-                            if (this.manager.stackManager && layout.section) {
-                                this.manager.stackManager.invalidateSignature(layout.section);
-                            }
-                            return GLib.SOURCE_REMOVE;
-                        });
-                        delay += 80;
+                        window._omnipanel_monitor = finalMonitor;
+                        
+                        applyWindowTransform(window, finalMonitor, targetRect, layout.section === 'maximized', this.manager._log.bind(this.manager));
+                        
+                        if (this.manager.stackManager && layout.section) {
+                            this.manager.stackManager.invalidateSignature(layout.section);
+                        }
                     }
                 }
+
+                if (!isPlaced && hadZone) {
+                    this.manager._log(`[LayoutStorage] Window [${wmClass}] abandoned by layout switch. Executing Safe Ejection.`);
+                    
+                    delete window._omnipanel_zone;
+                    delete window._omnipanel_monitor;
+                    
+                    let mIdx = window.get_monitor() || 0;
+                    let mRect = Main.layoutManager.monitors[mIdx];
+                    
+                    if (mRect) {
+                        let safeW = 800;
+                        let safeH = 600;
+                        try {
+                            if (typeof window.get_min_size === 'function') {
+                                let min = window.get_min_size();
+                                if (min && min.length === 2) {
+                                    safeW = Math.max(safeW, min[0]);
+                                    safeH = Math.max(safeH, min[1]);
+                                }
+                            }
+                        } catch {}
+
+                        let safeX = mRect.x + Math.floor((mRect.width - safeW) / 2);
+                        let safeY = mRect.y + Math.floor((mRect.height - safeH) / 2);
+                        
+                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                            try {
+                                if (isWindowValid(window)) {
+                                    if (window.get_maximized() > 0) window.unmaximize(Meta.MaximizeFlags.BOTH);
+                                    window.move_resize_frame(false, safeX, safeY, safeW, safeH);
+                                }
+                            } catch {}
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    }
+                }
+
             } catch {}
         }
     }

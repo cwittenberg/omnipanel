@@ -1,4 +1,4 @@
-// snap_engine.js
+// omnipanel/snap_engine.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -55,7 +55,6 @@ export class SnapEngine {
         
         this._dragWindow = window;
         this._activeDragZones = [];
-
         let customSections = this.manager.storage.getCustomSections();
         let colors = getLayoutColors(this.manager);
 
@@ -202,22 +201,38 @@ export class SnapEngine {
 
         if (this._currentSnapZone) {
             let zone = this._currentSnapZone;
+            let targetWindow = this._dragWindow;
 
             try {
-                this._dragWindow._omnipanel_zone = zone.name;
-                this._dragWindow._omnipanel_monitor = zone.monitorIndex;
+                targetWindow._omnipanel_zone = zone.name;
+                targetWindow._omnipanel_monitor = zone.monitorIndex;
                 
                 this.manager._log(`[Snap] Dropped window onto zone [${zone.name}]`);
-                if (zone.isMaximize) {
-                    let fullRect = getSectionRect(zone.monitorIndex, 'maximized');
-                    applyWindowTransform(this._dragWindow, zone.monitorIndex, fullRect, true, null, this.manager._log.bind(this.manager));
-                } else {
-                    applyWindowTransform(this._dragWindow, zone.monitorIndex, zone.rect, false, null, this.manager._log.bind(this.manager));
-                }
 
-                if (this.manager.stackManager) {
-                    this.manager.stackManager.invalidateSignature();
-                }
+                // ENHANCED GTK4 WAYLAND DELAY:
+                // Elevated to 250ms to ensure Wayland clients (especially GNOME Files) 
+                // fully yield their grab locks to Mutter before we push programmatic resizes.
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                    try {
+                        let customSections = this.manager.storage.getCustomSections();
+                        let updatedRect = getSectionRect(zone.monitorIndex, zone.name, customSections) || zone.rect;
+
+                        if (zone.isMaximize) {
+                            let fullRect = getSectionRect(zone.monitorIndex, 'maximized');
+                            applyWindowTransform(targetWindow, zone.monitorIndex, fullRect, true, this.manager._log.bind(this.manager));
+                        } else {
+                            applyWindowTransform(targetWindow, zone.monitorIndex, updatedRect, false, this.manager._log.bind(this.manager));
+                        }
+
+                        if (this.manager.stackManager) {
+                            this.manager.stackManager.invalidateSignature();
+                        }
+                    } catch (e) {
+                        this.manager._log(`[Snap Error] Transform execution failed: ${e}`);
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
+
             } catch {}
             
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
@@ -253,7 +268,7 @@ export class SnapEngine {
                 window._omnipanel_monitor = mIndex;
                 
                 this.manager._log(`[Snap] Hotkey snapped window to zone [${targetZoneName}]`);
-                applyWindowTransform(window, mIndex, zRect, false, null, this.manager._log.bind(this.manager));
+                applyWindowTransform(window, mIndex, zRect, false, this.manager._log.bind(this.manager));
                 if (this.manager.stackManager) this.manager.stackManager.invalidateSignature();
                 
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
@@ -319,7 +334,7 @@ export class SnapEngine {
             window._omnipanel_monitor = bestMonitorIndex;
             
             this.manager._log(`[Snap] Directional snap (${dir}) applied window to zone [${bestZoneName}]`);
-            applyWindowTransform(window, bestMonitorIndex, bestZone, false, null, this.manager._log.bind(this.manager));
+            applyWindowTransform(window, bestMonitorIndex, bestZone, false, this.manager._log.bind(this.manager));
             if (this.manager.stackManager) this.manager.stackManager.invalidateSignature();
             
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {

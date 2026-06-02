@@ -64,7 +64,6 @@ export default class TilingManager {
         });
         this._trackedSignals.push({ obj: this.settings, id: dActiveId });
 
-        // LAYOUT DELETION INTERCEPT: Destroys floating unmanaged zones immediately if the active layout is deleted
         let layoutsChangedId = this.settings.connect('changed::named-layouts', () => {
             let layouts = {};
             try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch {}
@@ -365,16 +364,12 @@ export default class TilingManager {
         try {
             let categories = '';
             try {
-                this._log(`[${winId}] Requesting AppInfo from Tracker...`);
                 let tracker = Shell.WindowTracker.get_default();
                 let app = tracker.get_window_app(window);
                 if (app && app.get_app_info()) {
                     categories = app.get_app_info().get_categories() || '';
                 }
-                this._log(`[${winId}] AppInfo retrieved. Categories: ${categories}`);
-            } catch (err) {
-                this._log(`[${winId}] Shell Tracker Error: ${err.message}`);
-            }
+            } catch { }
 
             let savedData = null;
 
@@ -462,8 +457,8 @@ export default class TilingManager {
                 this._log(`[${winId}] NO MATCH: Ignoring window. Letting GNOME handle natively.`);
             }
 
-        } catch (err) {
-            this._log(`[${winId}] FATAL CATCH in _executePlacement: ${err.message}`);
+        } catch {
+            this._log(`[${winId}] FATAL CATCH in _executePlacement`);
         }
     }
 
@@ -471,7 +466,31 @@ export default class TilingManager {
         let winId = 'unknown';
         try { winId = window.get_id ? window.get_id() : 'unknown'; } catch {}
         
-        this._log(`[${winId}] >> window-created signal fired.`);
+        let title = 'unknown', wmClass = 'unknown';
+        try { title = window.get_title() || 'unknown'; wmClass = window.get_wm_class() || 'unknown'; } catch {}
+
+        this._log(`[${winId}] ------------------------------------------------`);
+        this._log(`[${winId}] 🪲 EXTREME DEBUG: NEW WINDOW DETECTED`);
+        this._log(`[${winId}] 🪲 APP: ${wmClass} | TITLE: ${title}`);
+        
+        // WAYLAND IMMEDIATE HEALER: Intercept poisoned preferences before 750ms timer allows crash
+        try {
+            let rect = window.get_frame_rect();
+            this._log(`[${winId}] 🪲 INITIAL WAYLAND SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
+            if (rect.width < 100 || rect.height < 100) {
+                this._log(`[${winId}] 🚨 WAYLAND HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
+                    if (isWindowValid(window)) {
+                        let m = Main.layoutManager.monitors[window.get_monitor() || 0] || Main.layoutManager.monitors[0];
+                        if (window.get_maximized() > 0) {
+                            window.unmaximize(Meta.MaximizeFlags.BOTH);
+                        }
+                        window.move_resize_frame(false, m.x + 100, m.y + 100, 800, 600);
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        } catch {}
 
         try {
             window._omnipanel_is_dead = false;
@@ -503,9 +522,15 @@ export default class TilingManager {
                 return;
             }
 
+            let transient = window.get_transient_for();
+            if (transient !== null) {
+                this._log(`[${winId}] Window is transient (dialog). Aborting entirely.`);
+                return; 
+            }
+
             let wType = window.get_window_type();
-            if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG) {
-                this._log(`[${winId}] Ignoring non-normal/dialog window type (${wType}) early.`);
+            if (wType !== Meta.WindowType.NORMAL) {
+                this._log(`[${winId}] Window is not NORMAL. Aborting entirely.`);
                 return;
             }
 
@@ -531,43 +556,18 @@ export default class TilingManager {
                     return GLib.SOURCE_REMOVE;
                 }
 
-                this._log(`[${winId}] Fetching get_frame_rect...`);
-                let rect = window.get_frame_rect();
-
-                if (rect.width <= 0) {
-                    this._log(`[${winId}] Window has zero width. Aborting.`);
-                    return GLib.SOURCE_REMOVE;
-                }
-
-                this._log(`[${winId}] Fetching get_transient_for...`);
-                let transient = window.get_transient_for();
-                if (transient !== null && (rect.width < 500 || rect.height < 400)) {
-                    this._log(`[${winId}] Window is a small dialog. Aborting.`);
-                    return GLib.SOURCE_REMOVE; 
-                }
-
-                this._log(`[${winId}] Fetching get_window_type...`);
-                let wType = window.get_window_type();
-                if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG) {
-                    this._log(`[${winId}] Window is not NORMAL or DIALOG. Aborting.`);
-                    return GLib.SOURCE_REMOVE;
-                }
-
                 this._log(`[${winId}] Fetching get_wm_class...`);
-                let wmClass = window.get_wm_class() || '';
-                if (!wmClass) {
+                let finalWmClass = window.get_wm_class() || '';
+                if (!finalWmClass) {
                     this._log(`[${winId}] Window has no wm_class yet. Aborting.`);
                     return GLib.SOURCE_REMOVE;
                 }
-
-                this._log(`[${winId}] Fetching get_title...`);
-                let winTitle = window.get_title() || '';
                 
                 this._log(`[${winId}] Metadata retrieved safely. Moving to execution phase.`);
-                this._executePlacement(window, wmClass, winTitle, winId);
+                this._executePlacement(window, finalWmClass, window.get_title() || '', winId);
                 
-            } catch (err) {
-                this._log(`[${winId}] FATAL CATCH in Timer: ${err.message}`);
+            } catch {
+                this._log(`[${winId}] FATAL CATCH in Timer`);
             }
 
             return GLib.SOURCE_REMOVE;

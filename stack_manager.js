@@ -1,10 +1,10 @@
-// stack_manager.js
+// omnipanel/stack_manager.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { applyWindowTransform, getSectionRect, Sections, isWindowValid } from './layout_definitions.js';
+import { applyWindowTransform, getSectionRect, Sections } from './layout_definitions.js';
 
 export class StackManager {
     constructor(tilingManager) {
@@ -65,6 +65,7 @@ export class StackManager {
             actualMonitor = customSections[zoneName].monitorIndex;
         }
 
+        // getSectionRect is now natively aware of full-bounding multi-monitor intersections
         let zRect = getSectionRect(actualMonitor, zoneName, customSections);
         if (!zRect || windows.length === 0) return;
 
@@ -72,14 +73,44 @@ export class StackManager {
         let count = validWindows.length;
         if (count === 0) return;
 
-        let staggerStep = count > 10 ? 10 : 100;
-        let delay = 0;
+        let monitorSegments = [];
+        let monitors = Main.layoutManager.monitors;
+        let panelH = Main.panel.height;
+        
+        let originMon = monitors[actualMonitor] || monitors[0];
+        let isFullHeightZone = (zRect.height >= (originMon.height - panelH) * 0.9);
+
+        // Collect monitor intersection segments to allow localized constraints 
+        // within subdivided stacks (e.g., column snapping directly to monitor edges)
+        for (let m of monitors) {
+            let mLeft = m.x;
+            let mRight = m.x + m.width;
+            let zLeft = zRect.x;
+            let zRight = zRect.x + zRect.width;
+            
+            let overlapLeft = Math.max(mLeft, zLeft);
+            let overlapRight = Math.min(mRight, zRight);
+            
+            if (overlapRight > overlapLeft) {
+                monitorSegments.push({
+                    x: overlapLeft,
+                    y: Math.max(m.y + panelH, zRect.y),
+                    width: overlapRight - overlapLeft,
+                    height: Math.min(m.y + m.height, zRect.y + zRect.height) - Math.max(m.y + panelH, zRect.y),
+                    monitor: m,
+                    mTop: m.y + panelH,
+                    mBottom: m.y + m.height
+                });
+            }
+        }
+        
+        monitorSegments.sort((a, b) => a.x - b.x);
 
         for (let i = 0; i < count; i++) {
             let win = validWindows[i];
-            let winId = 0;
-            try { winId = win.get_id(); } catch { continue; }
             
+            // For standard stack modes, we deploy the native spanning coordinates completely
+            // overriding restrictive per-monitor clamps, allowing true multi-monitor leverages.
             let rx = zRect.x;
             let ry = zRect.y;
             let rw = zRect.width;
@@ -97,33 +128,55 @@ export class StackManager {
                 
                 rx = zRect.x + (col * rw);
                 ry = zRect.y + (row * rh);
+
+                let cx = rx + rw / 2;
+                let targetSeg = monitorSegments.find(s => cx >= s.x && cx < s.x + s.width);
+                if (targetSeg && isFullHeightZone) {
+                    let segRowH = (targetSeg.mBottom - targetSeg.mTop) / rows;
+                    ry = targetSeg.mTop + (row * segRowH);
+                    rh = segRowH;
+                }
+
             } else if (mode === 'rows' || mode === 'horizontal') {
                 rh = zRect.height / count;
                 ry = zRect.y + (i * rh);
+                
+                let cx = rx + rw / 2;
+                let targetSeg = monitorSegments.find(s => cx >= s.x && cx < s.x + s.width);
+                if (targetSeg && isFullHeightZone) {
+                    let segRowH = (targetSeg.mBottom - targetSeg.mTop) / count;
+                    ry = targetSeg.mTop + (i * segRowH);
+                    rh = segRowH;
+                }
+
             } else if (mode === 'columns' || mode === 'vertical') {
-                rw = zRect.width / count;
-                rx = zRect.x + (i * rw);
+                if (monitorSegments.length > 1 && count === monitorSegments.length) {
+                    let seg = monitorSegments[i];
+                    rx = seg.x;
+                    ry = isFullHeightZone ? seg.mTop : seg.y;
+                    rw = seg.width;
+                    rh = isFullHeightZone ? (seg.mBottom - seg.mTop) : seg.height;
+                } else {
+                    rw = zRect.width / count;
+                    rx = zRect.x + (i * rw);
+                    
+                    let cx = rx + rw / 2;
+                    let targetSeg = monitorSegments.find(s => cx >= s.x && cx < s.x + s.width);
+                    if (targetSeg && isFullHeightZone) {
+                        ry = targetSeg.mTop;
+                        rh = targetSeg.mBottom - targetSeg.mTop;
+                    }
+                }
             }
             
             let finalRect = {
                 x: Math.round(rx),
                 y: Math.round(ry),
-                width: Math.max(10, Math.round(rw)),
-                height: Math.max(10, Math.round(rh))
+                width: Math.round(rw),
+                height: Math.round(rh)
             };
 
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-                let aliveWindows = global.display.list_all_windows();
-                let aliveWin = aliveWindows.find(w => {
-                    try { return w.get_id() === winId; } catch { return false; }
-                });
-
-                if (aliveWin && isWindowValid(aliveWin)) {
-                    applyWindowTransform(aliveWin, actualMonitor, finalRect, false, this.manager._log.bind(this.manager));
-                }
-                return GLib.SOURCE_REMOVE;
-            });
-            delay += staggerStep;
+            applyWindowTransform(win, actualMonitor, finalRect, false, this.manager._log.bind(this.manager));
         }
     }
 
@@ -356,7 +409,6 @@ export class StackManager {
                 
                 btn.set_style(btnStyle + 'background-color: #2ecc71; color: #111;');
 
-                // Clear the signature shield natively so users can force-refresh a layout by clicking
                 for (let w of data.windows) {
                     w._omnipanel_last_req = '';
                 }
@@ -394,6 +446,10 @@ export class StackManager {
                 if (!w._omnipanel_zone) return false;
                 let actor = w.get_compositor_private();
                 if (!actor || actor.is_destroyed()) return false;
+                
+                let wType = w.get_window_type();
+                if (w.is_override_redirect() || wType !== Meta.WindowType.NORMAL) return false;
+                if (w.get_transient_for() !== null) return false;
 
                 let ws = w.get_workspace();
                 return ws === activeWs || w.is_on_all_workspaces() || !ws;
@@ -407,9 +463,6 @@ export class StackManager {
         for (let win of windows) {
             try {
                 try { win.get_id(); } catch { continue; }
-                
-                let wType = win.get_window_type();
-                if (win.is_override_redirect() || (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG)) continue;
 
                 let stackZone = this._getStackZoneForWindow(win, customSections);
                 if (stackZone) {
@@ -442,7 +495,13 @@ export class StackManager {
                 if (stacks[key] && stacks[key].windows.length === 1) {
                     let topWin = stacks[key].windows[0];
                     let zRect = getSectionRect(stacks[key].monitor, stacks[key].zone, customSections);
-                    if (zRect) applyWindowTransform(topWin, stacks[key].monitor, zRect, false, this.manager._log.bind(this.manager));
+                    
+                    // We removed the restrictive per-monitor clamp here.
+                    // This guarantees native single windows deploy perfectly leveraging the full width/height 
+                    // of the original spanned multi-monitor bounding box.
+                    if (zRect) {
+                        applyWindowTransform(topWin, stacks[key].monitor, zRect, false, this.manager._log.bind(this.manager));
+                    }
                 }
 
                 Main.layoutManager.uiGroup.remove_child(overlay.widget);
@@ -469,9 +528,11 @@ export class StackManager {
             let overlay = this._overlays.get(key);
             let zRect = getSectionRect(actualMonitor, zone, customSections);
             
-            // DYNAMIC CAPACITY CHECK: Ensure subdivided cells never force GTK apps below Wayland minimums
-            let minW = 450;
-            let minH = 400;
+            let minW = topWindow ? (typeof topWindow.get_min_size === 'function' ? topWindow.get_min_size()[0] : 150) : 150;
+            let minH = topWindow ? (typeof topWindow.get_min_size === 'function' ? topWindow.get_min_size()[1] : 100) : 100;
+            minW = minW > 0 ? minW : 150;
+            minH = minH > 0 ? minH : 100;
+
             let fitsGrid = true, fitsCols = true, fitsRows = true;
 
             if (zRect && count > 0) {
