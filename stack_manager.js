@@ -24,11 +24,12 @@ export class StackManager {
     disable() {
         if (!this._enabled) return;
         this._enabled = false;
-
+        
         if (this._loopId) {
             GLib.source_remove(this._loopId);
             this._loopId = 0;
         }
+        
         this.clearOverlays();
     }
 
@@ -65,7 +66,6 @@ export class StackManager {
             actualMonitor = customSections[zoneName].monitorIndex;
         }
 
-        // getSectionRect is now natively aware of full-bounding multi-monitor intersections
         let zRect = getSectionRect(actualMonitor, zoneName, customSections);
         if (!zRect || windows.length === 0) return;
 
@@ -73,44 +73,9 @@ export class StackManager {
         let count = validWindows.length;
         if (count === 0) return;
 
-        let monitorSegments = [];
-        let monitors = Main.layoutManager.monitors;
-        let panelH = Main.panel.height;
-        
-        let originMon = monitors[actualMonitor] || monitors[0];
-        let isFullHeightZone = (zRect.height >= (originMon.height - panelH) * 0.9);
-
-        // Collect monitor intersection segments to allow localized constraints 
-        // within subdivided stacks (e.g., column snapping directly to monitor edges)
-        for (let m of monitors) {
-            let mLeft = m.x;
-            let mRight = m.x + m.width;
-            let zLeft = zRect.x;
-            let zRight = zRect.x + zRect.width;
-            
-            let overlapLeft = Math.max(mLeft, zLeft);
-            let overlapRight = Math.min(mRight, zRight);
-            
-            if (overlapRight > overlapLeft) {
-                monitorSegments.push({
-                    x: overlapLeft,
-                    y: Math.max(m.y + panelH, zRect.y),
-                    width: overlapRight - overlapLeft,
-                    height: Math.min(m.y + m.height, zRect.y + zRect.height) - Math.max(m.y + panelH, zRect.y),
-                    monitor: m,
-                    mTop: m.y + panelH,
-                    mBottom: m.y + m.height
-                });
-            }
-        }
-        
-        monitorSegments.sort((a, b) => a.x - b.x);
-
         for (let i = 0; i < count; i++) {
             let win = validWindows[i];
             
-            // For standard stack modes, we deploy the native spanning coordinates completely
-            // overriding restrictive per-monitor clamps, allowing true multi-monitor leverages.
             let rx = zRect.x;
             let ry = zRect.y;
             let rw = zRect.width;
@@ -129,44 +94,17 @@ export class StackManager {
                 rx = zRect.x + (col * rw);
                 ry = zRect.y + (row * rh);
 
-                let cx = rx + rw / 2;
-                let targetSeg = monitorSegments.find(s => cx >= s.x && cx < s.x + s.width);
-                if (targetSeg && isFullHeightZone) {
-                    let segRowH = (targetSeg.mBottom - targetSeg.mTop) / rows;
-                    ry = targetSeg.mTop + (row * segRowH);
-                    rh = segRowH;
-                }
-
             } else if (mode === 'rows' || mode === 'horizontal') {
                 rh = zRect.height / count;
                 ry = zRect.y + (i * rh);
-                
-                let cx = rx + rw / 2;
-                let targetSeg = monitorSegments.find(s => cx >= s.x && cx < s.x + s.width);
-                if (targetSeg && isFullHeightZone) {
-                    let segRowH = (targetSeg.mBottom - targetSeg.mTop) / count;
-                    ry = targetSeg.mTop + (i * segRowH);
-                    rh = segRowH;
-                }
+                rw = zRect.width;
+                rx = zRect.x;
 
             } else if (mode === 'columns' || mode === 'vertical') {
-                if (monitorSegments.length > 1 && count === monitorSegments.length) {
-                    let seg = monitorSegments[i];
-                    rx = seg.x;
-                    ry = isFullHeightZone ? seg.mTop : seg.y;
-                    rw = seg.width;
-                    rh = isFullHeightZone ? (seg.mBottom - seg.mTop) : seg.height;
-                } else {
-                    rw = zRect.width / count;
-                    rx = zRect.x + (i * rw);
-                    
-                    let cx = rx + rw / 2;
-                    let targetSeg = monitorSegments.find(s => cx >= s.x && cx < s.x + s.width);
-                    if (targetSeg && isFullHeightZone) {
-                        ry = targetSeg.mTop;
-                        rh = targetSeg.mBottom - targetSeg.mTop;
-                    }
-                }
+                rw = zRect.width / count;
+                rx = zRect.x + (i * rw);
+                rh = zRect.height;
+                ry = zRect.y;
             }
             
             let finalRect = {
@@ -176,6 +114,8 @@ export class StackManager {
                 height: Math.round(rh)
             };
 
+            // We strictly pass false for isMaximized to enforce dimension coordinates 
+            // without triggering GNOME's native edge-to-edge state
             applyWindowTransform(win, actualMonitor, finalRect, false, this.manager._log.bind(this.manager));
         }
     }
@@ -217,7 +157,6 @@ export class StackManager {
 
         let modeBox = new St.BoxLayout({ vertical: false, visible: false });
         let separator = new St.Widget({ style: 'width: 1px; background-color: rgba(255,255,255,0.2); margin: 0 6px;' });
-
         let modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
         let modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
         let modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
@@ -259,12 +198,10 @@ export class StackManager {
             let applyStyle = (btn, modeName) => {
                 let fits = fitsFlags[modeName];
                 btn.reactive = fits;
-
                 if (!fits) {
                     btn.set_style(btnStyle + 'color: rgba(255,255,255,0.2);');
                     return;
                 }
-
                 if (modeName === actualMode) {
                     btn.set_style(btnStyle + btnActiveStyle);
                 } else {
@@ -283,7 +220,6 @@ export class StackManager {
             data.currentIndex = (data.currentIndex - 1 + data.windows.length) % data.windows.length;
             Main.activateWindow(data.windows[data.currentIndex]);
         };
-
         let doNext = () => {
             if (data.windows.length === 0) return;
             data.currentIndex = (data.currentIndex + 1) % data.windows.length;
@@ -314,6 +250,7 @@ export class StackManager {
                 if (!modeBox.visible) {
                     toggleMenuBtn.show();
                 }
+
                 data.syncModeStyles();
                 widget.set_style('background-color: rgba(20, 20, 20, 0.95); border: 1px solid #2ecc71; border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); transition-duration: 150ms;');
                 
@@ -332,6 +269,7 @@ export class StackManager {
                         return Clutter.EVENT_PROPAGATE;
                     });
                 }
+
             } else {
                 prevBtn.hide();
                 nextBtn.hide();
@@ -381,6 +319,7 @@ export class StackManager {
         let bindModePreviewAndClick = (btn, modeName) => {
             btn.connect('notify::hover', () => {
                 if (!btn.reactive) return;
+
                 if (btn.hover) {
                     this.applyStackLayout(zone, data.windows, data.monitor, modeName);
                 } else {
@@ -388,8 +327,10 @@ export class StackManager {
                 }
                 data.syncModeStyles();
             });
+
             btn.connect('clicked', () => {
                 if (!btn.reactive) return;
+
                 let cs = this.manager.storage.getCustomSections();
                 if (!cs[zone]) cs[zone] = {}; 
                 cs[zone].stackMode = modeName;
@@ -429,6 +370,7 @@ export class StackManager {
         nextBtn.connect('clicked', doNext);
 
         Main.layoutManager.uiGroup.add_child(widget);
+
         return data;
     }
 
@@ -448,10 +390,14 @@ export class StackManager {
                 let actor = w.get_compositor_private();
                 if (!actor || actor.is_destroyed()) return false;
                 
+                let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
+                let isSkipPager = typeof w.is_skip_pager === 'function' ? w.is_skip_pager() : false;
+                if (isSkipTaskbar || isSkipPager) return false;
+
                 let wType = w.get_window_type();
                 if (w.is_override_redirect() || wType !== Meta.WindowType.NORMAL) return false;
                 if (w.get_transient_for() !== null) return false;
-
+                
                 let ws = w.get_workspace();
                 return ws === activeWs || w.is_on_all_workspaces() || !ws;
             } catch { return false; }
@@ -466,12 +412,15 @@ export class StackManager {
                 try { win.get_id(); } catch { continue; }
 
                 let stackZone = this._getStackZoneForWindow(win, customSections);
+                
                 if (stackZone) {
                     let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : win.get_monitor();
                     if (customSections[stackZone] && customSections[stackZone].monitorIndex !== undefined) {
                         mIndex = customSections[stackZone].monitorIndex;
                     }
+
                     let key = stackZone + '|' + mIndex;
+
                     if (!stacks[key]) stacks[key] = { zone: stackZone, monitor: mIndex, windows: [] };
                     stacks[key].windows.push(win);
                 }
@@ -482,6 +431,7 @@ export class StackManager {
         for (let [key, stackData] of Object.entries(stacks)) {
             if (stackData.windows.length > 1) {
                 currentStackKeys.add(key);
+                
                 stackData.windows.sort((a, b) => {
                     let aId = 0, bId = 0;
                     try { aId = a.get_id(); } catch {}
@@ -497,9 +447,6 @@ export class StackManager {
                     let topWin = stacks[key].windows[0];
                     let zRect = getSectionRect(stacks[key].monitor, stacks[key].zone, customSections);
                     
-                    // We removed the restrictive per-monitor clamp here.
-                    // This guarantees native single windows deploy perfectly leveraging the full width/height 
-                    // of the original spanned multi-monitor bounding box.
                     if (zRect) {
                         applyWindowTransform(topWin, stacks[key].monitor, zRect, false, this.manager._log.bind(this.manager));
                     }
@@ -525,7 +472,6 @@ export class StackManager {
             if (!this._overlays.has(key)) {
                 this._overlays.set(key, this._createOverlay(zone, actualMonitor));
             }
-
             let overlay = this._overlays.get(key);
             let zRect = getSectionRect(actualMonitor, zone, customSections);
             
@@ -535,10 +481,10 @@ export class StackManager {
             minH = minH > 0 ? minH : 100;
 
             let fitsGrid = true, fitsCols = true, fitsRows = true;
-
             if (zRect && count > 0) {
                 let cols = Math.ceil(Math.sqrt(count));
                 let rows = Math.ceil(count / cols);
+                
                 fitsGrid = (zRect.width / cols >= minW) && (zRect.height / rows >= minH);
                 fitsCols = (zRect.width / count >= minW);
                 fitsRows = (zRect.height / count >= minH);
@@ -558,7 +504,7 @@ export class StackManager {
             let evalMode = pMode;
             if (evalMode === 'horizontal') evalMode = 'rows';
             if (evalMode === 'vertical') evalMode = 'columns';
-
+            
             let actualMode = evalMode;
             if (evalMode !== 'stack' && !overlay.lastFitsFlags[evalMode]) {
                 actualMode = 'stack';
@@ -569,7 +515,6 @@ export class StackManager {
             } else {
                 overlay.isForcedStack = false;
             }
-
             overlay.lastActualMode = actualMode;
             
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';

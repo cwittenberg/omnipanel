@@ -199,6 +199,12 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 
                 let spacer = new St.Widget({ x_expand: true, y_expand: true });
                 
+                let hintLabel = new St.Label({
+                    text: '💡 Right-click overlapping zones to send them to the back',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    style: 'color: rgba(255,255,255,0.7); font-weight: 500; margin-right: 24px;'
+                });
+                
                 let quitBox = new St.BoxLayout({ vertical: false });
                 let quitIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px; color: white;' });
                 let quitLabel = new St.Label({ text: 'Quit Designer', y_align: Clutter.ActorAlign.CENTER, style: 'color: white; font-weight: bold;' });
@@ -229,6 +235,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 toolbar.add_child(cycleBtn);
                 toolbar.add_child(newLayoutBox);
                 toolbar.add_child(spacer);
+                toolbar.add_child(hintLabel);
                 toolbar.add_child(quitBtn);
                 
                 this.add_child(toolbar);
@@ -563,6 +570,19 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         }
                     });
 
+                    let sendToBackBtn = new St.Button({
+                        child: new St.Icon({ icon_name: 'go-bottom-symbolic', icon_size: 16 }),
+                        style_class: 'button',
+                        style: `padding: 6px; margin-right: 8px;`,
+                        reactive: true, can_focus: true, track_hover: true
+                    });
+                    sendToBackBtn.connect('clicked', () => {
+                        if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
+                            this._zonesContainer.remove_child(zoneBox);
+                            this._zonesContainer.insert_child_at_index(zoneBox, 0); 
+                        }
+                    });
+
                     let delBtn = new St.Button({
                         child: new St.Icon({ icon_name: 'user-trash-symbolic', icon_size: 16 }),
                         style_class: 'button destructive-action',
@@ -590,6 +610,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
                     labelBox.add_child(nameEntry);
                     labelBox.add_child(zSaveBtn);
+                    labelBox.add_child(sendToBackBtn);
                     labelBox.add_child(delBtn);
                     zoneBox.add_child(labelBox);
                     zoneBox.add_child(resizeHandle);
@@ -605,6 +626,26 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             }
                             temp = temp.get_parent();
                         }
+                        
+                        let button = event.get_button();
+                        
+                        // Right-Click to instantly send to back
+                        if (button === 3) {
+                            if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
+                                this._zonesContainer.remove_child(zoneBox);
+                                this._zonesContainer.insert_child_at_index(zoneBox, 0); 
+                            }
+                            return Clutter.EVENT_STOP;
+                        }
+
+                        // Left Click to reliably bring to front
+                        if (button === 1) {
+                            if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
+                                this._zonesContainer.remove_child(zoneBox);
+                                this._zonesContainer.add_child(zoneBox);
+                            }
+                        }
+
                         if (isInteractive) return Clutter.EVENT_PROPAGATE;
 
                         if (this._promptBox.visible) this._hidePromptSafe();
@@ -624,12 +665,21 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         return Clutter.EVENT_STOP;
                     });
 
-                    resizeHandle.connect('button-press-event', () => {
-                        if (this._promptBox.visible) this._hidePromptSafe();
-                        this._dragAction = 'resize';
-                        this._activeZoneName = name;
-                        this._currentDrawMonitorIndex = safeIndex;
-                        return Clutter.EVENT_STOP;
+                    resizeHandle.connect('button-press-event', (_, event) => {
+                        let button = event.get_button();
+                        if (button === 1) {
+                            if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
+                                this._zonesContainer.remove_child(zoneBox);
+                                this._zonesContainer.add_child(zoneBox);
+                            }
+                            
+                            if (this._promptBox.visible) this._hidePromptSafe();
+                            this._dragAction = 'resize';
+                            this._activeZoneName = name;
+                            this._currentDrawMonitorIndex = safeIndex;
+                            return Clutter.EVENT_STOP;
+                        }
+                        return Clutter.EVENT_PROPAGATE;
                     });
 
                     this._zoneWidgets[name] = zoneBox;

@@ -26,6 +26,14 @@ export function isWindowIgnored(window, settings) {
     try {
         let wmClass = (window.get_wm_class() || '').toLowerCase();
         let winTitle = (window.get_title() || '').toLowerCase();
+        
+        if (wmClass.includes('ding') || winTitle.includes('desktop icons')) return true;
+
+        try {
+            let wType = window.get_window_type();
+            if (wType === Meta.WindowType.DESKTOP || wType === Meta.WindowType.DOCK) return true;
+        } catch {}
+
         let appName = '';
         
         try {
@@ -35,12 +43,12 @@ export function isWindowIgnored(window, settings) {
                 appName = (app.get_name() || '').toLowerCase();
             }
         } catch {}
-
+        
         let ignoreList = settings.get_strv('ignore-wm-classes') || [];
         
         return ignoreList.some(cls => {
             let term = cls.trim().toLowerCase();
-            if (term.length < 2) return false; // Prevent empty strings from catching everything
+            if (term.length < 2) return false;
             return wmClass.includes(term) || winTitle.includes(term) || appName.includes(term);
         });
     } catch {
@@ -117,11 +125,11 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
     if (!zoneNames || zoneNames.length === 0) return null;
     if (!appDictionary || !Array.isArray(appDictionary)) appDictionary = DEFAULT_APP_DICTIONARY;
     if (!fdCategoryMap || !Array.isArray(fdCategoryMap)) fdCategoryMap = DEFAULT_CATEGORY_MAP;
-
+    
     wmClass = (wmClass || '').toLowerCase();
     windowTitle = (windowTitle || '').toLowerCase();
     categories = (categories || '').toLowerCase();
-
+    
     let termDict = appDictionary.find(d => d.zoneKeys.includes('term') || d.zoneKeys.includes('console') || d.zoneKeys.includes('cli'));
     const termKeywords = termDict ? termDict.keywords : ['term', 'console', 'alacritty', 'kitty', 'wezterm', 'pty', 'bash', 'zsh', 'fish', 'tmux', 'powershell', 'cmd'];
     
@@ -132,12 +140,11 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
         windowTitle.includes(` ${kw} `) ||
         windowTitle.includes(`[${kw}]`)
     );
-
+    
     if (isExplicitTerminal) {
         let termZone = zoneNames.find(zn => zn.toLowerCase().includes('term') || zn.toLowerCase().includes('cli') || zn.toLowerCase().includes('console'));
         if (termZone) return { zone: termZone, isExplicit: true };
     }
-
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         for (let dict of appDictionary) {
@@ -148,7 +155,6 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
             }
         }
     }
-
     if (categories) {
         for (let c of fdCategoryMap) {
             if (categories.includes(c.cat)) {
@@ -161,14 +167,12 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
             }
         }
     }
-
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         if (z.length > 2 && (wmClass.includes(z) || z.includes(wmClass))) {
             return { zone: zone, isExplicit: false };
         }
     }
-
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         if (z.length > 3 && windowTitle.includes(z)) {
@@ -177,16 +181,14 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
             }
         }
     }
-
     return null;
 }
 
 export function getSectionRect(monitorIndex, section, customSections = {}) {
     let mCount = Main.layoutManager.monitors.length;
     if (mCount === 0) return null;
-
     let rect = new Mtk.Rectangle();
-
+    
     if (customSections[section] && customSections[section].rw !== undefined) {
         let cs = customSections[section];
         
@@ -195,31 +197,28 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
         
         if (!monitor) return null;
-
         let panelHeight = Main.panel.height;
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
-
+        
         let crx = Number.isFinite(Number(cs.rx)) ? Number(cs.rx) : 0;
         let cry = Number.isFinite(Number(cs.ry)) ? Number(cs.ry) : 0;
         let crw = Number.isFinite(Number(cs.rw)) ? Math.max(0.05, Number(cs.rw)) : 0.2;
         let crh = Number.isFinite(Number(cs.rh)) ? Math.max(0.05, Number(cs.rh)) : 0.2;
-
+        
         rect.x = monitor.x + Math.round(monitor.width * crx);
         rect.y = workAreaY + Math.round(workAreaHeight * cry);
         rect.width = Math.max(50, Math.round(monitor.width * crw));
         rect.height = Math.max(50, Math.round(workAreaHeight * crh));
-
     } else {
         let safeMonitorIndex = Math.max(0, Math.min(monitorIndex, mCount - 1));
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
         
         if (!monitor) return null;
-
         let panelHeight = Main.panel.height;
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
-
+        
         switch (section) {
             case Sections.MAXIMIZED:
                 rect.x = monitor.x;
@@ -297,13 +296,11 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
                 return null;
         }
     }
-
     if (rect && rect.width > 0 && rect.height > 0) {
         rect.width = Math.max(50, rect.width);
         rect.height = Math.max(50, rect.height);
         return rect;
     }
-
     return null;
 }
 
@@ -311,16 +308,16 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
     let bestMatch = null;
     let minDifference = Infinity;
     let allSections = [...Object.values(Sections), ...Object.keys(customSections)];
-
+    
     for (const section of allSections) {
         let sectionRect = getSectionRect(monitorIndex, section, customSections);
         if (!sectionRect) continue;
-
-        let diff = Math.abs(windowRect.x - sectionRect.x) +
-                   Math.abs(windowRect.y - sectionRect.y) +
-                   Math.abs(windowRect.width - sectionRect.width) +
+        
+        let diff = Math.abs(windowRect.x - sectionRect.x) + 
+                   Math.abs(windowRect.y - sectionRect.y) + 
+                   Math.abs(windowRect.width - sectionRect.width) + 
                    Math.abs(windowRect.height - sectionRect.height);
-
+                   
         if (diff < 400 && diff < minDifference) {
             minDifference = diff;
             bestMatch = section;
@@ -358,15 +355,25 @@ function _processWaylandQueue() {
             } else {
                 if (task.logger) task.logger(`[WaylandQueue] Applying spanning geometry on [${task.title}] -> [X:${task.x} Y:${task.y} W:${task.w} H:${task.h}]`);
                 
-                if (isAlreadyMax) {
+                if (isAlreadyMax || task.window.get_maximized() > 0) {
                     task.window.unmaximize(Meta.MaximizeFlags.BOTH);
                 }
                 
-                task.window.move_resize_frame(true, task.x, task.y, task.w, task.h);
+                // CRITICAL FIX: user_op must be FALSE to force Wayland clients to accept the compositor's dimensions.
+                task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
+                
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                    if (task.window && !task.window._omnipanel_is_dead) {
+                        if (task.window.get_maximized() > 0) task.window.unmaximize(Meta.MaximizeFlags.BOTH);
+                        task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
 
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
                     if (task.window && !task.window._omnipanel_is_dead) {
-                        task.window.move_resize_frame(true, task.x, task.y, task.w, task.h);
+                        if (task.window.get_maximized() > 0) task.window.unmaximize(Meta.MaximizeFlags.BOTH);
+                        task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
                     }
                     return GLib.SOURCE_REMOVE;
                 });
@@ -376,7 +383,7 @@ function _processWaylandQueue() {
         }
     }
     
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
         _processWaylandQueue();
         return GLib.SOURCE_REMOVE;
     });
