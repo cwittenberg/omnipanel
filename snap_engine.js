@@ -5,7 +5,8 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import { getSectionRect, hexToRgba, getLayoutColors, applyWindowTransform, isWindowIgnored } from './layout_definitions.js';
+import { getSectionRect, hexToRgba, getLayoutColors, isWindowIgnored } from './layout_definitions.js';
+import { applyWindowTransform } from './window_manager_adapter.js';
 
 export class SnapEngine {
     constructor(manager) {
@@ -161,13 +162,11 @@ export class SnapEngine {
         let y = pointer[1];
         let mods = pointer[2] || 0;
         
-        // Detect if Alt (MOD1) or Right Alt/Alt Gr (MOD5) is currently being held down
         let isAltPressed = (mods & (Clutter.ModifierType.MOD1_MASK | Clutter.ModifierType.MOD5_MASK)) !== 0;
 
         this._currentSnapZone = null;
 
         for (let zone of this._activeDragZones) {
-            // Hide the zones dynamically for instant visual feedback that snapping is disabled
             if (isAltPressed) {
                 if (zone.widget.visible) zone.widget.hide();
             } else {
@@ -175,7 +174,6 @@ export class SnapEngine {
             }
 
             let r = zone.rect;
-            // Prevent hovering/selection while Alt is pressed
             let isHovered = !isAltPressed && (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height);
             
             if (isHovered) {
@@ -226,8 +224,8 @@ export class SnapEngine {
                 
                 this.manager._log(`[Snap] Dropped window onto zone [${zone.name}]`);
 
-                // ENHANCED GTK4 WAYLAND DELAY:
-                // Elevated to 250ms to ensure Wayland clients (especially GNOME Files) 
+                // COMPOSITOR DELAY:
+                // Elevated to 250ms to ensure clients (especially GNOME Files) 
                 // fully yield their grab locks to Mutter before we push programmatic resizes.
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
                     try {
@@ -258,8 +256,6 @@ export class SnapEngine {
             });
 
         } else {
-            // Because _currentSnapZone is bypassed by the Alt modifier, it triggers this branch
-            // freeing the window naturally and dropping its affinity.
             delete this._dragWindow._omnipanel_zone;
             delete this._dragWindow._omnipanel_monitor;
         }

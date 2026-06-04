@@ -1,5 +1,4 @@
 // omnipanel/layout_definitions.js
-import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
@@ -23,37 +22,56 @@ export const Sections = {
 
 export function isWindowIgnored(window, settings) {
     if (!window || !settings) return false;
+    
+    let currentIgnoreList = '';
+    try { currentIgnoreList = (settings.get_strv('ignore-wm-classes') || []).join(','); } catch {}
+
+    if (window._omnipanel_ignore_list === currentIgnoreList && window._omnipanel_ignored !== undefined) {
+        return window._omnipanel_ignored;
+    }
+
+    let result = false;
     try {
         let wmClass = (window.get_wm_class() || '').toLowerCase();
         let winTitle = (window.get_title() || '').toLowerCase();
         
-        if (wmClass.includes('ding') || winTitle.includes('desktop icons')) return true;
+        if (wmClass.includes('ding') || winTitle.includes('desktop icons')) {
+            result = true;
+        } else {
+            try {
+                let wType = window.get_window_type();
+                if (wType === Meta.WindowType.DESKTOP || wType === Meta.WindowType.DOCK) result = true;
+            } catch {}
 
-        try {
-            let wType = window.get_window_type();
-            if (wType === Meta.WindowType.DESKTOP || wType === Meta.WindowType.DOCK) return true;
-        } catch {}
-
-        let appName = '';
-        
-        try {
-            let tracker = Shell.WindowTracker.get_default();
-            let app = tracker.get_window_app(window);
-            if (app && typeof app.get_name === 'function') {
-                appName = (app.get_name() || '').toLowerCase();
+            if (!result) {
+                let appName = '';
+                try {
+                    let tracker = Shell.WindowTracker.get_default();
+                    let app = tracker.get_window_app(window);
+                    if (app && typeof app.get_name === 'function') {
+                        appName = (app.get_name() || '').toLowerCase();
+                    }
+                } catch {}
+                
+                let ignoreList = settings.get_strv('ignore-wm-classes') || [];
+                
+                result = ignoreList.some(cls => {
+                    let term = cls.trim().toLowerCase();
+                    if (term.length < 2) return false;
+                    return wmClass.includes(term) || winTitle.includes(term) || appName.includes(term);
+                });
             }
-        } catch {}
-        
-        let ignoreList = settings.get_strv('ignore-wm-classes') || [];
-        
-        return ignoreList.some(cls => {
-            let term = cls.trim().toLowerCase();
-            if (term.length < 2) return false;
-            return wmClass.includes(term) || winTitle.includes(term) || appName.includes(term);
-        });
+        }
     } catch {
-        return false;
+        result = false;
     }
+
+    try {
+        window._omnipanel_ignore_list = currentIgnoreList;
+        window._omnipanel_ignored = result;
+    } catch {}
+
+    return result;
 }
 
 export function isWindowValid(window) {
@@ -324,121 +342,4 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
         }
     }
     return bestMatch;
-}
-
-export function clearPendingTransforms() {
-    _waylandQueue.length = 0;
-}
-
-// ----------------------------------------------------------------------------
-// THE GLOBAL WAYLAND EXECUTION QUEUE
-// ----------------------------------------------------------------------------
-const _waylandQueue = [];
-let _waylandQueueRunning = false;
-
-function _processWaylandQueue() {
-    if (_waylandQueue.length === 0) {
-        _waylandQueueRunning = false;
-        return;
-    }
-    
-    _waylandQueueRunning = true;
-    let task = _waylandQueue.shift();
-    
-    if (task.window && !task.window._omnipanel_is_dead) {
-        try {
-            let isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
-            
-            if (task.isMax) {
-                if (task.logger) task.logger(`[WaylandQueue] Maximizing [${task.title}]`);
-                if (!isAlreadyMax) task.window.maximize(Meta.MaximizeFlags.BOTH);
-            } else {
-                if (task.logger) task.logger(`[WaylandQueue] Applying spanning geometry on [${task.title}] -> [X:${task.x} Y:${task.y} W:${task.w} H:${task.h}]`);
-                
-                if (isAlreadyMax || task.window.get_maximized() > 0) {
-                    task.window.unmaximize(Meta.MaximizeFlags.BOTH);
-                }
-                
-                // CRITICAL FIX: user_op must be FALSE to force Wayland clients to accept the compositor's dimensions.
-                task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
-                
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-                    if (task.window && !task.window._omnipanel_is_dead) {
-                        if (task.window.get_maximized() > 0) task.window.unmaximize(Meta.MaximizeFlags.BOTH);
-                        task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
-                    }
-                    return GLib.SOURCE_REMOVE;
-                });
-
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-                    if (task.window && !task.window._omnipanel_is_dead) {
-                        if (task.window.get_maximized() > 0) task.window.unmaximize(Meta.MaximizeFlags.BOTH);
-                        task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
-                    }
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-        } catch (err) {
-            if (task.logger) task.logger(`[WaylandQueue Error] ${err}`);
-        }
-    }
-    
-    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-        _processWaylandQueue();
-        return GLib.SOURCE_REMOVE;
-    });
-}
-
-export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null) {
-    if (!window) return;
-    
-    let winTitle = 'unknown';
-    let winId = 'unknown';
-    try { 
-        winTitle = window.get_title() || 'unknown'; 
-        winId = window.get_id ? window.get_id() : Math.random().toString();
-    } catch {}
-
-    if (window._omnipanel_is_dead) return;
-
-    let targetX = Number.isFinite(Number(targetRect.x)) ? targetRect.x : 0;
-    let targetY = Number.isFinite(Number(targetRect.y)) ? targetRect.y : 0;
-    let targetW = Number.isFinite(Number(targetRect.width)) ? targetRect.width : 400;
-    let targetH = Number.isFinite(Number(targetRect.height)) ? targetRect.height : 300;
-
-    let minW = 50, minH = 50;
-    try {
-        if (typeof window.get_min_size === 'function') {
-            let minSize = window.get_min_size();
-            if (Array.isArray(minSize) && minSize.length >= 2) {
-                if (minSize[0] > 0) minW = Math.max(minW, minSize[0]);
-                if (minSize[1] > 0) minH = Math.max(minH, minSize[1]);
-            }
-        }
-    } catch {}
-
-    let safeW = Math.max(minW, Math.round(targetW));
-    let safeH = Math.max(minH, Math.round(targetH));
-    let safeX = Math.round(targetX);
-    let safeY = Math.round(targetY);
-
-    let existingIdx = _waylandQueue.findIndex(t => t.id === winId);
-    if (existingIdx !== -1) {
-        _waylandQueue.splice(existingIdx, 1);
-    }
-
-    if (logger) logger(`[applyWindowTransform] Queued programmatic resize on [${winTitle}] -> [X:${safeX} Y:${safeY} W:${safeW} H:${safeH}]`);
-
-    _waylandQueue.push({
-        id: winId,
-        window: window,
-        x: safeX, y: safeY, w: safeW, h: safeH,
-        isMax: isMaximized,
-        title: winTitle,
-        logger: logger
-    });
-
-    if (!_waylandQueueRunning) {
-        _processWaylandQueue();
-    }
 }

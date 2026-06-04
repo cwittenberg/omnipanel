@@ -1,10 +1,10 @@
-// extension.js
+// omnipanel/extension.js
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import PanelMover from './panel_mover.js';
 import TilingManager from './tiling_manager.js';
 import { LayoutIndicator } from './layout_indicator.js';
 import { ShowDesktopButton } from './show_desktop_button.js';
-import { clearPendingTransforms } from './layout_definitions.js';
+import { clearPendingTransforms } from './window_manager_adapter.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export default class OmniPanelExtension extends Extension {

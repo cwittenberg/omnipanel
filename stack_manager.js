@@ -1,10 +1,18 @@
 // omnipanel/stack_manager.js
+/*
+ * COMPARISON TO PREVIOUS:
+ * - CRITICAL BUG FIX (X11): Replaced `Main.layoutManager.uiGroup.add_child()` with `Main.layoutManager.addChrome()`.
+ * This explicitly registers the overlay with Mutter's input tracker, forcing the X server to dynamically 
+ * recalculate the input shape (XShape) when the menu expands on hover, preventing clicks from falling through to the client window.
+ * - Updated cleanup functions to use `removeChrome()` respectively.
+ */
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { applyWindowTransform, getSectionRect, Sections, isWindowIgnored } from './layout_definitions.js';
+import { getSectionRect, Sections, isWindowIgnored } from './layout_definitions.js';
+import { applyWindowTransform } from './window_manager_adapter.js';
 
 export class StackManager {
     constructor(tilingManager) {
@@ -35,7 +43,7 @@ export class StackManager {
 
     clearOverlays() {
         for (let overlay of this._overlays.values()) {
-            Main.layoutManager.uiGroup.remove_child(overlay.widget);
+            Main.layoutManager.removeChrome(overlay.widget);
             overlay.widget.destroy();
         }
         this._overlays.clear();
@@ -43,7 +51,8 @@ export class StackManager {
 
     _startLoop() {
         this._loopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-            try { this.updateOverlays(); } catch {}
+            if (!this._enabled) return GLib.SOURCE_REMOVE;
+            try { this.updateOverlays(); } catch (e) { this.manager._log(`[StackManager Error] ${e}`); }
             return GLib.SOURCE_CONTINUE;
         });
     }
@@ -114,8 +123,6 @@ export class StackManager {
                 height: Math.round(rh)
             };
 
-            // We strictly pass false for isMaximized to enforce dimension coordinates 
-            // without triggering GNOME's native edge-to-edge state
             applyWindowTransform(win, actualMonitor, finalRect, false, this.manager._log.bind(this.manager));
         }
     }
@@ -141,6 +148,9 @@ export class StackManager {
             track_hover: true 
         });
 
+        widget.connect('button-press-event', () => Clutter.EVENT_STOP);
+        widget.connect('button-release-event', () => Clutter.EVENT_STOP);
+
         let countLabel = new St.Label({
             text: '2',
             y_align: Clutter.ActorAlign.CENTER,
@@ -151,16 +161,19 @@ export class StackManager {
         let btnHoverStyle = 'background-color: rgba(255,255,255,0.2);';
         let btnActiveStyle = 'background-color: rgba(46, 204, 113, 0.25); color: #2ecc71;';
         
-        let prevBtn = new St.Button({ child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
-        let nextBtn = new St.Button({ child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
-        let toggleMenuBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
+        let prevBtn = new St.Button({ child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
+        let nextBtn = new St.Button({ child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
+        let toggleMenuBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
 
-        let modeBox = new St.BoxLayout({ vertical: false, visible: false });
+        let modeBox = new St.BoxLayout({ vertical: false, visible: false, reactive: true });
+        modeBox.connect('button-press-event', () => Clutter.EVENT_STOP);
+        modeBox.connect('button-release-event', () => Clutter.EVENT_STOP);
+
         let separator = new St.Widget({ style: 'width: 1px; background-color: rgba(255,255,255,0.2); margin: 0 6px;' });
-        let modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
-        let modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
-        let modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
-        let modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true });
+        let modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
+        let modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
+        let modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
+        let modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
 
         modeBox.add_child(separator);
         modeBox.add_child(modeGridBtn);
@@ -185,23 +198,16 @@ export class StackManager {
             topWindow: null, 
             monitor: actualMonitor, 
             lastSignature: '', 
-            lastActualMode: 'stack', 
-            lastFitsFlags: { 'stack': true, 'columns': true, 'rows': true, 'grid': true },
-            isForcedStack: false,
+            lastActualMode: 'stack',
             currentIndex: 0
         };
 
         data.syncModeStyles = () => {
             let actualMode = data.lastActualMode || 'stack';
-            let fitsFlags = data.lastFitsFlags || { 'stack': true, 'columns': true, 'rows': true, 'grid': true };
             
             let applyStyle = (btn, modeName) => {
-                let fits = fitsFlags[modeName];
-                btn.reactive = fits;
-                if (!fits) {
-                    btn.set_style(btnStyle + 'color: rgba(255,255,255,0.2);');
-                    return;
-                }
+                btn.reactive = true;
+                
                 if (modeName === actualMode) {
                     btn.set_style(btnStyle + btnActiveStyle);
                 } else {
@@ -226,6 +232,16 @@ export class StackManager {
             Main.activateWindow(data.windows[data.currentIndex]);
         };
 
+        prevBtn.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === 1) { doPrev(); return Clutter.EVENT_STOP; }
+            return Clutter.EVENT_PROPAGATE;
+        });
+        nextBtn.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === 1) { doNext(); return Clutter.EVENT_STOP; }
+            return Clutter.EVENT_PROPAGATE;
+        });
+
+        let hideTimeoutId = 0;
         let keyPressId = 0;
 
         widget.connect('destroy', () => {
@@ -233,12 +249,21 @@ export class StackManager {
                 global.stage.disconnect(keyPressId);
                 keyPressId = 0;
             }
+            if (hideTimeoutId) {
+                GLib.source_remove(hideTimeoutId);
+                hideTimeoutId = 0;
+            }
         });
 
         let updateUIState = () => {
             let isHovered = widget.hover;
             
             if (isHovered) {
+                if (hideTimeoutId) {
+                    GLib.source_remove(hideTimeoutId);
+                    hideTimeoutId = 0;
+                }
+
                 if (data.lastActualMode === 'stack') {
                     prevBtn.show();
                     nextBtn.show();
@@ -247,9 +272,8 @@ export class StackManager {
                     nextBtn.hide();
                 }
                 
-                if (!modeBox.visible) {
-                    toggleMenuBtn.show();
-                }
+                toggleMenuBtn.hide();
+                modeBox.show();
 
                 data.syncModeStyles();
                 widget.set_style('background-color: rgba(20, 20, 20, 0.95); border: 1px solid #2ecc71; border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); transition-duration: 150ms;');
@@ -271,25 +295,43 @@ export class StackManager {
                 }
 
             } else {
-                prevBtn.hide();
-                nextBtn.hide();
-                toggleMenuBtn.hide();
-                modeBox.hide();
-                
-                let actualMode = data.lastActualMode || 'stack';
-                this.applyStackLayout(zone, data.windows, data.monitor, actualMode);
-                
-                widget.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
-                
-                if (keyPressId) {
-                    global.stage.disconnect(keyPressId);
-                    keyPressId = 0;
+                if (!hideTimeoutId) {
+                    hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                        hideTimeoutId = 0;
+                        if (widget.hover) return GLib.SOURCE_REMOVE;
+
+                        prevBtn.hide();
+                        nextBtn.hide();
+                        
+                        toggleMenuBtn.show();
+                        modeBox.hide();
+                        
+                        widget.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
+                        
+                        if (keyPressId) {
+                            global.stage.disconnect(keyPressId);
+                            keyPressId = 0;
+                        }
+
+                        let cs = this.manager.storage.getCustomSections();
+                        let zRect = getSectionRect(data.monitor, zone, cs);
+                        if (zRect) {
+                            let padding = 16;
+                            let prefWidth = widget.get_preferred_width(-1)[1];
+                            let prefHeight = widget.get_preferred_height(-1)[1];
+                            let pos = this.settings.get_string('stack-indicator-position') || 'bottom-right';
+                            let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
+                            let oy = zRect.y + zRect.height - prefHeight - padding;
+                            widget.set_position(ox, oy);
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
                 }
             }
 
             let cs = this.manager.storage.getCustomSections();
             let zRect = getSectionRect(data.monitor, zone, cs);
-            if (zRect) {
+            if (zRect && isHovered) {
                 let padding = 16;
                 let prefWidth = widget.get_preferred_width(-1)[1];
                 let prefHeight = widget.get_preferred_height(-1)[1];
@@ -310,25 +352,35 @@ export class StackManager {
         bindStandardHover(nextBtn);
         bindStandardHover(toggleMenuBtn);
 
-        toggleMenuBtn.connect('clicked', () => {
-            toggleMenuBtn.hide();
-            modeBox.show();
-            updateUIState();
+        toggleMenuBtn.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === 1) {
+                toggleMenuBtn.hide();
+                modeBox.show();
+                data.syncModeStyles();
+                
+                let cs = this.manager.storage.getCustomSections();
+                let zRect = getSectionRect(data.monitor, zone, cs);
+                if (zRect) {
+                    let padding = 16;
+                    let prefWidth = widget.get_preferred_width(-1)[1];
+                    let prefHeight = widget.get_preferred_height(-1)[1];
+                    let pos = this.settings.get_string('stack-indicator-position') || 'bottom-right';
+                    let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
+                    let oy = zRect.y + zRect.height - prefHeight - padding;
+                    widget.set_position(ox, oy);
+                }
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
         });
 
         let bindModePreviewAndClick = (btn, modeName) => {
             btn.connect('notify::hover', () => {
-                if (!btn.reactive) return;
-
-                if (btn.hover) {
-                    this.applyStackLayout(zone, data.windows, data.monitor, modeName);
-                } else {
-                    this.applyStackLayout(zone, data.windows, data.monitor, data.lastActualMode || 'stack');
-                }
                 data.syncModeStyles();
             });
 
-            btn.connect('clicked', () => {
+            let executeActivation = () => {
+                this.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${zone}`);
                 if (!btn.reactive) return;
 
                 let cs = this.manager.storage.getCustomSections();
@@ -337,7 +389,6 @@ export class StackManager {
                 this.manager.storage.setCustomSectionsAndSave(cs);
                 
                 data.lastActualMode = modeName;
-                data.isForcedStack = false; 
                 data.syncModeStyles();
                 
                 if (data.lastActualMode === 'stack') {
@@ -354,10 +405,21 @@ export class StackManager {
                     w._omnipanel_last_req = '';
                 }
 
+                this.applyStackLayout(zone, data.windows, data.monitor, modeName);
+                this.invalidateSignature(zone);
+
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
                     if (btn) data.syncModeStyles();
                     return GLib.SOURCE_REMOVE;
                 });
+            };
+
+            btn.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === 1) { 
+                    executeActivation();
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
             });
         };
 
@@ -366,10 +428,8 @@ export class StackManager {
         bindModePreviewAndClick(modeRowsBtn, 'rows');
         bindModePreviewAndClick(modeGridBtn, 'grid');
 
-        prevBtn.connect('clicked', doPrev);
-        nextBtn.connect('clicked', doNext);
-
-        Main.layoutManager.uiGroup.add_child(widget);
+        // FORCE MUTTER TO TRACK THE X11 INPUT SHAPE
+        Main.layoutManager.addChrome(widget);
 
         return data;
     }
@@ -452,7 +512,7 @@ export class StackManager {
                     }
                 }
 
-                Main.layoutManager.uiGroup.remove_child(overlay.widget);
+                Main.layoutManager.removeChrome(overlay.widget);
                 overlay.widget.destroy();
                 this._overlays.delete(key);
             }
@@ -475,30 +535,6 @@ export class StackManager {
             let overlay = this._overlays.get(key);
             let zRect = getSectionRect(actualMonitor, zone, customSections);
             
-            let minW = topWindow ? (typeof topWindow.get_min_size === 'function' ? topWindow.get_min_size()[0] : 150) : 150;
-            let minH = topWindow ? (typeof topWindow.get_min_size === 'function' ? topWindow.get_min_size()[1] : 100) : 100;
-            minW = minW > 0 ? minW : 150;
-            minH = minH > 0 ? minH : 100;
-
-            let fitsGrid = true, fitsCols = true, fitsRows = true;
-            if (zRect && count > 0) {
-                let cols = Math.ceil(Math.sqrt(count));
-                let rows = Math.ceil(count / cols);
-                
-                fitsGrid = (zRect.width / cols >= minW) && (zRect.height / rows >= minH);
-                fitsCols = (zRect.width / count >= minW);
-                fitsRows = (zRect.height / count >= minH);
-            }
-
-            overlay.lastFitsFlags = {
-                'stack': true,
-                'grid': fitsGrid,
-                'columns': fitsCols,
-                'rows': fitsRows,
-                'vertical': fitsCols,
-                'horizontal': fitsRows
-            };
-
             let pMode = (customSections[zone] && customSections[zone].stackMode) ? customSections[zone].stackMode : (this.settings.get_string('default-stack-mode') || 'stack');
             
             let evalMode = pMode;
@@ -506,15 +542,6 @@ export class StackManager {
             if (evalMode === 'vertical') evalMode = 'columns';
             
             let actualMode = evalMode;
-            if (evalMode !== 'stack' && !overlay.lastFitsFlags[evalMode]) {
-                actualMode = 'stack';
-                if (!overlay.isForcedStack) {
-                    overlay.isForcedStack = true;
-                    Main.notify('OmniPanel', `[${zone}] is full, switching layout mode to on-top`);
-                }
-            } else {
-                overlay.isForcedStack = false;
-            }
             overlay.lastActualMode = actualMode;
             
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';

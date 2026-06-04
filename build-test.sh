@@ -1,3 +1,4 @@
+# omnipanel/build-test.sh
 #!/bin/bash
 # build-test.sh
 
@@ -35,7 +36,28 @@ source shexli_env/bin/activate
 pip install -U shexli
 
 # 9. Pack the extension using --force to ensure a clean overwrite
-gnome-extensions pack omnipanel@christian --extra-source=schemas/ --force
+gnome-extensions pack omnipanel@christian \
+    --extra-source=schemas/ \
+    --extra-source=logo.png \
+    --extra-source=defaults.js \
+    --extra-source=layout_definitions.js \
+    --extra-source=layout_indicator.js \
+    --extra-source=layout_storage.js \
+    --extra-source=panel_mover.js \
+    --extra-source=prefs_components.js \
+    --extra-source=prefs_guide_about.js \
+    --extra-source=prefs_hotkeys.js \
+    --extra-source=prefs_tiling.js \
+    --extra-source=prefs_topbar.js \
+    --extra-source=show_desktop_button.js \
+    --extra-source=snap_engine.js \
+    --extra-source=stack_manager.js \
+    --extra-source=tiling_manager.js \
+    --extra-source=zone_designer.js \
+    --extra-source=transform_wayland.js \
+    --extra-source=transform_x11.js \
+    --extra-source=window_manager_adapter.js \
+    --force
 
 # 10. Run shexli against the correctly named .shell-extension.zip file
 echo "Running shexli GNOME Shell compatibility tests..."

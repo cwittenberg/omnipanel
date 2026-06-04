@@ -10,7 +10,8 @@ import { ZoneDesignerRoot } from './zone_designer.js';
 import { LayoutStorage } from './layout_storage.js';
 import { SnapEngine } from './snap_engine.js';
 import { StackManager } from './stack_manager.js';
-import { getSectionRect, fuzzyMatchAppToZone, applyWindowTransform, Sections, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
+import { getSectionRect, fuzzyMatchAppToZone, Sections, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
+import { applyWindowTransform } from './window_manager_adapter.js';
 
 export default class TilingManager {
     constructor(settings) {
@@ -352,6 +353,7 @@ export default class TilingManager {
 
     _startStateTracking() {
         this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+            if (!this._enabled) return GLib.SOURCE_REMOVE;
             try {
                 this.storage.saveCurrentLayoutStates();
             } catch { }
@@ -480,9 +482,9 @@ export default class TilingManager {
         
         try {
             let rect = window.get_frame_rect();
-            this._log(`[${winId}] 🪲 INITIAL WAYLAND SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
+            this._log(`[${winId}] 🪲 INITIAL COMPOSITOR SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
             if (rect.width < 100 || rect.height < 100) {
-                this._log(`[${winId}] 🚨 WAYLAND HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
+                this._log(`[${winId}] 🚨 COMPOSITOR HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
                 GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
                     if (isWindowValid(window)) {
                         let m = Main.layoutManager.monitors[window.get_monitor() || 0] || Main.layoutManager.monitors[0];
@@ -507,6 +509,14 @@ export default class TilingManager {
                         this._trackedTimers.delete(window._omnipanel_creation_timer);
                         window._omnipanel_creation_timer = 0;
                     }
+                    
+                    this._trackedSignals = this._trackedSignals.filter(s => {
+                        if (s.obj === window) {
+                            try { window.disconnect(s.id); } catch {}
+                            return false;
+                        }
+                        return true;
+                    });
                 });
                 window._omnipanel_unmanaged_id = sigId;
                 this._trackedSignals.push({ obj: window, id: sigId });
@@ -543,7 +553,7 @@ export default class TilingManager {
         this._log(`[${winId}] >> Starting rapid DBus metadata polling (50ms intervals)...`);
 
         let attempts = 0;
-        let maxAttempts = 15; // 15 * 50ms = 750ms max wait
+        let maxAttempts = 15;
 
         let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
             if (window._omnipanel_is_dead || !isWindowValid(window)) {
@@ -567,7 +577,7 @@ export default class TilingManager {
                 
                 if (!finalWmClass && attempts < maxAttempts) {
                     attempts++;
-                    return GLib.SOURCE_CONTINUE; // Keep polling
+                    return GLib.SOURCE_CONTINUE;
                 }
 
                 this._trackedTimers.delete(window._omnipanel_creation_timer);

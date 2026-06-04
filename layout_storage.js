@@ -1,8 +1,15 @@
 // omnipanel/layout_storage.js
+/*
+ * COMPARISON TO PREVIOUS:
+ * - CRITICAL BUG FIX: Removed `if (!this.manager.activeLayoutName) return;` blocks in `setCustomSectionsAndSave` and `saveCustomZoneRect`.
+ * - If a user was using the implicit auto-restore layout instead of a named layout, any attempt to save a zone layout or stack mode silently aborted.
+ * - Modifications to stack modes and zones now correctly persist to the base `custom-sections` dictionary regardless of layout state.
+ */
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { getSectionRect, identifySection, applyWindowTransform, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
+import { getSectionRect, identifySection, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
+import { applyWindowTransform } from './window_manager_adapter.js';
 
 export class LayoutStorage {
     constructor(manager) {
@@ -16,9 +23,10 @@ export class LayoutStorage {
     }
     
     setCustomSectionsAndSave(zones) {
-        if (!this.manager.activeLayoutName) return; 
-        
+        // Unconditional save to custom-sections ensures changes like Stack Modes persist 
+        // even if the user is not actively inside a "Named Layout"
         this.settings.set_string('custom-sections', JSON.stringify(zones));
+        
         if (this.manager.activeLayoutName) {
             let allLayouts = {};
             try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
@@ -132,8 +140,6 @@ export class LayoutStorage {
     }
 
     saveCustomZoneRect(name, rect, monitorIndex) {
-        if (!this.manager.activeLayoutName) return; 
-
         let safeMonitorIndex = Math.max(0, monitorIndex);
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
         if (!monitor) return;
