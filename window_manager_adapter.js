@@ -18,10 +18,20 @@ class WindowManagerAdapter {
     }
 }
 
-const _windowAdapter = new WindowManagerAdapter();
+let _windowAdapter = null;
+
+function getAdapter() {
+    if (!_windowAdapter) {
+        _windowAdapter = new WindowManagerAdapter();
+    }
+    return _windowAdapter;
+}
 
 export function clearPendingTransforms() {
-    _windowAdapter.clearPendingTransforms();
+    if (_windowAdapter) {
+        _windowAdapter.clearPendingTransforms();
+        _windowAdapter = null;
+    }
 }
 
 export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null) {
@@ -68,5 +78,5 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
         logger: logger
     };
 
-    _windowAdapter.queueTransform(task);
+    getAdapter().queueTransform(task);
 }

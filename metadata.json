@@ -1,6 +1,6 @@
 {
   "name": "OmniPanel",
-  "description": "Shows the GNOME top bar on all monitors",
+  "description": "Multi-monitor productivity with configurable window layouts and a top bar that seamlessly follows your focus.",
   "uuid": "omnipanel@christian",
   "settings-schema": "org.gnome.shell.extensions.omnipanel",
   "shell-version": [
