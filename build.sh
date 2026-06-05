@@ -1,4 +1,3 @@
-# omnipanel/build.sh
 #!/bin/bash
 # build.sh - OmniPanel packaging script for EGO submission
 
@@ -35,6 +34,7 @@ gnome-extensions pack "$EXT_NAME" \
     --extra-source=schemas/ \
     --extra-source=logo.png \
     --extra-source=defaults.js \
+    --extra-source=i18n.js \
     --extra-source=layout_definitions.js \
     --extra-source=layout_indicator.js \
     --extra-source=layout_storage.js \
@@ -52,6 +52,8 @@ gnome-extensions pack "$EXT_NAME" \
     --extra-source=transform_wayland.js \
     --extra-source=transform_x11.js \
     --extra-source=window_manager_adapter.js \
+    --extra-source=README.md \
+    --extra-source=LICENSE \
     --force
 
 echo "[5/5] Verifying build..."

@@ -758,6 +758,8 @@ export default class TilingManager {
                 this._applyBSP(monWindows, wx, wy, ww, wh, gap, i);
             } else if (mode === 'cascade') {
                 this._applyCascade(monWindows, wx, wy, ww, wh, i);
+            } else if (mode === 'master-stack') {
+                this._applyMasterStack(monWindows, wx, wy, ww, wh, gap, i);
             }
         }
     }
@@ -800,6 +802,51 @@ export default class TilingManager {
             }, false, this._log.bind(this));
             
             try { windows[i].raise(); } catch {}
+        }
+    }
+
+    _applyMasterStack(windows, x, y, w, h, gap, monitorIndex) {
+        if (windows.length === 0) return;
+        if (windows.length === 1) {
+            let rect = {
+                x: Math.round(x + gap),
+                y: Math.round(y + gap),
+                width: Math.round(w - 2 * gap),
+                height: Math.round(h - 2 * gap)
+            };
+            applyWindowTransform(windows[0], monitorIndex, rect, false, this._log.bind(this));
+            return;
+        }
+
+        // Master window gets left half
+        let masterW = Math.floor((w - 3 * gap) / 2); // 2 gaps on edges, 1 in middle
+        let masterRect = {
+            x: Math.round(x + gap),
+            y: Math.round(y + gap),
+            width: Math.round(masterW),
+            height: Math.round(h - 2 * gap)
+        };
+        applyWindowTransform(windows[0], monitorIndex, masterRect, false, this._log.bind(this));
+
+        // Stack gets right half
+        let stackX = Math.round(x + 2 * gap + masterW);
+        let stackW = Math.round(w - 3 * gap - masterW);
+        let stackCount = windows.length - 1;
+        let stackH = Math.floor((h - (stackCount + 1) * gap) / stackCount);
+
+        for (let i = 0; i < stackCount; i++) {
+            let win = windows[i + 1];
+            let rectY = Math.round(y + gap + i * (stackH + gap));
+            // Adjust last window height to fill remaining space precisely
+            let currentH = (i === stackCount - 1) ? Math.round(h - gap - (rectY - y)) : stackH;
+            
+            let rect = {
+                x: stackX,
+                y: rectY,
+                width: stackW,
+                height: currentH
+            };
+            applyWindowTransform(win, monitorIndex, rect, false, this._log.bind(this));
         }
     }
 

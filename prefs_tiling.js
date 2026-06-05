@@ -456,12 +456,17 @@ export default function buildTilingPage(settings, window) {
     const rowAutoTilingMode = new Adw.ComboRow({
         title: t(settings, 'Auto-Tiling Algorithm'),
         subtitle: t(settings, 'The layout strategy for active windows'),
-        model: Gtk.StringList.new([t(settings, 'BSP (Binary Space Partitioning)'), t(settings, 'Cascading')])
+        model: Gtk.StringList.new([t(settings, 'BSP (Binary Space Partitioning)'), t(settings, 'Cascading'), t(settings, 'Master-Stack (Stable)')])
     });
     let currentMode = settings.get_string('auto-tiling-mode');
-    rowAutoTilingMode.selected = currentMode === 'cascade' ? 1 : 0;
+    if (currentMode === 'cascade') rowAutoTilingMode.selected = 1;
+    else if (currentMode === 'master-stack') rowAutoTilingMode.selected = 2;
+    else rowAutoTilingMode.selected = 0;
+    
     rowAutoTilingMode.connect('notify::selected', () => {
-        settings.set_string('auto-tiling-mode', rowAutoTilingMode.selected === 0 ? 'bsp' : 'cascade');
+        if (rowAutoTilingMode.selected === 1) settings.set_string('auto-tiling-mode', 'cascade');
+        else if (rowAutoTilingMode.selected === 2) settings.set_string('auto-tiling-mode', 'master-stack');
+        else settings.set_string('auto-tiling-mode', 'bsp');
     });
     groupAutoTiling.add(wrap(rowAutoTilingMode));
 
