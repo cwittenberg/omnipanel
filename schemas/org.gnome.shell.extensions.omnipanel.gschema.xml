@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.omnipanel" path="/org/gnome/shell/extensions/omnipanel/">
+    <key name="language" type="s">
+      <default>'auto'</default>
+      <summary>Interface Language</summary>
+    </key>
+
     <key name="movement-enabled" type="b">
       <default>true</default>
       <summary>Enable Multi-Monitor Top Panel</summary>

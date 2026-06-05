@@ -13,8 +13,8 @@ import { SnapEngine } from './snap_engine.js';
 import { StackManager } from './stack_manager.js';
 import { getSectionRect, fuzzyMatchAppToZone, Sections, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
+import { t } from './i18n.js';
 
-// --- QUICK TILER COMPONENT ---
 const QuickTilerOverlay = GObject.registerClass(
     class QuickTilerOverlay extends St.Widget {
         _init(tilingManager) {
@@ -56,10 +56,6 @@ const QuickTilerOverlay = GObject.registerClass(
                 style: 'background-color: rgba(20, 20, 20, 0.9); border: 2px solid #2ecc71; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8);'
             });
             
-            /* COMPARISON TO PREVIOUS:
-             * scaleFactor is now actively utilized to multiply all raw pixel constraints
-             * within the Quick Tiler, natively supporting HiDPI monitors.
-             */
             let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
             let gridW = 400 * scaleFactor;
             let gridH = 400 * scaleFactor;
@@ -108,13 +104,13 @@ const QuickTilerOverlay = GObject.registerClass(
             });
             
             this._entry = new St.Entry({
-                hint_text: 'Name this Zone (or leave blank to just resize)...',
+                hint_text: t(this.manager.settings, 'Name this Zone (or leave blank to just resize)...'),
                 style: 'min-width: 340px; padding: 8px; margin-right: 12px; border-radius: 6px;',
                 can_focus: true, reactive: true
             });
             
             let saveBtn = new St.Button({ 
-                label: 'Apply', 
+                label: t(this.manager.settings, 'Apply'), 
                 style: 'background-color: #2ecc71; color: #111; font-weight: bold; padding: 6px 20px; border-radius: 6px;',
                 reactive: true, can_focus: true, track_hover: true
             });
@@ -364,7 +360,6 @@ const QuickTilerOverlay = GObject.registerClass(
 );
 
 
-// --- LIFECYCLE MEDIATOR ---
 class LifecycleMediator {
     constructor(logger) {
         this._signals = [];
@@ -445,7 +440,6 @@ class LifecycleMediator {
     }
 }
 
-// --- WINDOW BOOTSTRAPPER ---
 class WindowBootstrapper {
     constructor(window, mediator, settings, logger, placementCallback, tilingManager) {
         this.window = window;
@@ -865,8 +859,8 @@ export default class TilingManager {
         let entry = new St.Entry({ style: 'min-width: 300px; padding: 10px; border-radius: 6px; margin-bottom: 24px;', can_focus: true, reactive: true });
         
         let btnBox = new St.BoxLayout({ vertical: false, style: 'spacing: 16px;' });
-        let cancelBtn = new St.Button({ label: 'Cancel', style: 'background-color: #444; color: white; padding: 8px 24px; border-radius: 6px;', reactive: true, can_focus: true, track_hover: true });
-        let saveBtn = new St.Button({ label: 'Save', style: 'background-color: #0078d4; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold;', reactive: true, can_focus: true, track_hover: true });
+        let cancelBtn = new St.Button({ label: t(this.settings, 'Cancel'), style: 'background-color: #444; color: white; padding: 8px 24px; border-radius: 6px;', reactive: true, can_focus: true, track_hover: true });
+        let saveBtn = new St.Button({ label: t(this.settings, 'Save'), style: 'background-color: #0078d4; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold;', reactive: true, can_focus: true, track_hover: true });
 
         btnBox.add_child(cancelBtn);
         btnBox.add_child(saveBtn);
@@ -926,7 +920,7 @@ export default class TilingManager {
     }
 
     promptForLayoutName() {
-        this._showPromptOverlay('Enter a name for the current layout:', (name) => {
+        this._showPromptOverlay(t(this.settings, 'Enter a name for the current layout:'), (name) => {
             if (name) this.storage.saveNamedLayout(name);
         });
     }
@@ -935,7 +929,7 @@ export default class TilingManager {
         if (this.isDesignerActive) return;
         
         if (!this.activeLayoutName) {
-            this._showPromptOverlay('No active layout. Name this layout first:', (name) => {
+            this._showPromptOverlay(t(this.settings, 'No active layout. Name this layout first:'), (name) => {
                 if (name) {
                     this.storage.saveNamedLayout(name);
                     this.isDesignerActive = true;
@@ -999,7 +993,6 @@ export default class TilingManager {
                 return;
             }
 
-            // --- AUTO TILING OVERRIDE ---
             if (this.settings.get_boolean('auto-tiling-enabled')) {
                 this._log(`[${winId}] Auto-tiling is enabled. Triggering full workspace layout recalculation.`);
                 this.queueAutoTiling();
@@ -1083,11 +1076,6 @@ export default class TilingManager {
 
             let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
 
-            /* COMPARISON TO PREVIOUS:
-             * CRITICAL PRIORITY FIX: Explicit user associations ("App Affinity") 
-             * are now correctly evaluated BEFORE fuzzy dictionary Smart Placement.
-             * This ensures that manually moving an app to a custom zone correctly trumps the category-based default route.
-             */
             if (hasExplicitSection) {
                 targetZoneName = layout.section;
             } else if (matchedZone) {

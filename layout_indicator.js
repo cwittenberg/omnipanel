@@ -5,11 +5,12 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import { t } from './i18n.js';
 
 export const LayoutIndicator = GObject.registerClass(
     class LayoutIndicator extends PanelMenu.Button {
         _init(settings, tilingManager, extensionObj) {
-            super._init(0.0, 'OmniPanel Command Center', false);
+            super._init(0.0, t(settings, 'OmniPanel Command Center'), false);
             this.settings = settings;
             this._tilingManager = tilingManager;
             this._extensionObj = extensionObj;
@@ -32,7 +33,6 @@ export const LayoutIndicator = GObject.registerClass(
                 let isTilingOn = this.settings.get_boolean('enable-tiling');
                 let isAutoOn = this.settings.get_boolean('auto-tiling-enabled');
                 
-                // Hide the system tray button completely if pure window tiling is taking over
                 this.visible = !(isTilingOn && isAutoOn);
             };
 
@@ -49,7 +49,7 @@ export const LayoutIndicator = GObject.registerClass(
         _rebuildMenu() {
             this.menu.removeAll();
 
-            let panelToggle = new PopupMenu.PopupSwitchMenuItem('Multi-Monitor Top Panel', this.settings.get_boolean('movement-enabled'));
+            let panelToggle = new PopupMenu.PopupSwitchMenuItem(t(this.settings, 'Multi-Monitor Top Panel'), this.settings.get_boolean('movement-enabled'));
             panelToggle.connect('toggled', (_, state) => {
                 this.settings.set_boolean('movement-enabled', state);
             });
@@ -58,7 +58,7 @@ export const LayoutIndicator = GObject.registerClass(
             let isTilingEnabled = this.settings.get_boolean('enable-tiling');
             let isAutoTilingEnabled = this.settings.get_boolean('auto-tiling-enabled');
             
-            let tilingToggle = new PopupMenu.PopupSwitchMenuItem('Window Management', isTilingEnabled);
+            let tilingToggle = new PopupMenu.PopupSwitchMenuItem(t(this.settings, 'Window Management'), isTilingEnabled);
             tilingToggle.connect('toggled', (_, state) => {
                 this.settings.set_boolean('enable-tiling', state);
                 this._rebuildMenu(); 
@@ -68,7 +68,7 @@ export const LayoutIndicator = GObject.registerClass(
             if (isTilingEnabled && !isAutoTilingEnabled) {
                 this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-                let designerToggle = new PopupMenu.PopupSwitchMenuItem('Zone Designer Mode', this._tilingManager.isDesignerActive);
+                let designerToggle = new PopupMenu.PopupSwitchMenuItem(t(this.settings, 'Zone Designer Mode'), this._tilingManager.isDesignerActive);
                 designerToggle.connect('toggled', (_, state) => {
                     if (state) {
                         this._tilingManager.startZoneDesigner();
@@ -78,11 +78,9 @@ export const LayoutIndicator = GObject.registerClass(
                 });
                 this.menu.addMenuItem(designerToggle);
 
-                // Add Quick Tiler Menu Item
                 let hotkeyRaw = this.settings.get_strv('quick-tiler-hotkey');
                 let hotkeyTxt = (hotkeyRaw && hotkeyRaw.length > 0) ? hotkeyRaw[0] : '<Super>g';
-                // Note: We intentionally don't escape markup here so <Super> doesn't turn into &lt;Super&gt;
-                let quickTilerItem = new PopupMenu.PopupMenuItem(`Quick Tiler Grid (${hotkeyTxt})`);
+                let quickTilerItem = new PopupMenu.PopupMenuItem(`${t(this.settings, 'Quick Tiler Grid')} (${hotkeyTxt})`);
                 quickTilerItem.connect('activate', () => {
                     this._tilingManager.showQuickTiler();
                 });
@@ -113,9 +111,6 @@ export const LayoutIndicator = GObject.registerClass(
 
                         let item = new PopupMenu.PopupMenuItem('');
                         
-                        /* COMPARISON TO PREVIOUS: 
-                         * CRITICAL FIX: Re-added the literal ✔ symbol so it actually displays a checkmark next to the active layout, rather than just an empty colored space.
-                         */
                         if (isActive) {
                             item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71">✔</span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
                         } else {
@@ -132,7 +127,7 @@ export const LayoutIndicator = GObject.registerClass(
             }
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-            let prefsItem = new PopupMenu.PopupMenuItem('OmniPanel Settings');
+            let prefsItem = new PopupMenu.PopupMenuItem(t(this.settings, 'OmniPanel Settings'));
             prefsItem.connect('activate', () => {
                 if (this._extensionObj && typeof this._extensionObj.openPreferences === 'function') {
                     this._extensionObj.openPreferences();

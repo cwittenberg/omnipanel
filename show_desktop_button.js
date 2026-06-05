@@ -1,13 +1,15 @@
+// omnipanel/show_desktop_button.js
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import { t } from './i18n.js';
 
 export const ShowDesktopButton = GObject.registerClass(
     class ShowDesktopButton extends PanelMenu.Button {
         _init(settings) {
-            super._init(0.0, 'Show Desktop', false);
+            super._init(0.0, t(settings, 'Show Desktop'), false);
             this.settings = settings;
             this._minimizedMap = new Map();
 
@@ -40,7 +42,6 @@ export const ShowDesktopButton = GObject.registerClass(
 
             let allCurrentlyMinimized = true;
             for (let win of targetWindows) {
-                // Ensure we only evaluate windows that CAN be minimized
                 if (!win.minimized && typeof win.can_minimize === 'function' && win.can_minimize()) {
                     allCurrentlyMinimized = false;
                     break;
@@ -48,7 +49,6 @@ export const ShowDesktopButton = GObject.registerClass(
             }
 
             if (savedState.length > 0 && allCurrentlyMinimized) {
-                // Restore Windows
                 for (let win of savedState) {
                     try {
                         if (win && win.get_compositor_private() && !win.get_compositor_private().is_destroyed()) {
@@ -58,7 +58,6 @@ export const ShowDesktopButton = GObject.registerClass(
                 }
                 this._minimizedMap.delete(monitorIndex);
             } else {
-                // Minimize Windows safely
                 let toMinimize = targetWindows.filter(w => !w.minimized && typeof w.can_minimize === 'function' && w.can_minimize());
                 if (toMinimize.length > 0) {
                     this._minimizedMap.set(monitorIndex, toMinimize);

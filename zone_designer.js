@@ -5,6 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { hexToRgba, getLayoutColors } from './layout_definitions.js';
+import { t } from './i18n.js';
 
 // --- USER ADJUSTABLE UI VARIABLES ---
 const TOPBAR_HEIGHT = 110; 
@@ -312,7 +313,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.add_child(this._selection);
 
             this._warningLabel = new St.Label({
-                text: 'Hold and drag to draw and expand zone (Min: 450x400)',
+                text: t(this._manager.settings, 'Hold and drag to draw and expand zone (Min: 450x400)'),
                 style: 'color: #ff7a7a; font-weight: bold; font-size: 14px; background-color: rgba(30,30,30,0.95); padding: 8px 16px; border-radius: 99px; border: 1px solid rgba(255,122,122,0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.5);',
                 visible: false
             });
@@ -326,7 +327,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
              });
             
             this._entry = new St.Entry({ 
-                 hint_text: 'Name this Zone...', 
+                 hint_text: t(this._manager.settings, 'Name this Zone...'), 
                  style: `min-width: 220px; margin-right: 12px; padding: ${ENTRY_PADDING};`, 
                  can_focus: true, 
                  reactive: true 
@@ -334,7 +335,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
             let cancelBox = new St.BoxLayout({ vertical: false });
             let cancelIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
-            let cancelLabel = new St.Label({ text: 'Cancel', y_align: Clutter.ActorAlign.CENTER });
+            let cancelLabel = new St.Label({ text: t(this._manager.settings, 'Cancel'), y_align: Clutter.ActorAlign.CENTER });
             cancelBox.add_child(cancelIcon);
             cancelBox.add_child(cancelLabel);
 
@@ -354,7 +355,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
             let saveBox = new St.BoxLayout({ vertical: false });
             let saveIcon = new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
-            let saveLabel = new St.Label({ text: 'Save', y_align: Clutter.ActorAlign.CENTER });
+            let saveLabel = new St.Label({ text: t(this._manager.settings, 'Save'), y_align: Clutter.ActorAlign.CENTER });
             saveBox.add_child(saveIcon);
             saveBox.add_child(saveLabel);
 
@@ -395,13 +396,13 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 toolbar.set_size(m.width, TOPBAR_HEIGHT);
                 
                 let titleLabel = new St.Label({
-                    text: `Zone Designer Mode  |  Monitor ${i + 1}`,
+                    text: `${t(this._manager.settings, 'Zone Designer Mode')}  |  ${t(this._manager.settings, 'Monitor')} ${i + 1}`,
                     y_align: Clutter.ActorAlign.CENTER,
                     style: 'font-weight: bold; font-size: 16px; color: white; margin-right: 24px;'
                 });
 
                 let cycleBtn = new St.Button({
-                    label: `Layout: ${manager.activeLayoutName || 'None'} (Click to Cycle)`,
+                    label: `${t(this._manager.settings, 'Layout')}: ${manager.activeLayoutName || t(this._manager.settings, 'None')} ${t(this._manager.settings, '(Click to Cycle)')}`,
                     style_class: 'button',
                     style: `margin-right: 24px; padding: ${BUTTON_PADDING};`,
                     y_align: Clutter.ActorAlign.CENTER,
@@ -417,14 +418,14 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 let newLayoutBox = new St.BoxLayout({ vertical: false, style: 'margin-right: 24px;', y_align: Clutter.ActorAlign.CENTER });
                 
                 let newLayoutEntry = new St.Entry({
-                    hint_text: 'New Layout Name...',
+                    hint_text: t(this._manager.settings, 'New Layout Name...'),
                     style: `min-width: 180px; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                     can_focus: true, reactive: true
                 });
                 newLayoutEntry.add_style_class_name('new-layout-entry');
 
                 let newLayoutBtn = new St.Button({
-                    label: 'Create',
+                    label: t(this._manager.settings, 'Create'),
                     style_class: 'button',
                     style: `padding: ${BUTTON_PADDING};`,
                     reactive: true, track_hover: true, can_focus: true
@@ -460,14 +461,14 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 let spacer = new St.Widget({ x_expand: true, y_expand: true });
                 
                 let hintLabel = new St.Label({
-                    text: '💡 Right-click overlapping zones to send them to the back',
+                    text: t(this._manager.settings, '💡 Right-click overlapping zones to send them to the back'),
                     y_align: Clutter.ActorAlign.CENTER,
                     style: 'color: rgba(255,255,255,0.7); font-weight: 500; margin-right: 24px;'
                 });
                 
                 let quitBox = new St.BoxLayout({ vertical: false });
                 let quitIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px; color: white;' });
-                let quitLabel = new St.Label({ text: 'Quit Designer', y_align: Clutter.ActorAlign.CENTER, style: 'color: white; font-weight: bold;' });
+                let quitLabel = new St.Label({ text: t(this._manager.settings, 'Quit Designer'), y_align: Clutter.ActorAlign.CENTER, style: 'color: white; font-weight: bold;' });
                 quitBox.add_child(quitIcon);
                 quitBox.add_child(quitLabel);
 
@@ -554,9 +555,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
         }
 
         _refreshToolbars() {
-            let name = this._manager.activeLayoutName || 'None';
+            let name = this._manager.activeLayoutName || t(this._manager.settings, 'None');
             for (let btn of this._cycleBtns) {
-                btn.set_label(`Layout: ${name} (Click to Cycle)`);
+                btn.set_label(`${t(this._manager.settings, 'Layout')}: ${name} ${t(this._manager.settings, '(Click to Cycle)')}`);
             }
         }
 
@@ -636,7 +637,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     
                     let nameEntry = new St.Entry({
                         text: displayName,
-                        hint_text: isTemp ? 'Unnamed Zone' : '',
+                        hint_text: isTemp ? t(this._manager.settings, 'Unnamed Zone') : '',
                         style: `min-width: 120px; background-color: rgba(0,0,0,0.2); border-radius: 4px; color: white; font-weight: bold; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                         can_focus: true, reactive: true
                     });

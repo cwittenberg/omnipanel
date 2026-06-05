@@ -4,6 +4,14 @@ import Gtk from 'gi://Gtk?version=4.0';
 import Gdk from 'gi://Gdk?version=4.0';
 import GObject from 'gi://GObject';
 import { DEFAULT_APP_DICTIONARY, DEFAULT_CATEGORY_MAP } from './defaults.js';
+import { t } from './i18n.js';
+
+function wrap(row) {
+    if (row && typeof row.set_subtitle_lines === 'function') {
+        row.set_subtitle_lines(0);
+    }
+    return row;
+}
 
 const ShortcutButton = GObject.registerClass(
     class ShortcutButton extends Gtk.Button {
@@ -22,7 +30,7 @@ const ShortcutButton = GObject.registerClass(
 
             this.connect('clicked', () => {
                 this._listening = true;
-                this.set_label('Press keys... (Esc to cancel, Backspace to clear)');
+                this.set_label(t(this._settings, 'Press keys... (Esc to cancel, Backspace to clear)'));
             });
 
             this._changedId = this._settings.connect(`changed::${this._settingsKey}`, this._refresh.bind(this));
@@ -38,7 +46,7 @@ const ShortcutButton = GObject.registerClass(
         _refresh() {
             this._listening = false;
             let val = this._settings.get_strv(this._settingsKey)[0];
-            this.set_label(val ? val : 'Disabled');
+            this.set_label(val ? val : t(this._settings, 'Disabled'));
         }
 
         _onKeyPressed(controller, keyval, keycode, state) {
@@ -75,72 +83,74 @@ const ShortcutButton = GObject.registerClass(
 
 const AppDictRow = GObject.registerClass(
     class AppDictRow extends Adw.ExpanderRow {
-        _init(ruleData, onDelete) {
-            super._init({ title: `Zones: ${ruleData.zoneKeys.join(', ') || 'New Rule'}` });
+        _init(ruleData, onDelete, settings) {
+            super._init({ title: `Zones: ${ruleData.zoneKeys.join(', ') || t(settings, 'New Rule')}` });
+            if (typeof this.set_subtitle_lines === 'function') this.set_subtitle_lines(0);
             this.ruleData = ruleData;
 
             let zoneRow = new Adw.EntryRow({ 
-                title: 'Target Zones (comma separated)', 
+                title: t(settings, 'Target Zones (comma separated)'), 
                 text: ruleData.zoneKeys.join(', ') 
             });
             zoneRow.connect('notify::text', () => {
                 this.ruleData.zoneKeys = zoneRow.get_text().split(',').map(s => s.trim()).filter(s => s);
-                this.set_title(`Zones: ${this.ruleData.zoneKeys.join(', ') || 'New Rule'}`);
+                this.set_title(`Zones: ${this.ruleData.zoneKeys.join(', ') || t(settings, 'New Rule')}`);
             });
 
             let kwRow = new Adw.EntryRow({ 
-                title: 'App Keywords (comma separated)', 
+                title: t(settings, 'App Keywords (comma separated)'), 
                 text: ruleData.keywords.join(', ') 
             });
             kwRow.connect('notify::text', () => {
                 this.ruleData.keywords = kwRow.get_text().split(',').map(s => s.trim()).filter(s => s);
             });
 
-            let delRow = new Adw.ActionRow({ title: 'Remove this routing rule' });
+            let delRow = new Adw.ActionRow({ title: t(settings, 'Remove this routing rule') });
             let delBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
             delBtn.add_css_class('destructive-action');
             delBtn.connect('clicked', onDelete);
             delRow.add_suffix(delBtn);
 
-            this.add_row(zoneRow);
-            this.add_row(kwRow);
-            this.add_row(delRow);
+            this.add_row(wrap(zoneRow));
+            this.add_row(wrap(kwRow));
+            this.add_row(wrap(delRow));
         }
     }
 );
 
 const CatMapRow = GObject.registerClass(
     class CatMapRow extends Adw.ExpanderRow {
-        _init(ruleData, onDelete) {
-            super._init({ title: `Category: ${ruleData.cat || 'New Category'}` });
+        _init(ruleData, onDelete, settings) {
+            super._init({ title: `Category: ${ruleData.cat || t(settings, 'New Category')}` });
+            if (typeof this.set_subtitle_lines === 'function') this.set_subtitle_lines(0);
             this.ruleData = ruleData;
 
             let catRow = new Adw.EntryRow({ 
-                title: 'GNOME Desktop Category', 
+                title: t(settings, 'GNOME Desktop Category'), 
                 text: ruleData.cat || '' 
             });
             catRow.connect('notify::text', () => {
                 this.ruleData.cat = catRow.get_text().trim();
-                this.set_title(`Category: ${this.ruleData.cat || 'New Category'}`);
+                this.set_title(`Category: ${this.ruleData.cat || t(settings, 'New Category')}`);
             });
 
             let hintsRow = new Adw.EntryRow({ 
-                title: 'Target Zones (comma separated)', 
+                title: t(settings, 'Target Zones (comma separated)'), 
                 text: ruleData.hints.join(', ') 
             });
             hintsRow.connect('notify::text', () => {
                 this.ruleData.hints = hintsRow.get_text().split(',').map(s => s.trim()).filter(s => s);
             });
 
-            let delRow = new Adw.ActionRow({ title: 'Remove this category rule' });
+            let delRow = new Adw.ActionRow({ title: t(settings, 'Remove this category rule') });
             let delBtn = new Gtk.Button({ icon_name: 'user-trash-symbolic', valign: Gtk.Align.CENTER });
             delBtn.add_css_class('destructive-action');
             delBtn.connect('clicked', onDelete);
             delRow.add_suffix(delBtn);
 
-            this.add_row(catRow);
-            this.add_row(hintsRow);
-            this.add_row(delRow);
+            this.add_row(wrap(catRow));
+            this.add_row(wrap(hintsRow));
+            this.add_row(wrap(delRow));
         }
     }
 );
@@ -149,7 +159,7 @@ const DictionaryConfigWindow = GObject.registerClass(
     class DictionaryConfigWindow extends Adw.Window {
         _init(settings, parent) {
             super._init({
-                title: 'Smart Placement Routing Rules',
+                title: t(settings, 'Smart Placement Routing Rules'),
                 transient_for: parent,
                 modal: true,
                 default_width: 700,
@@ -162,11 +172,11 @@ const DictionaryConfigWindow = GObject.registerClass(
             
             let headerBar = new Adw.HeaderBar();
             
-            let saveBtn = new Gtk.Button({ label: 'Save & Close' });
+            let saveBtn = new Gtk.Button({ label: t(settings, 'Save & Close') });
             saveBtn.add_css_class('suggested-action');
             headerBar.pack_end(saveBtn);
 
-            let resetBtn = new Gtk.Button({ label: 'Reset to Defaults' });
+            let resetBtn = new Gtk.Button({ label: t(settings, 'Reset to Defaults') });
             headerBar.pack_start(resetBtn);
             
             box.append(headerBar);
@@ -177,22 +187,22 @@ const DictionaryConfigWindow = GObject.registerClass(
             let appScroll = new Gtk.ScrolledWindow({ hexpand: true, vexpand: true, hscrollbar_policy: Gtk.PolicyType.NEVER });
             let appClamp = new Adw.Clamp({ maximum_size: 800, margin_top: 24, margin_bottom: 24, margin_start: 12, margin_end: 12 });
             this.appGroup = new Adw.PreferencesGroup({ 
-                title: 'Application Keyword Routing', 
-                description: 'Route applications to specific drop zones if their window title or application name matches a keyword.' 
+                title: t(settings, 'Application Keyword Routing'), 
+                description: t(settings, 'Route applications to specific drop zones if their window title or application name matches a keyword.') 
             });
             appClamp.set_child(this.appGroup);
             appScroll.set_child(appClamp);
-            notebook.append_page(appScroll, new Gtk.Label({ label: 'App Keywords' }));
+            notebook.append_page(appScroll, new Gtk.Label({ label: t(settings, 'App Keywords') }));
 
             let catScroll = new Gtk.ScrolledWindow({ hexpand: true, vexpand: true, hscrollbar_policy: Gtk.PolicyType.NEVER });
             let catClamp = new Adw.Clamp({ maximum_size: 800, margin_top: 24, margin_bottom: 24, margin_start: 12, margin_end: 12 });
             this.catGroup = new Adw.PreferencesGroup({ 
-                title: 'Category Routing', 
-                description: 'Route applications to specific drop zones based on their underlying GNOME desktop metadata category.' 
+                title: t(settings, 'Category Routing'), 
+                description: t(settings, 'Route applications to specific drop zones based on their underlying GNOME desktop metadata category.') 
             });
             catClamp.set_child(this.catGroup);
             catScroll.set_child(catClamp);
-            notebook.append_page(catScroll, new Gtk.Label({ label: 'Categories' }));
+            notebook.append_page(catScroll, new Gtk.Label({ label: t(settings, 'Categories') }));
 
             box.append(notebook);
             this.set_content(box);
@@ -240,12 +250,13 @@ const DictionaryConfigWindow = GObject.registerClass(
                 let row = new AppDictRow(this._appData[i], () => {
                     this._appData.splice(i, 1);
                     this._renderAppDict();
-                });
+                }, this.settings);
                 this.appGroup.add(row);
                 this._appRows.push(row);
             }
 
-            let addRow = new Adw.ActionRow({ title: 'Add New App Routing Rule' });
+            let addRow = new Adw.ActionRow({ title: t(this.settings, 'Add New App Routing Rule') });
+            if (typeof addRow.set_subtitle_lines === 'function') addRow.set_subtitle_lines(0);
             let addBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
             addBtn.add_css_class('suggested-action');
             addBtn.connect('clicked', () => {
@@ -269,12 +280,13 @@ const DictionaryConfigWindow = GObject.registerClass(
                 let row = new CatMapRow(this._catData[i], () => {
                     this._catData.splice(i, 1);
                     this._renderCatMap();
-                });
+                }, this.settings);
                 this.catGroup.add(row);
                 this._catRows.push(row);
             }
 
-            let addRow = new Adw.ActionRow({ title: 'Add New Category Routing Rule' });
+            let addRow = new Adw.ActionRow({ title: t(this.settings, 'Add New Category Routing Rule') });
+            if (typeof addRow.set_subtitle_lines === 'function') addRow.set_subtitle_lines(0);
             let addBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
             addBtn.add_css_class('suggested-action');
             addBtn.connect('clicked', () => {

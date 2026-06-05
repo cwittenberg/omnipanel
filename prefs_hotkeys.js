@@ -1,6 +1,7 @@
 // omnipanel/prefs_hotkeys.js
 import Adw from 'gi://Adw?version=1';
 import Gtk from 'gi://Gtk?version=4.0';
+import { t } from './i18n.js';
 
 function createHotkeyRow(title, subtitle, hotkeyText) {
     const row = new Adw.ActionRow({
@@ -26,73 +27,68 @@ function createHotkeyRow(title, subtitle, hotkeyText) {
     return row;
 }
 
-export function buildHotkeysPage() {
+export function buildHotkeysPage(settings) {
     const pageHotkeys = new Adw.PreferencesPage({
-        title: 'Hotkeys',
+        title: t(settings, 'Hotkeys'),
         icon_name: 'keyboard-shortcuts-symbolic'
     });
 
-    // 1. Directional Snapping
     const groupSnapping = new Adw.PreferencesGroup({ 
-        title: 'Directional Snapping',
-        description: 'Quickly snap the currently focused window into adjacent Drop Zones.'
+        title: t(settings, 'Directional Snapping'),
+        description: t(settings, 'Quickly snap the currently focused window into adjacent Drop Zones.')
     });
-    groupSnapping.add(createHotkeyRow('Snap Left', 'Move window to the nearest zone on the left.', 'Alt + Left'));
-    groupSnapping.add(createHotkeyRow('Snap Right', 'Move window to the nearest zone on the right.', 'Alt + Right'));
-    groupSnapping.add(createHotkeyRow('Snap Up', 'Move window to the nearest zone above.', 'Alt + Up'));
-    groupSnapping.add(createHotkeyRow('Snap Down', 'Move window to the nearest zone below.', 'Alt + Down'));
+    groupSnapping.add(createHotkeyRow(t(settings, 'Snap Left'), t(settings, 'Move window to the nearest zone on the left.'), t(settings, 'Alt + Left')));
+    groupSnapping.add(createHotkeyRow(t(settings, 'Snap Right'), t(settings, 'Move window to the nearest zone on the right.'), t(settings, 'Alt + Right')));
+    groupSnapping.add(createHotkeyRow(t(settings, 'Snap Up'), t(settings, 'Move window to the nearest zone above.'), t(settings, 'Alt + Up')));
+    groupSnapping.add(createHotkeyRow(t(settings, 'Snap Down'), t(settings, 'Move window to the nearest zone below.'), t(settings, 'Alt + Down')));
     pageHotkeys.add(groupSnapping);
 
-    // 2. Drag Override
     const groupOverride = new Adw.PreferencesGroup({
-        title: 'Drag & Drop Override',
-        description: 'Bypass OmniPanel\'s layout engine for manual window placement.'
+        title: t(settings, 'Drag & Drop Override'),
+        description: t(settings, 'Bypass OmniPanel\'s layout engine for manual window placement.')
     });
     groupOverride.add(createHotkeyRow(
-        'Temporarily Disable Snapping', 
-        'Hold this modifier while dragging a window to hide Drop Zones and allow free-floating placement. Releasing the window drops its zone affinity.', 
-        'Hold Alt (or Alt Gr)'
+        t(settings, 'Temporarily Disable Snapping'), 
+        t(settings, 'Hold this modifier while dragging a window to hide Drop Zones and allow free-floating placement. Releasing the window drops its zone affinity.'), 
+        t(settings, 'Hold Alt (or Alt Gr)')
     ));
     pageHotkeys.add(groupOverride);
 
-    // 3. Layouts & Workspaces
     const groupLayouts = new Adw.PreferencesGroup({
-        title: 'Layout Management',
-        description: 'These shortcuts can be customized in the Layouts tab.'
+        title: t(settings, 'Layout Management'),
+        description: t(settings, 'These shortcuts can be customized in the Layouts tab.')
     });
     groupLayouts.add(createHotkeyRow(
-        'Cycle Layouts', 
-        'Instantly switch between your saved layouts.', 
-        'Configurable (Default: Alt + -)'
+        t(settings, 'Cycle Layouts'), 
+        t(settings, 'Instantly switch between your saved layouts.'), 
+        t(settings, 'Configurable (Default: Alt + -)')
     ));
     groupLayouts.add(createHotkeyRow(
-        'Activate Specific Layout', 
-        'Apply a specific saved layout using its assigned slot number.', 
-        'Configurable'
+        t(settings, 'Activate Specific Layout'), 
+        t(settings, 'Apply a specific saved layout using its assigned slot number.'), 
+        t(settings, 'Configurable')
     ));
     pageHotkeys.add(groupLayouts);
 
-    // 4. Window Stacks
     const groupStacks = new Adw.PreferencesGroup({
-        title: 'Stack Navigation',
-        description: 'Interact with the Stack Indicator overlay when multiple windows share a zone.'
+        title: t(settings, 'Stack Navigation'),
+        description: t(settings, 'Interact with the Stack Indicator overlay when multiple windows share a zone.')
     });
     groupStacks.add(createHotkeyRow(
-        'Cycle Stacked Windows', 
-        'While hovering over a Stack Indicator, use the arrow keys to quickly page through the stacked windows.', 
-        'Left / Right Arrows'
+        t(settings, 'Cycle Stacked Windows'), 
+        t(settings, 'While hovering over a Stack Indicator, use the arrow keys to quickly page through the stacked windows.'), 
+        t(settings, 'Left / Right Arrows')
     ));
     pageHotkeys.add(groupStacks);
 
-    // 5. Quick Tiler
     const groupQuickTiler = new Adw.PreferencesGroup({
-        title: 'Quick Tiler (Grid Spawning)',
-        description: 'Instantly resize the focused window using an interactive grid overlay. Configure this hotkey in the Layouts tab.'
+        title: t(settings, 'Quick Tiler (Grid Spawning)'),
+        description: t(settings, 'Instantly resize the focused window using an interactive grid overlay. Configure this hotkey in the Layouts tab.')
     });
     groupQuickTiler.add(createHotkeyRow(
-        'Open Quick Tiler',
-        'Press to spawn a centered 8x8 grid on the active monitor, then click and drag across cells to reshape the active window.',
-        'Configurable (Default: Super + G)'
+        t(settings, 'Open Quick Tiler'),
+        t(settings, 'Press to spawn a centered 8x8 grid on the active monitor, then click and drag across cells to reshape the active window.'),
+        t(settings, 'Configurable (Default: Super + G)')
     ));
     pageHotkeys.add(groupQuickTiler);
 

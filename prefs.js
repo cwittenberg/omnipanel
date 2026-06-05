@@ -11,10 +11,10 @@ export default class OmniPanelPreferences extends ExtensionPreferences {
         
         window.add(buildTilingPage(settings, window));
         window.add(buildTopBarPage(settings));
-        window.add(buildHotkeysPage());
+        window.add(buildHotkeysPage(settings));
         
         // We pass this.dir to allow loading local assets from the extension directory
-        window.add(buildGuidePage(this.dir));
+        window.add(buildGuidePage(settings, this.dir));
         window.add(buildAboutPage(settings, this.metadata, this.dir));
     }
 }
