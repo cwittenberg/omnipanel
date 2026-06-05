@@ -77,11 +77,14 @@ class DrawState extends DesignerState {
         if (sY + sH > global.stage.height) sY = global.stage.height - sH;
 
         let snapX = sX, snapY = sY, snapR = sX + sW, snapB = sY + sH;
+        let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+        let snapTolerance = 30 * scale;
+
         for (let mon of designer._monitors) {
-            if (Math.abs(snapX - mon.x) < 30) snapX = mon.x;
-            if (Math.abs(snapY - (mon.y + panelH)) < 30) snapY = mon.y + panelH;
-            if (Math.abs(snapR - (mon.x + mon.width)) < 30) snapR = mon.x + mon.width;
-            if (Math.abs(snapB - (mon.y + mon.height)) < 30) snapB = mon.y + mon.height;
+            if (Math.abs(snapX - mon.x) < snapTolerance) snapX = mon.x;
+            if (Math.abs(snapY - (mon.y + panelH)) < snapTolerance) snapY = mon.y + panelH;
+            if (Math.abs(snapR - (mon.x + mon.width)) < snapTolerance) snapR = mon.x + mon.width;
+            if (Math.abs(snapB - (mon.y + mon.height)) < snapTolerance) snapB = mon.y + mon.height;
         }
         sX = snapX;
         sY = snapY;
@@ -160,11 +163,14 @@ class MoveState extends DesignerState {
             let panelH = Main.panel.height;
             let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
             
+            let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+            let snapTolerance = 30 * scale;
+
             for (let mon of designer._monitors) {
-                if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
-                if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
-                if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
-                if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
+                if (Math.abs(snapBxX - mon.x) < snapTolerance) snapBxX = mon.x;
+                if (Math.abs(snapBxY - (mon.y + panelH)) < snapTolerance) snapBxY = mon.y + panelH;
+                if (Math.abs(snapBxR - (mon.x + mon.width)) < snapTolerance) snapBxR = mon.x + mon.width;
+                if (Math.abs(snapBxB - (mon.y + mon.height)) < snapTolerance) snapBxB = mon.y + mon.height;
             }
             
             bxX = snapBxX;
@@ -240,11 +246,14 @@ class ResizeState extends DesignerState {
             let panelH = Main.panel.height;
             let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
             
+            let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+            let snapTolerance = 30 * scale;
+
             for (let mon of designer._monitors) {
-                if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
-                if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
-                if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
-                if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
+                if (Math.abs(snapBxX - mon.x) < snapTolerance) snapBxX = mon.x;
+                if (Math.abs(snapBxY - (mon.y + panelH)) < snapTolerance) snapBxY = mon.y + panelH;
+                if (Math.abs(snapBxR - (mon.x + mon.width)) < snapTolerance) snapBxR = mon.x + mon.width;
+                if (Math.abs(snapBxB - (mon.y + mon.height)) < snapTolerance) snapBxB = mon.y + mon.height;
             }
 
             bxW = snapBxR - snapBxX;

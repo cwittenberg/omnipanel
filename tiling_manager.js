@@ -56,8 +56,17 @@ const QuickTilerOverlay = GObject.registerClass(
                 style: 'background-color: rgba(20, 20, 20, 0.9); border: 2px solid #2ecc71; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8);'
             });
             
-            let gridW = 400;
-            let gridH = 400;
+            /* COMPARISON TO PREVIOUS:
+             * scaleFactor is now actively utilized to multiply all raw pixel constraints
+             * within the Quick Tiler, natively supporting HiDPI monitors.
+             */
+            let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+            let gridW = 400 * scaleFactor;
+            let gridH = 400 * scaleFactor;
+            let padding = 16 * scaleFactor;
+            let cellPadding = 4 * scaleFactor;
+            let gridOffset = 8 * scaleFactor;
+
             this._gridContainer.set_size(gridW, gridH);
             this._gridContainer.set_position(
                 this._monitor.x + (this._monitor.width - gridW)/2,
@@ -72,8 +81,8 @@ const QuickTilerOverlay = GObject.registerClass(
             this._endIndex = -1;
             this._isDragging = false;
 
-            let cellW = (gridW - 16) / this._gridSize;
-            let cellH = (gridH - 16) / this._gridSize;
+            let cellW = (gridW - padding) / this._gridSize;
+            let cellH = (gridH - padding) / this._gridSize;
 
             for (let row = 0; row < this._gridSize; row++) {
                 for (let col = 0; col < this._gridSize; col++) {
@@ -81,8 +90,8 @@ const QuickTilerOverlay = GObject.registerClass(
                         reactive: true,
                         style: 'background-color: rgba(255,255,255,0.1); border-radius: 4px; transition-duration: 100ms;'
                     });
-                    cell.set_position(8 + col * cellW, 8 + row * cellH);
-                    cell.set_size(cellW - 4, cellH - 4);
+                    cell.set_position(gridOffset + col * cellW, gridOffset + row * cellH);
+                    cell.set_size(cellW - cellPadding, cellH - cellPadding);
                     
                     cell._gridRow = row;
                     cell._gridCol = col;
@@ -181,10 +190,14 @@ const QuickTilerOverlay = GObject.registerClass(
             let gH = this._gridContainer.height;
             if (x < gX || x > gX + gW || y < gY || y > gY + gH) return null;
             
-            let relX = x - gX - 8;
-            let relY = y - gY - 8;
-            let cellW = (gW - 16) / this._gridSize;
-            let cellH = (gH - 16) / this._gridSize;
+            let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+            let padding = 16 * scaleFactor;
+            let gridOffset = 8 * scaleFactor;
+
+            let relX = x - gX - gridOffset;
+            let relY = y - gY - gridOffset;
+            let cellW = (gW - padding) / this._gridSize;
+            let cellH = (gH - padding) / this._gridSize;
             
             let col = Math.floor(relX / cellW);
             let row = Math.floor(relY / cellH);
@@ -249,8 +262,9 @@ const QuickTilerOverlay = GObject.registerClass(
             this._gridContainer.hide();
             
             if (this.manager.isDesignerActive) {
-                let pW = 440; 
-                let pH = 60;
+                let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+                let pW = 440 * scaleFactor; 
+                let pH = 60 * scaleFactor;
                 this._promptBox.set_position(
                     this._monitor.x + (this._monitor.width - pW) / 2,
                     this._monitor.y + (this._monitor.height - pH) / 2
@@ -280,6 +294,11 @@ const QuickTilerOverlay = GObject.registerClass(
 
                 this.manager.mediator.addIdle(() => {
                     applyWindowTransform(win, mon, targetRect, false, logger);
+                    return GLib.SOURCE_REMOVE;
+                });
+
+                this.manager.mediator.addTimer(500, () => {
+                    this.manager.storage.saveCurrentLayoutStates();
                     return GLib.SOURCE_REMOVE;
                 });
             }
@@ -313,6 +332,11 @@ const QuickTilerOverlay = GObject.registerClass(
 
             this.manager.mediator.addIdle(() => {
                 applyWindowTransform(win, mon, targetRect, false, logger);
+                return GLib.SOURCE_REMOVE;
+            });
+
+            this.manager.mediator.addTimer(500, () => {
+                this.manager.storage.saveCurrentLayoutStates();
                 return GLib.SOURCE_REMOVE;
             });
         }
@@ -1013,7 +1037,11 @@ export default class TilingManager {
             let liveZonesState = this.storage.getCustomSections();
             let windowsState = savedData ? (savedData.windows || savedData) : {};
 
-            let layoutList = windowsState[wmClass] ? (Array.isArray(windowsState[wmClass]) ? windowsState[wmClass] : [windowsState[wmClass]]) : [];
+            let layoutList = [];
+            if (this.settings.get_boolean('remember-app-affinity')) {
+                layoutList = windowsState[wmClass] ? (Array.isArray(windowsState[wmClass]) ? windowsState[wmClass] : [windowsState[wmClass]]) : [];
+            }
+            
             let layout = null;
             let bestScore = -1;
             
@@ -1029,7 +1057,20 @@ export default class TilingManager {
 
             let matchedZone = null;
             if (this.settings.get_boolean('enable-smart-placement')) {
-                let fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState));
+                let appDictStr = this.settings.get_string('app-dictionary');
+                let catMapStr = this.settings.get_string('category-map');
+                
+                let appDict = undefined;
+                if (appDictStr && appDictStr.trim() !== '') {
+                    try { appDict = JSON.parse(appDictStr); } catch {}
+                }
+                
+                let catMap = undefined;
+                if (catMapStr && catMapStr.trim() !== '') {
+                    try { catMap = JSON.parse(catMapStr); } catch {}
+                }
+
+                let fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState), appDict, catMap);
                 if (fuzzyData) {
                     matchedZone = fuzzyData.zone;
                 }
@@ -1042,10 +1083,15 @@ export default class TilingManager {
 
             let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
 
-            if (matchedZone) {
-                targetZoneName = matchedZone;
-            } else if (hasExplicitSection) {
+            /* COMPARISON TO PREVIOUS:
+             * CRITICAL PRIORITY FIX: Explicit user associations ("App Affinity") 
+             * are now correctly evaluated BEFORE fuzzy dictionary Smart Placement.
+             * This ensures that manually moving an app to a custom zone correctly trumps the category-based default route.
+             */
+            if (hasExplicitSection) {
                 targetZoneName = layout.section;
+            } else if (matchedZone) {
+                targetZoneName = matchedZone;
             }
 
             if (targetZoneName) {

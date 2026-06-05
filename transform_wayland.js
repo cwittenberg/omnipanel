@@ -1,6 +1,7 @@
 // omnipanel/transform_wayland.js
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import St from 'gi://St';
 
 export class WaylandTransformStrategy {
     constructor() {
@@ -29,11 +30,15 @@ export class WaylandTransformStrategy {
     _isTargetGeometryReached(window, targetX, targetY, targetW, targetH) {
         try {
             let rect = window.get_frame_rect();
-            // Wayland CSDs (Client-Side Decorations) can sometimes introduce a 1-2px shadow/border offset.
-            let xMatch = Math.abs(rect.x - targetX) <= 2;
-            let yMatch = Math.abs(rect.y - targetY) <= 2;
-            let wMatch = Math.abs(rect.width - targetW) <= 2;
-            let hMatch = Math.abs(rect.height - targetH) <= 2;
+            // Wayland CSDs (Client-Side Decorations) can sometimes introduce a shadow/border offset.
+            // Ensure high-dpi scale awareness is implemented so tolerances work accurately on fractional scaling.
+            let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+            let tolerance = 2 * scale;
+            
+            let xMatch = Math.abs(rect.x - targetX) <= tolerance;
+            let yMatch = Math.abs(rect.y - targetY) <= tolerance;
+            let wMatch = Math.abs(rect.width - targetW) <= tolerance;
+            let hMatch = Math.abs(rect.height - targetH) <= tolerance;
             return (xMatch && yMatch && wMatch && hMatch);
         } catch {
             return false;

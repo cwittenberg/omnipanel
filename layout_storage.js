@@ -215,6 +215,8 @@ export class LayoutStorage {
         let customSections = zonesOverride || this.getCustomSections();
         let availableLayouts = {};
         let fallbackLayouts = {};
+        
+        let rememberAffinity = this.settings.get_boolean('remember-app-affinity');
 
         for (let wmClass in savedState) {
             availableLayouts[wmClass] = Array.isArray(savedState[wmClass]) ? 
@@ -235,27 +237,29 @@ export class LayoutStorage {
                 let isPlaced = false;
                 let matchedLayout = null;
 
-                if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
-                    let list = availableLayouts[wmClass];
-                    let winTitle = window.get_title() || '';
-                    
-                    let bestIdx = 0;
-                    let bestScore = -1;
+                if (rememberAffinity) {
+                    if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
+                        let list = availableLayouts[wmClass];
+                        let winTitle = window.get_title() || '';
+                        
+                        let bestIdx = 0;
+                        let bestScore = -1;
 
-                    for (let i = 0; i < list.length; i++) {
-                        let score = calculateTitleSimilarity(winTitle, list[i].title);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestIdx = i;
+                        for (let i = 0; i < list.length; i++) {
+                            let score = calculateTitleSimilarity(winTitle, list[i].title);
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestIdx = i;
+                            }
                         }
-                    }
 
-                    matchedLayout = list[bestIdx];
-                    list.splice(bestIdx, 1);
-                    fallbackLayouts[wmClass] = matchedLayout;
-                } else if (fallbackLayouts[wmClass]) {
-                    matchedLayout = fallbackLayouts[wmClass];
-                    this.manager._log(`[LayoutStorage] Rescuing extra window [${wmClass}] using fallback layout.`);
+                        matchedLayout = list[bestIdx];
+                        list.splice(bestIdx, 1);
+                        fallbackLayouts[wmClass] = matchedLayout;
+                    } else if (fallbackLayouts[wmClass]) {
+                        matchedLayout = fallbackLayouts[wmClass];
+                        this.manager._log(`[LayoutStorage] Rescuing extra window [${wmClass}] using fallback layout.`);
+                    }
                 }
 
                 if (matchedLayout) {
