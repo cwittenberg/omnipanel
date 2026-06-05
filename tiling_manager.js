@@ -29,7 +29,6 @@ const QuickTilerOverlay = GObject.registerClass(
 
             this._targetWindow = global.display.get_focus_window();
             
-            // If focus is lost because the user clicked the system tray, grab the top window of current workspace
             if (!this._targetWindow || this._targetWindow.get_window_type() !== Meta.WindowType.NORMAL) {
                 let workspace = global.workspace_manager.get_active_workspace();
                 let windows = global.display.get_tab_list(Meta.TabList.NORMAL, workspace);
@@ -41,7 +40,6 @@ const QuickTilerOverlay = GObject.registerClass(
                 }
             }
 
-            // Always spawn the quick tiler on the monitor where the mouse pointer currently is
             let [px, py] = global.get_pointer();
             let pointerRect = new Meta.Rectangle({ x: Math.round(px), y: Math.round(py), width: 1, height: 1 });
             this._monitorIndex = global.display.get_monitor_index_for_rect(pointerRect);
@@ -95,8 +93,44 @@ const QuickTilerOverlay = GObject.registerClass(
                 }
             }
 
+            this._promptBox = new St.BoxLayout({
+                vertical: false, visible: false, reactive: true,
+                style: 'background-color: rgba(40,40,40,0.95); padding: 12px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); border: 1px solid #555;'
+            });
+            
+            this._entry = new St.Entry({
+                hint_text: 'Name this Zone (or leave blank to just resize)...',
+                style: 'min-width: 340px; padding: 8px; margin-right: 12px; border-radius: 6px;',
+                can_focus: true, reactive: true
+            });
+            
+            let saveBtn = new St.Button({ 
+                label: 'Apply', 
+                style: 'background-color: #2ecc71; color: #111; font-weight: bold; padding: 6px 20px; border-radius: 6px;',
+                reactive: true, can_focus: true, track_hover: true
+            });
+            
+            saveBtn.connect('clicked', () => this._submitPrompt());
+            this._entry.clutter_text.connect('activate', () => this._submitPrompt());
+            
+            this._promptBox.add_child(this._entry);
+            this._promptBox.add_child(saveBtn);
+            this.add_child(this._promptBox);
+
             this.connect('button-press-event', (actor, event) => {
                 let [x, y] = event.get_coords();
+                
+                if (this._promptBox.visible) {
+                    let pX = this._promptBox.x !== undefined ? this._promptBox.x : this._promptBox.get_x();
+                    let pY = this._promptBox.y !== undefined ? this._promptBox.y : this._promptBox.get_y();
+                    let pW = this._promptBox.width !== undefined ? this._promptBox.width : this._promptBox.get_width();
+                    let pH = this._promptBox.height !== undefined ? this._promptBox.height : this._promptBox.get_height();
+                    
+                    if (x >= pX && x <= pX + pW && y >= pY && y <= pY + pH) {
+                        return Clutter.EVENT_PROPAGATE; 
+                    }
+                }
+
                 let cell = this._getCellAt(x, y);
                 if (cell) {
                     this._isDragging = true;
@@ -131,7 +165,7 @@ const QuickTilerOverlay = GObject.registerClass(
             Main.layoutManager.uiGroup.add_child(this);
             this._pushedModal = Main.pushModal(this);
 
-            this._captureId = global.stage.connect('captured-event', (_, event) => {
+            this._captureId = this.manager.mediator.connectSignal(global.stage, 'captured-event', (_, event) => {
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
                     this.close();
                     return Clutter.EVENT_STOP;
@@ -200,35 +234,84 @@ const QuickTilerOverlay = GObject.registerClass(
             let rw = (maxC - minC + 1) / this._gridSize;
             let rh = (maxR - minR + 1) / this._gridSize;
 
-            let targetRect = {
+            this._targetRect = {
                 x: Math.round(this._workX + (this._workW * rx)),
                 y: Math.round(this._workY + (this._workH * ry)),
                 width: Math.round(this._workW * rw),
                 height: Math.round(this._workH * rh)
             };
+            
+            this._targetRx = rx;
+            this._targetRy = ry;
+            this._targetRw = rw;
+            this._targetRh = rh;
 
-            // Dynamically create an unnamed temporary zone
-            let unnamedKey = `__unnamed_${Date.now()}`;
-            let cs = this.manager.storage.getCustomSections();
-            cs[unnamedKey] = {
-                rx: rx, ry: ry, rw: rw, rh: rh,
-                monitorIndex: this._monitorIndex,
-                color: '#7f8c8d', 
-                isTemporary: true
-            };
-            this.manager.storage.setCustomSectionsAndSave(cs);
+            this._gridContainer.hide();
+            
+            if (this.manager.isDesignerActive) {
+                let pW = 440; 
+                let pH = 60;
+                this._promptBox.set_position(
+                    this._monitor.x + (this._monitor.width - pW) / 2,
+                    this._monitor.y + (this._monitor.height - pH) / 2
+                );
+                this._promptBox.show();
+                this._entry.grab_key_focus();
+            } else {
+                let unnamedKey = `__unnamed_${Date.now()}`;
+                let cs = this.manager.storage.getCustomSections();
+                cs[unnamedKey] = {
+                    rx: rx, ry: ry, rw: rw, rh: rh,
+                    monitorIndex: this._monitorIndex,
+                    color: '#7f8c8d', 
+                    isTemporary: true
+                };
+                this.manager.storage.setCustomSectionsAndSave(cs);
 
-            this._targetWindow._omnipanel_zone = unnamedKey;
-            this._targetWindow._omnipanel_monitor = this._monitorIndex;
+                this._targetWindow._omnipanel_zone = unnamedKey;
+                this._targetWindow._omnipanel_monitor = this._monitorIndex;
 
+                let targetRect = this._targetRect;
+                let win = this._targetWindow;
+                let mon = this._monitorIndex;
+                let logger = this.manager._log.bind(this.manager);
+                
+                this.close(); 
+
+                this.manager.mediator.addIdle(() => {
+                    applyWindowTransform(win, mon, targetRect, false, logger);
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        }
+
+        _submitPrompt() {
+            let name = this._entry.get_text().trim();
+            
+            if (name) {
+                let cs = this.manager.storage.getCustomSections();
+                cs[name] = {
+                    rx: this._targetRx, ry: this._targetRy, rw: this._targetRw, rh: this._targetRh,
+                    monitorIndex: this._monitorIndex,
+                    color: '#3498db',
+                    hotkeySlot: 0
+                };
+                this.manager.storage.setCustomSectionsAndSave(cs);
+                this._targetWindow._omnipanel_zone = name;
+                this._targetWindow._omnipanel_monitor = this._monitorIndex;
+            } else {
+                delete this._targetWindow._omnipanel_zone;
+                delete this._targetWindow._omnipanel_monitor;
+            }
+            
+            let targetRect = this._targetRect;
             let win = this._targetWindow;
             let mon = this._monitorIndex;
             let logger = this.manager._log.bind(this.manager);
             
             this.close(); 
 
-            // Defer the resize until after the modal is popped to prevent GNOME lockups/hangs
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this.manager.mediator.addIdle(() => {
                 applyWindowTransform(win, mon, targetRect, false, logger);
                 return GLib.SOURCE_REMOVE;
             });
@@ -236,8 +319,11 @@ const QuickTilerOverlay = GObject.registerClass(
 
         close() {
             if (this._captureId) {
-                global.stage.disconnect(this._captureId);
+                this.manager.mediator.disconnectSignal(global.stage, this._captureId);
                 this._captureId = 0;
+            }
+            if (this._entry && this._entry.clutter_text) {
+                this._entry.clutter_text.set_cursor_visible(false);
             }
             global.stage.set_key_focus(null);
 
@@ -292,6 +378,16 @@ class LifecycleMediator {
 
     addTimerSeconds(delaySec, handler) {
         let id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, delaySec, () => {
+            let res = handler();
+            if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
+            return res;
+        });
+        this._timers.add(id);
+        return id;
+    }
+
+    addIdle(handler) {
+        let id = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             let res = handler();
             if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
             return res;
@@ -476,6 +572,7 @@ export default class TilingManager {
         this.isDesignerActive = false;
         this._designerRoot = null;
         this._indicator = null;
+        this._quickTiler = null;
         this._autoTilingTimerId = 0;
 
         this.storage = new LayoutStorage(this);
@@ -569,6 +666,11 @@ export default class TilingManager {
 
         this.mediator.destroy();
 
+        if (this._quickTiler) {
+            this._quickTiler.close();
+            this._quickTiler = null;
+        }
+
         if (this._activeOverlay) {
             try { Main.popModal(this._activeOverlay); } catch {}
             if (this._activeOverlay.get_parent()) {
@@ -583,7 +685,8 @@ export default class TilingManager {
 
     showQuickTiler() {
         if (!this._enabled) return;
-        new QuickTilerOverlay(this);
+        if (this._quickTiler) this._quickTiler.close();
+        this._quickTiler = new QuickTilerOverlay(this);
     }
 
     queueAutoTiling() {
@@ -770,7 +873,7 @@ export default class TilingManager {
                 pushedModal = false;
             }
 
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this.mediator.addIdle(() => {
                 if (overlay.get_parent()) {
                     Main.layoutManager.uiGroup.remove_child(overlay);
                 }

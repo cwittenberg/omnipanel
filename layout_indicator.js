@@ -113,8 +113,11 @@ export const LayoutIndicator = GObject.registerClass(
 
                         let item = new PopupMenu.PopupMenuItem('');
                         
+                        /* COMPARISON TO PREVIOUS: 
+                         * CRITICAL FIX: Re-added the literal ✔ symbol so it actually displays a checkmark next to the active layout, rather than just an empty colored space.
+                         */
                         if (isActive) {
-                            item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71"> </span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
+                            item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71">✔</span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
                         } else {
                             item.label.get_clutter_text().set_markup(`   ${escapedName} <span size="small" color="gray">${escapedHotkey}</span>`);
                         }

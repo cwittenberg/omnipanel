@@ -28,7 +28,9 @@ const StackOverlayView = GObject.registerClass(
             this.lastActualMode = 'stack';
             this.currentIndex = 0;
             
-            this.hideTimeoutId = 0;
+            this._signalIds = [];
+            this._timeouts = new Set();
+            this._hideTimeoutId = 0;
             this.keyPressId = 0;
 
             this.btnStyle = 'padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; background-color: transparent; transition-duration: 100ms; margin: 0 2px;';
@@ -37,6 +39,28 @@ const StackOverlayView = GObject.registerClass(
 
             this._buildUI();
             this._bindEvents();
+        }
+
+        _connectSignal(obj, sig, cb) {
+            let id = obj.connect(sig, cb);
+            this._signalIds.push({ obj, id });
+            return id;
+        }
+
+        _addTimeout(delay, cb) {
+            let id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+                this._timeouts.delete(id);
+                return cb();
+            });
+            this._timeouts.add(id);
+            return id;
+        }
+
+        _clearTimeout(id) {
+            if (this._timeouts.has(id)) {
+                GLib.source_remove(id);
+                this._timeouts.delete(id);
+            }
         }
 
         _buildUI() {
@@ -76,23 +100,23 @@ const StackOverlayView = GObject.registerClass(
         }
 
         _bindEvents() {
-            this.connect('button-press-event', () => Clutter.EVENT_STOP);
-            this.connect('button-release-event', () => Clutter.EVENT_STOP);
-            this.modeBox.connect('button-press-event', () => Clutter.EVENT_STOP);
-            this.modeBox.connect('button-release-event', () => Clutter.EVENT_STOP);
-            this.connect('notify::hover', this._onHoverChanged.bind(this));
+            this._connectSignal(this, 'button-press-event', () => Clutter.EVENT_STOP);
+            this._connectSignal(this, 'button-release-event', () => Clutter.EVENT_STOP);
+            this._connectSignal(this.modeBox, 'button-press-event', () => Clutter.EVENT_STOP);
+            this._connectSignal(this.modeBox, 'button-release-event', () => Clutter.EVENT_STOP);
+            this._connectSignal(this, 'notify::hover', this._onHoverChanged.bind(this));
             
-            this.prevBtn.connect('button-press-event', (actor, event) => {
+            this._connectSignal(this.prevBtn, 'button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { this.doPrev(); return Clutter.EVENT_STOP; }
                 return Clutter.EVENT_PROPAGATE;
             });
             
-            this.nextBtn.connect('button-press-event', (actor, event) => {
+            this._connectSignal(this.nextBtn, 'button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { this.doNext(); return Clutter.EVENT_STOP; }
                 return Clutter.EVENT_PROPAGATE;
             });
 
-            this.toggleMenuBtn.connect('button-press-event', (actor, event) => {
+            this._connectSignal(this.toggleMenuBtn, 'button-press-event', (actor, event) => {
                 if (event.get_button() === 1) {
                     this.toggleMenuBtn.hide();
                     this.modeBox.show();
@@ -104,7 +128,7 @@ const StackOverlayView = GObject.registerClass(
             });
 
             let bindStandardHover = (btn) => {
-                btn.connect('notify::hover', () => btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle));
+                this._connectSignal(btn, 'notify::hover', () => btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle));
             };
             
             bindStandardHover(this.prevBtn);
@@ -116,26 +140,31 @@ const StackOverlayView = GObject.registerClass(
             this._bindModePreviewAndClick(this.modeRowsBtn, 'rows');
             this._bindModePreviewAndClick(this.modeGridBtn, 'grid');
 
+            // Native connect for self destruction
             this.connect('destroy', this._cleanup.bind(this));
         }
 
         _cleanup() {
             if (this.keyPressId) {
-                global.stage.disconnect(this.keyPressId);
+                this.stackManager.manager.mediator.disconnectSignal(global.stage, this.keyPressId);
                 this.keyPressId = 0;
             }
-            if (this.hideTimeoutId) {
-                GLib.source_remove(this.hideTimeoutId);
-                this.hideTimeoutId = 0;
+            for (let id of this._timeouts) {
+                GLib.source_remove(id);
             }
+            this._timeouts.clear();
+            for (let s of this._signalIds) {
+                try { s.obj.disconnect(s.id); } catch {}
+            }
+            this._signalIds = [];
         }
 
         _bindModePreviewAndClick(btn, modeName) {
-            btn.connect('notify::hover', () => {
+            this._connectSignal(btn, 'notify::hover', () => {
                 this.syncModeStyles();
             });
 
-            btn.connect('button-press-event', (actor, event) => {
+            this._connectSignal(btn, 'button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { 
                     this.stackManager.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${this.zone}`);
                     if (!btn.reactive) return Clutter.EVENT_PROPAGATE;
@@ -165,7 +194,7 @@ const StackOverlayView = GObject.registerClass(
                     this.stackManager.applyStackLayout(this.zone, this.windows, this.monitor, modeName);
                     this.stackManager.invalidateSignature(this.zone);
 
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                    this._addTimeout(200, () => {
                         if (btn) this.syncModeStyles();
                         return GLib.SOURCE_REMOVE;
                     });
@@ -210,9 +239,9 @@ const StackOverlayView = GObject.registerClass(
             let isHovered = this.hover;
             
             if (isHovered) {
-                if (this.hideTimeoutId) {
-                    GLib.source_remove(this.hideTimeoutId);
-                    this.hideTimeoutId = 0;
+                if (this._hideTimeoutId) {
+                    this._clearTimeout(this._hideTimeoutId);
+                    this._hideTimeoutId = 0;
                 }
 
                 if (this.lastActualMode === 'stack') {
@@ -230,7 +259,7 @@ const StackOverlayView = GObject.registerClass(
                 this.set_style('background-color: rgba(20, 20, 20, 0.95); border: 1px solid #2ecc71; border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); transition-duration: 150ms;');
                 
                 if (!this.keyPressId) {
-                    this.keyPressId = global.stage.connect('captured-event', (actor, event) => {
+                    this.keyPressId = this.stackManager.manager.mediator.connectSignal(global.stage, 'captured-event', (actor, event) => {
                         if (event.type() === Clutter.EventType.KEY_PRESS) {
                             let sym = event.get_key_symbol();
                             if (sym === Clutter.KEY_Left) {
@@ -246,9 +275,9 @@ const StackOverlayView = GObject.registerClass(
                 }
 
             } else {
-                if (!this.hideTimeoutId) {
-                    this.hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-                        this.hideTimeoutId = 0;
+                if (!this._hideTimeoutId) {
+                    this._hideTimeoutId = this._addTimeout(250, () => {
+                        this._hideTimeoutId = 0;
                         if (this.hover) return GLib.SOURCE_REMOVE;
 
                         this.prevBtn.hide();
@@ -260,7 +289,7 @@ const StackOverlayView = GObject.registerClass(
                         this.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
                         
                         if (this.keyPressId) {
-                            global.stage.disconnect(this.keyPressId);
+                            this.stackManager.manager.mediator.disconnectSignal(global.stage, this.keyPressId);
                             this.keyPressId = 0;
                         }
 

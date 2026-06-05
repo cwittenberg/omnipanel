@@ -1,10 +1,4 @@
 // omnipanel/layout_storage.js
-/*
- * COMPARISON TO PREVIOUS:
- * - CRITICAL BUG FIX: Removed `if (!this.manager.activeLayoutName) return;` blocks in `setCustomSectionsAndSave` and `saveCustomZoneRect`.
- * - If a user was using the implicit auto-restore layout instead of a named layout, any attempt to save a zone layout or stack mode silently aborted.
- * - Modifications to stack modes and zones now correctly persist to the base `custom-sections` dictionary regardless of layout state.
- */
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -23,8 +17,6 @@ export class LayoutStorage {
     }
     
     setCustomSectionsAndSave(zones) {
-        // Unconditional save to custom-sections ensures changes like Stack Modes persist 
-        // even if the user is not actively inside a "Named Layout"
         this.settings.set_string('custom-sections', JSON.stringify(zones));
         
         if (this.manager.activeLayoutName) {
@@ -76,6 +68,26 @@ export class LayoutStorage {
         let state = this.getCurrentLayoutState();
         let zones = this.getCustomSections();
         
+        let usedZones = new Set();
+        for (let wmClass in state) {
+            for (let win of state[wmClass]) {
+                if (win.section) usedZones.add(win.section);
+            }
+        }
+
+        let zonesModified = false;
+        for (let zName in zones) {
+            if (zName.startsWith('__unnamed_') && !usedZones.has(zName)) {
+                delete zones[zName];
+                zonesModified = true;
+            }
+        }
+
+        if (zonesModified) {
+            this.setCustomSectionsAndSave(zones);
+            zones = this.getCustomSections(); 
+        }
+
         if (this.settings.get_boolean('auto-restore-layouts')) {
             let signatures = this.manager.getMonitorSignature();
             let allLayouts = {};
@@ -202,6 +214,7 @@ export class LayoutStorage {
         let windows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
         let customSections = zonesOverride || this.getCustomSections();
         let availableLayouts = {};
+        let fallbackLayouts = {};
 
         for (let wmClass in savedState) {
             availableLayouts[wmClass] = Array.isArray(savedState[wmClass]) ? 
@@ -220,6 +233,7 @@ export class LayoutStorage {
 
                 let hadZone = !!window._omnipanel_zone;
                 let isPlaced = false;
+                let matchedLayout = null;
 
                 if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
                     let list = availableLayouts[wmClass];
@@ -236,28 +250,34 @@ export class LayoutStorage {
                         }
                     }
 
-                    let layout = list[bestIdx];
+                    matchedLayout = list[bestIdx];
                     list.splice(bestIdx, 1);
-                    
-                    let finalMonitor = layout.monitor;
-                    if (layout.section && customSections[layout.section] && customSections[layout.section].monitorIndex !== undefined) {
-                        finalMonitor = customSections[layout.section].monitorIndex;
+                    fallbackLayouts[wmClass] = matchedLayout;
+                } else if (fallbackLayouts[wmClass]) {
+                    matchedLayout = fallbackLayouts[wmClass];
+                    this.manager._log(`[LayoutStorage] Rescuing extra window [${wmClass}] using fallback layout.`);
+                }
+
+                if (matchedLayout) {
+                    let finalMonitor = matchedLayout.monitor;
+                    if (matchedLayout.section && customSections[matchedLayout.section] && customSections[matchedLayout.section].monitorIndex !== undefined) {
+                        finalMonitor = customSections[matchedLayout.section].monitorIndex;
                     }
 
                     let targetRect = null;
-                    if (layout.section) {
-                        targetRect = getSectionRect(finalMonitor, layout.section, customSections);
+                    if (matchedLayout.section) {
+                        targetRect = getSectionRect(finalMonitor, matchedLayout.section, customSections);
                     }
                     
                     if (targetRect) {
                         isPlaced = true;
-                        window._omnipanel_zone = layout.section;
+                        window._omnipanel_zone = matchedLayout.section;
                         window._omnipanel_monitor = finalMonitor;
                         
-                        applyWindowTransform(window, finalMonitor, targetRect, layout.section === 'maximized', this.manager._log.bind(this.manager));
+                        applyWindowTransform(window, finalMonitor, targetRect, matchedLayout.section === 'maximized', this.manager._log.bind(this.manager));
                         
-                        if (this.manager.stackManager && layout.section) {
-                            this.manager.stackManager.invalidateSignature(layout.section);
+                        if (this.manager.stackManager && matchedLayout.section) {
+                            this.manager.stackManager.invalidateSignature(matchedLayout.section);
                         }
                     }
                 }
