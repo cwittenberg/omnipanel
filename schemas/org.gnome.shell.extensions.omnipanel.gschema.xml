@@ -135,5 +135,23 @@
     <key name="layout-hotkey-7" type="as"><default>[]</default><summary>Layout Hotkey 7</summary></key>
     <key name="layout-hotkey-8" type="as"><default>[]</default><summary>Layout Hotkey 8</summary></key>
     <key name="layout-hotkey-9" type="as"><default>[]</default><summary>Layout Hotkey 9</summary></key>
+
+    <key name="auto-tiling-enabled" type="b">
+      <default>false</default>
+      <summary>Enable Automatic Tiling</summary>
+    </key>
+    <key name="auto-tiling-mode" type="s">
+      <default>'bsp'</default>
+      <summary>Auto Tiling Mode</summary>
+    </key>
+    <key name="auto-tiling-gap" type="i">
+      <default>8</default>
+      <summary>Gap between tiled windows</summary>
+    </key>
+    <key name="quick-tiler-hotkey" type="as">
+      <default><![CDATA[['<Super>g']]]></default>
+      <summary>Quick Tiler Hotkey</summary>
+    </key>
+
   </schema>
 </schemalist>

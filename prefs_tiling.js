@@ -11,12 +11,12 @@ export default function buildTilingPage(settings, window) {
         icon_name: 'view-grid-symbolic' 
     });
 
-    // --- Tiling Settings -> Core Features ---
-    const groupCoreTiling = new Adw.PreferencesGroup({ title: 'Core Settings' });
+    // --- Master Toggle ---
+    const groupMaster = new Adw.PreferencesGroup();
 
     const rowTilingEnabled = new Adw.ActionRow({ 
-        title: 'Enable Window Layouts', 
-        subtitle: 'Activate drop zones and layout memory' 
+        title: 'Enable Window Management', 
+        subtitle: 'Master switch for all OmniPanel tiling, snapping, and layout features' 
     });
     const switchTilingEnabled = new Gtk.Switch({ 
         active: settings.get_boolean('enable-tiling'), 
@@ -24,7 +24,10 @@ export default function buildTilingPage(settings, window) {
     });
     settings.bind('enable-tiling', switchTilingEnabled, 'active', Gio.SettingsBindFlags.DEFAULT);
     rowTilingEnabled.add_suffix(switchTilingEnabled);
-    groupCoreTiling.add(rowTilingEnabled);
+    groupMaster.add(rowTilingEnabled);
+
+    // --- Zone-Based Tiling ---
+    const groupZone = new Adw.PreferencesGroup({ title: 'Zone-Based Tiling' });
 
     const rowDesigner = new Adw.ActionRow({ 
         title: 'Zone Designer Mode', 
@@ -36,7 +39,7 @@ export default function buildTilingPage(settings, window) {
     });
     settings.bind('designer-active', switchDesigner, 'active', Gio.SettingsBindFlags.DEFAULT);
     rowDesigner.add_suffix(switchDesigner);
-    groupCoreTiling.add(rowDesigner);
+    groupZone.add(rowDesigner);
 
     const rowAutoRestore = new Adw.ActionRow({ 
         title: 'Auto-Restore Layouts', 
@@ -48,7 +51,7 @@ export default function buildTilingPage(settings, window) {
     });
     settings.bind('auto-restore-layouts', switchAutoRestore, 'active', Gio.SettingsBindFlags.DEFAULT);
     rowAutoRestore.add_suffix(switchAutoRestore);
-    groupCoreTiling.add(rowAutoRestore);
+    groupZone.add(rowAutoRestore);
 
     const rowFuzzyMatch = new Adw.ActionRow({ 
         title: 'Fuzzy Monitor Matching', 
@@ -60,7 +63,7 @@ export default function buildTilingPage(settings, window) {
     });
     settings.bind('fuzzy-restore-monitors', switchFuzzyMatch, 'active', Gio.SettingsBindFlags.DEFAULT);
     rowFuzzyMatch.add_suffix(switchFuzzyMatch);
-    groupCoreTiling.add(rowFuzzyMatch);
+    groupZone.add(rowFuzzyMatch);
 
     // --- Tiling Settings -> Automation & Defaults ---
     const groupAutomation = new Adw.PreferencesGroup({ title: 'Automation & Defaults' });
@@ -185,6 +188,13 @@ export default function buildTilingPage(settings, window) {
     });
     rowShortcut.add_suffix(new ShortcutButton(settings, 'switch-layout'));
     groupShortcuts.add(rowShortcut);
+
+    let rowQuickTilerShortcut = new Adw.ActionRow({
+        title: 'Quick Tiler Grid Shortcut',
+        subtitle: 'Click to capture keybinding (Default: <Super>g)'
+    });
+    rowQuickTilerShortcut.add_suffix(new ShortcutButton(settings, 'quick-tiler-hotkey'));
+    groupShortcuts.add(rowQuickTilerShortcut);
 
     // --- Named Layouts & Zones Management ---
     const groupLayouts = new Adw.PreferencesGroup({ 
@@ -425,12 +435,82 @@ export default function buildTilingPage(settings, window) {
         }
     });
 
-    pageTiling.add(groupCoreTiling);
+    // --- Automatic Tiling (Separated at the Bottom) ---
+    const groupAutoTiling = new Adw.PreferencesGroup({ 
+        title: 'Alternative: Pure Automatic Tiling',
+        description: 'Dynamically arrange all windows without requiring pre-defined zones. Overrides the zone-based layout logic above.'
+    });
+
+    const rowAutoTilingEnabled = new Adw.ActionRow({ 
+        title: 'Enable Pure Automatic Tiling', 
+        subtitle: 'Takes over workspace layout entirely (disables Zone Designer)' 
+    });
+    const switchAutoTilingEnabled = new Gtk.Switch({ 
+        active: settings.get_boolean('auto-tiling-enabled'), 
+        valign: Gtk.Align.CENTER 
+    });
+    settings.bind('auto-tiling-enabled', switchAutoTilingEnabled, 'active', Gio.SettingsBindFlags.DEFAULT);
+    rowAutoTilingEnabled.add_suffix(switchAutoTilingEnabled);
+    groupAutoTiling.add(rowAutoTilingEnabled);
+
+    const rowAutoTilingMode = new Adw.ComboRow({
+        title: 'Auto-Tiling Algorithm',
+        subtitle: 'The layout strategy for active windows',
+        model: Gtk.StringList.new(['BSP (Binary Space Partitioning)', 'Cascading'])
+    });
+    let currentMode = settings.get_string('auto-tiling-mode');
+    rowAutoTilingMode.selected = currentMode === 'cascade' ? 1 : 0;
+    rowAutoTilingMode.connect('notify::selected', () => {
+        settings.set_string('auto-tiling-mode', rowAutoTilingMode.selected === 0 ? 'bsp' : 'cascade');
+    });
+    groupAutoTiling.add(rowAutoTilingMode);
+
+    const gapAdjustment = new Gtk.Adjustment({ lower: 0, upper: 64, step_increment: 2, value: settings.get_int('auto-tiling-gap') });
+    const rowGap = new Adw.SpinRow({ 
+        title: 'Window Gap (px)', 
+        adjustment: gapAdjustment, 
+        digits: 0 
+    });
+    settings.bind('auto-tiling-gap', rowGap, 'value', Gio.SettingsBindFlags.DEFAULT);
+    groupAutoTiling.add(rowGap);
+
+    // --- Master Sync Logic ---
+    const syncUI = () => {
+        let masterOn = switchTilingEnabled.get_active();
+        let autoOn = switchAutoTilingEnabled.get_active();
+
+        groupZone.set_sensitive(masterOn);
+        groupAutoTiling.set_sensitive(masterOn);
+        
+        let zoneFeaturesActive = masterOn && !autoOn;
+        
+        rowDesigner.set_sensitive(zoneFeaturesActive);
+        if (autoOn && switchDesigner.get_active()) {
+            switchDesigner.set_active(false);
+        }
+
+        groupAutomation.set_sensitive(zoneFeaturesActive);
+        groupStacks.set_sensitive(zoneFeaturesActive);
+        groupLayouts.set_sensitive(zoneFeaturesActive);
+        
+        groupExclusions.set_sensitive(masterOn);
+        groupShortcuts.set_sensitive(masterOn);
+    };
+
+    switchTilingEnabled.connect('notify::active', syncUI);
+    switchAutoTilingEnabled.connect('notify::active', syncUI);
+
+    // Render Order
+    pageTiling.add(groupMaster);
+    pageTiling.add(groupZone);
     pageTiling.add(groupAutomation);
     pageTiling.add(groupExclusions);
     pageTiling.add(groupStacks);
     pageTiling.add(groupShortcuts);
     pageTiling.add(groupLayouts);
+    pageTiling.add(groupAutoTiling);
+
+    syncUI();
 
     return pageTiling;
 }

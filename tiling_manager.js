@@ -4,6 +4,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { ZoneDesignerRoot } from './zone_designer.js';
@@ -13,28 +14,475 @@ import { StackManager } from './stack_manager.js';
 import { getSectionRect, fuzzyMatchAppToZone, Sections, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
 
+// --- QUICK TILER COMPONENT ---
+const QuickTilerOverlay = GObject.registerClass(
+    class QuickTilerOverlay extends St.Widget {
+        _init(tilingManager) {
+            super._init({
+                name: 'QuickTilerOverlay',
+                reactive: true,
+                style: 'background-color: rgba(0, 0, 0, 0.5);'
+            });
+            this.manager = tilingManager;
+            this.set_position(0, 0);
+            this.set_size(global.stage.width, global.stage.height);
+
+            this._targetWindow = global.display.get_focus_window();
+            
+            // If focus is lost because the user clicked the system tray, grab the top window of current workspace
+            if (!this._targetWindow || this._targetWindow.get_window_type() !== Meta.WindowType.NORMAL) {
+                let workspace = global.workspace_manager.get_active_workspace();
+                let windows = global.display.get_tab_list(Meta.TabList.NORMAL, workspace);
+                if (windows.length > 0) {
+                    this._targetWindow = windows[0];
+                } else {
+                    this.destroy();
+                    return;
+                }
+            }
+
+            // Always spawn the quick tiler on the monitor where the mouse pointer currently is
+            let [px, py] = global.get_pointer();
+            let pointerRect = new Meta.Rectangle({ x: Math.round(px), y: Math.round(py), width: 1, height: 1 });
+            this._monitorIndex = global.display.get_monitor_index_for_rect(pointerRect);
+            this._monitor = Main.layoutManager.monitors[this._monitorIndex];
+            
+            let panelH = Main.panel.height;
+            this._workX = this._monitor.x;
+            this._workY = this._monitor.y + panelH;
+            this._workW = this._monitor.width;
+            this._workH = this._monitor.height - panelH;
+
+            this._gridContainer = new St.Widget({
+                reactive: true,
+                style: 'background-color: rgba(20, 20, 20, 0.9); border: 2px solid #2ecc71; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8);'
+            });
+            
+            let gridW = 400;
+            let gridH = 400;
+            this._gridContainer.set_size(gridW, gridH);
+            this._gridContainer.set_position(
+                this._monitor.x + (this._monitor.width - gridW)/2,
+                this._monitor.y + (this._monitor.height - gridH)/2
+            );
+            
+            this.add_child(this._gridContainer);
+
+            this._cells = [];
+            this._gridSize = 8;
+            this._startIndex = -1;
+            this._endIndex = -1;
+            this._isDragging = false;
+
+            let cellW = (gridW - 16) / this._gridSize;
+            let cellH = (gridH - 16) / this._gridSize;
+
+            for (let row = 0; row < this._gridSize; row++) {
+                for (let col = 0; col < this._gridSize; col++) {
+                    let cell = new St.Widget({
+                        reactive: true,
+                        style: 'background-color: rgba(255,255,255,0.1); border-radius: 4px; transition-duration: 100ms;'
+                    });
+                    cell.set_position(8 + col * cellW, 8 + row * cellH);
+                    cell.set_size(cellW - 4, cellH - 4);
+                    
+                    cell._gridRow = row;
+                    cell._gridCol = col;
+                    cell._index = row * this._gridSize + col;
+                    
+                    this._cells.push(cell);
+                    this._gridContainer.add_child(cell);
+                }
+            }
+
+            this.connect('button-press-event', (actor, event) => {
+                let [x, y] = event.get_coords();
+                let cell = this._getCellAt(x, y);
+                if (cell) {
+                    this._isDragging = true;
+                    this._startIndex = cell._index;
+                    this._endIndex = cell._index;
+                    this._updateHighlight();
+                } else {
+                    this.close(); 
+                }
+                return Clutter.EVENT_STOP;
+            });
+
+            this.connect('motion-event', (actor, event) => {
+                if (!this._isDragging) return Clutter.EVENT_PROPAGATE;
+                let [x, y] = event.get_coords();
+                let cell = this._getCellAt(x, y);
+                if (cell && cell._index !== this._endIndex) {
+                    this._endIndex = cell._index;
+                    this._updateHighlight();
+                }
+                return Clutter.EVENT_STOP;
+            });
+
+            this.connect('button-release-event', () => {
+                if (this._isDragging) {
+                    this._isDragging = false;
+                    this._applyTiling();
+                }
+                return Clutter.EVENT_STOP;
+            });
+
+            Main.layoutManager.uiGroup.add_child(this);
+            this._pushedModal = Main.pushModal(this);
+
+            this._captureId = global.stage.connect('captured-event', (_, event) => {
+                if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
+                    this.close();
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+        }
+
+        _getCellAt(x, y) {
+            let gX = this._gridContainer.x;
+            let gY = this._gridContainer.y;
+            let gW = this._gridContainer.width;
+            let gH = this._gridContainer.height;
+            if (x < gX || x > gX + gW || y < gY || y > gY + gH) return null;
+            
+            let relX = x - gX - 8;
+            let relY = y - gY - 8;
+            let cellW = (gW - 16) / this._gridSize;
+            let cellH = (gH - 16) / this._gridSize;
+            
+            let col = Math.floor(relX / cellW);
+            let row = Math.floor(relY / cellH);
+            
+            col = Math.max(0, Math.min(col, this._gridSize - 1));
+            row = Math.max(0, Math.min(row, this._gridSize - 1));
+            
+            return this._cells[row * this._gridSize + col];
+        }
+
+        _updateHighlight() {
+            if (this._startIndex === -1 || this._endIndex === -1) return;
+            let sr = Math.floor(this._startIndex / this._gridSize);
+            let sc = this._startIndex % this._gridSize;
+            let er = Math.floor(this._endIndex / this._gridSize);
+            let ec = this._endIndex % this._gridSize;
+
+            let minR = Math.min(sr, er), maxR = Math.max(sr, er);
+            let minC = Math.min(sc, ec), maxC = Math.max(sc, ec);
+
+            for (let cell of this._cells) {
+                let isHighlighted = cell._gridRow >= minR && cell._gridRow <= maxR && cell._gridCol >= minC && cell._gridCol <= maxC;
+                if (isHighlighted) {
+                    cell.set_style('background-color: rgba(46, 204, 113, 0.7); border: 1px solid #2ecc71; border-radius: 4px; transition-duration: 50ms;');
+                } else {
+                    cell.set_style('background-color: rgba(255,255,255,0.1); border-radius: 4px; transition-duration: 100ms;');
+                }
+            }
+        }
+
+        _applyTiling() {
+            if (this._startIndex === -1 || this._endIndex === -1) {
+                this.close();
+                return;
+            }
+            
+            let sr = Math.floor(this._startIndex / this._gridSize);
+            let sc = this._startIndex % this._gridSize;
+            let er = Math.floor(this._endIndex / this._gridSize);
+            let ec = this._endIndex % this._gridSize;
+
+            let minR = Math.min(sr, er), maxR = Math.max(sr, er);
+            let minC = Math.min(sc, ec), maxC = Math.max(sc, ec);
+
+            let rx = minC / this._gridSize;
+            let ry = minR / this._gridSize;
+            let rw = (maxC - minC + 1) / this._gridSize;
+            let rh = (maxR - minR + 1) / this._gridSize;
+
+            let targetRect = {
+                x: Math.round(this._workX + (this._workW * rx)),
+                y: Math.round(this._workY + (this._workH * ry)),
+                width: Math.round(this._workW * rw),
+                height: Math.round(this._workH * rh)
+            };
+
+            // Dynamically create an unnamed temporary zone
+            let unnamedKey = `__unnamed_${Date.now()}`;
+            let cs = this.manager.storage.getCustomSections();
+            cs[unnamedKey] = {
+                rx: rx, ry: ry, rw: rw, rh: rh,
+                monitorIndex: this._monitorIndex,
+                color: '#7f8c8d', 
+                isTemporary: true
+            };
+            this.manager.storage.setCustomSectionsAndSave(cs);
+
+            this._targetWindow._omnipanel_zone = unnamedKey;
+            this._targetWindow._omnipanel_monitor = this._monitorIndex;
+
+            let win = this._targetWindow;
+            let mon = this._monitorIndex;
+            let logger = this.manager._log.bind(this.manager);
+            
+            this.close(); 
+
+            // Defer the resize until after the modal is popped to prevent GNOME lockups/hangs
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                applyWindowTransform(win, mon, targetRect, false, logger);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+
+        close() {
+            if (this._captureId) {
+                global.stage.disconnect(this._captureId);
+                this._captureId = 0;
+            }
+            global.stage.set_key_focus(null);
+
+            if (this._pushedModal) {
+                try { Main.popModal(this); } catch { }
+                this._pushedModal = false;
+            }
+            if (this.get_parent()) {
+                Main.layoutManager.uiGroup.remove_child(this);
+            }
+            this.destroy();
+        }
+    }
+);
+
+
+// --- LIFECYCLE MEDIATOR ---
+class LifecycleMediator {
+    constructor(logger) {
+        this._signals = [];
+        this._bindings = [];
+        this._timers = new Set();
+        this._logger = logger;
+    }
+
+    connectSignal(obj, signal, handler) {
+        let id = obj.connect(signal, handler);
+        this._signals.push({ obj, id });
+        return id;
+    }
+
+    disconnectSignal(obj, id) {
+        try { obj.disconnect(id); } catch {}
+        this._signals = this._signals.filter(s => s.id !== id);
+    }
+
+    bindShortcut(name, settings, handler) {
+        try { Main.wm.removeKeybinding(name); } catch {}
+        Main.wm.addKeybinding(name, settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT, Shell.ActionMode.NORMAL, handler);
+        this._bindings.push(name);
+    }
+
+    addTimer(delayMs, handler) {
+        let id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+            let res = handler();
+            if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
+            return res;
+        });
+        this._timers.add(id);
+        return id;
+    }
+
+    addTimerSeconds(delaySec, handler) {
+        let id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, delaySec, () => {
+            let res = handler();
+            if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
+            return res;
+        });
+        this._timers.add(id);
+        return id;
+    }
+
+    clearTimer(id) {
+        if (this._timers.has(id)) {
+            GLib.source_remove(id);
+            this._timers.delete(id);
+        }
+    }
+
+    destroy() {
+        for (let {obj, id} of this._signals) {
+            try { obj.disconnect(id); } catch {}
+        }
+        this._signals = [];
+
+        for (let name of this._bindings) {
+            try { Main.wm.removeKeybinding(name); } catch {}
+        }
+        this._bindings = [];
+
+        for (let id of this._timers) {
+            GLib.source_remove(id);
+        }
+        this._timers.clear();
+    }
+}
+
+// --- WINDOW BOOTSTRAPPER ---
+class WindowBootstrapper {
+    constructor(window, mediator, settings, logger, placementCallback, tilingManager) {
+        this.window = window;
+        this.mediator = mediator;
+        this.settings = settings;
+        this.logger = logger;
+        this.placementCallback = placementCallback;
+        this.tilingManager = tilingManager;
+        
+        this.winId = 'unknown';
+        try { this.winId = window.get_id ? window.get_id() : 'unknown'; } catch {}
+        
+        this.attempts = 0;
+        this.maxAttempts = 15;
+        this.timerId = 0;
+
+        this._bootstrap();
+    }
+
+    _bootstrap() {
+        let title = 'unknown', wmClass = 'unknown';
+        try { title = this.window.get_title() || 'unknown'; wmClass = this.window.get_wm_class() || 'unknown'; } catch {}
+
+        this.logger(`[${this.winId}] ------------------------------------------------`);
+        this.logger(`[${this.winId}] 🪲 EXTREME DEBUG: NEW WINDOW DETECTED`);
+        this.logger(`[${this.winId}] 🪲 APP: ${wmClass} | TITLE: ${title}`);
+
+        try {
+            let rect = this.window.get_frame_rect();
+            this.logger(`[${this.winId}] 🪲 INITIAL COMPOSITOR SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
+            if (rect.width < 100 || rect.height < 100) {
+                this.logger(`[${this.winId}] 🚨 COMPOSITOR HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
+                this.mediator.addTimer(10, () => {
+                    if (isWindowValid(this.window)) {
+                        let m = Main.layoutManager.monitors[this.window.get_monitor() || 0] || Main.layoutManager.monitors[0];
+                        if (this.window.get_maximized() > 0) {
+                            this.window.unmaximize(Meta.MaximizeFlags.BOTH);
+                        }
+                        this.window.move_resize_frame(false, m.x + 100, m.y + 100, 800, 600);
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        } catch {}
+
+        try {
+            this.window._omnipanel_is_dead = false;
+
+            if (this.window._omnipanel_unmanaged_id === undefined) {
+                let sigId = this.mediator.connectSignal(this.window, 'unmanaged', () => {
+                    this.window._omnipanel_is_dead = true;
+                    if (this.timerId) {
+                        this.mediator.clearTimer(this.timerId);
+                        this.timerId = 0;
+                    }
+                    this.mediator.disconnectSignal(this.window, sigId);
+                    if (this.tilingManager) this.tilingManager.queueAutoTiling(); 
+                });
+                this.window._omnipanel_unmanaged_id = sigId;
+            }
+
+            let isSkipTaskbar = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
+            let isSkipPager = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
+
+            if (this.window.is_override_redirect() || isSkipTaskbar || isSkipPager) {
+                this.logger(`[${this.winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
+                return;
+            }
+
+            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
+            if (role === 'browser-tab' || role === 'pop-up') {
+                this.logger(`[${this.winId}] Ignoring browser tab or popup.`);
+                return;
+            }
+
+            let transient = this.window.get_transient_for();
+            if (transient !== null) {
+                this.logger(`[${this.winId}] Window is transient (dialog). Aborting entirely.`);
+                return; 
+            }
+
+            let wType = this.window.get_window_type();
+            if (wType !== Meta.WindowType.NORMAL) {
+                this.logger(`[${this.winId}] Window is not NORMAL. Aborting entirely.`);
+                return;
+            }
+        } catch {}
+
+        this.logger(`[${this.winId}] >> Starting rapid DBus metadata polling (50ms intervals)...`);
+        
+        this.timerId = this.mediator.addTimer(50, this._pollMetadata.bind(this));
+        
+        try {
+            this.mediator.connectSignal(this.window, 'size-changed', () => {});
+        } catch {}
+    }
+
+    _pollMetadata() {
+        if (this.window._omnipanel_is_dead || !isWindowValid(this.window)) {
+            this.timerId = 0;
+            this.logger(`[${this.winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
+            return GLib.SOURCE_REMOVE;
+        }
+
+        try {
+            let isSkipTaskbarNow = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
+            let isSkipPagerNow = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
+
+            if (isSkipTaskbarNow || isSkipPagerNow) {
+                this.logger(`[${this.winId}] Window became skip_taskbar during yield. Aborting.`);
+                return GLib.SOURCE_REMOVE;
+            }
+
+            let finalWmClass = this.window.get_wm_class() || '';
+            
+            if (!finalWmClass && this.attempts < this.maxAttempts) {
+                this.attempts++;
+                return GLib.SOURCE_CONTINUE;
+            }
+
+            this.timerId = 0;
+
+            if (!finalWmClass) {
+                this.logger(`[${this.winId}] Window has no wm_class after max attempts. Aborting.`);
+                return GLib.SOURCE_REMOVE;
+            }
+            
+            this.logger(`[${this.winId}] Metadata retrieved safely on attempt ${this.attempts + 1}. Moving to execution phase.`);
+            this.placementCallback(this.window, finalWmClass, this.window.get_title() || '', this.winId);
+            
+        } catch {
+            this.timerId = 0;
+            this.logger(`[${this.winId}] FATAL CATCH in Timer`);
+        }
+
+        return GLib.SOURCE_REMOVE;
+    }
+}
+
+
 export default class TilingManager {
     constructor(settings) {
         this.settings = settings;
         this._enabled = false;
-        this._windowCreatedId = 0;
-        this._monitorsChangedId = 0;
-        this._grabBeginId = 0;
-        this._grabEndId = 0;
-        this._timeoutId = 0;
-        
-        this._trackedSignals = [];
-        this._trackedTimers = new Set();
         this._activeOverlay = null;
 
         this.activeLayoutName = null;
         this.isDesignerActive = false;
         this._designerRoot = null;
         this._indicator = null;
+        this._autoTilingTimerId = 0;
 
         this.storage = new LayoutStorage(this);
         this.snapEngine = new SnapEngine(this);
         this.stackManager = new StackManager(this);
+        
+        this.mediator = new LifecycleMediator(this._log.bind(this));
     }
 
     _log(msg) {
@@ -44,18 +492,14 @@ export default class TilingManager {
         console.log(`[OmniPanel-Debug] [${now.format('%H:%M:%S')}.${ms}] ${msg}`);
     }
 
-    _bindSafe(name, handler) {
-        try { Main.wm.removeKeybinding(name); } catch {}
-        Main.wm.addKeybinding(name, this.settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT, Shell.ActionMode.NORMAL, handler);
-    }
-
     enable() {
         if (this._enabled) return;
         this._enabled = true;
-        this._log("Extension ENABLED. Registering listeners.");
+        this._log("Extension ENABLED. Registering listeners via Mediator.");
 
         this.settings.set_boolean('designer-active', false);
-        let dActiveId = this.settings.connect('changed::designer-active', () => {
+        
+        this.mediator.connectSignal(this.settings, 'changed::designer-active', () => {
             let isActive = this.settings.get_boolean('designer-active');
             if (isActive && !this.isDesignerActive) {
                 this.startZoneDesigner();
@@ -63,9 +507,8 @@ export default class TilingManager {
                 this.stopZoneDesigner();
             }
         });
-        this._trackedSignals.push({ obj: this.settings, id: dActiveId });
 
-        let layoutsChangedId = this.settings.connect('changed::named-layouts', () => {
+        this.mediator.connectSignal(this.settings, 'changed::named-layouts', () => {
             let layouts = {};
             try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch {}
             if (this.activeLayoutName && !layouts[this.activeLayoutName]) {
@@ -78,34 +521,42 @@ export default class TilingManager {
                 }
             }
         });
-        this._trackedSignals.push({ obj: this.settings, id: layoutsChangedId });
 
-        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => this.storage.onMonitorsChanged());
-        this._windowCreatedId = global.display.connect('window-created', this._onWindowCreated.bind(this));
+        this.mediator.connectSignal(Main.layoutManager, 'monitors-changed', () => this.storage.onMonitorsChanged());
+        this.mediator.connectSignal(global.display, 'window-created', (d, w) => {
+            new WindowBootstrapper(w, this.mediator, this.settings, this._log.bind(this), this._executePlacement.bind(this), this);
+        });
+        this.mediator.connectSignal(global.workspace_manager, 'workspace-switched', () => this.queueAutoTiling());
         
-        this._grabBeginId = global.display.connect('grab-op-begin', (d, w, o) => this.snapEngine.onGrabBegin(d, w, o));
-        this._grabEndId = global.display.connect('grab-op-end', (d, w, o) => this.snapEngine.onGrabEnd(d, w, o));
+        this.mediator.connectSignal(global.display, 'grab-op-begin', (d, w, o) => this.snapEngine.onGrabBegin(d, w, o));
+        this.mediator.connectSignal(global.display, 'grab-op-end', (d, w, o) => this.snapEngine.onGrabEnd(d, w, o));
         
-        this._bindSafe('snap-left', () => this.snapEngine.snapDirection('left'));
-        this._bindSafe('snap-right', () => this.snapEngine.snapDirection('right'));
-        this._bindSafe('snap-up', () => this.snapEngine.snapDirection('up'));
-        this._bindSafe('snap-down', () => this.snapEngine.snapDirection('down'));
-        this._bindSafe('switch-layout', () => this.cycleLayouts());
+        this.mediator.bindShortcut('snap-left', this.settings, () => this.snapEngine.snapDirection('left'));
+        this.mediator.bindShortcut('snap-right', this.settings, () => this.snapEngine.snapDirection('right'));
+        this.mediator.bindShortcut('snap-up', this.settings, () => this.snapEngine.snapDirection('up'));
+        this.mediator.bindShortcut('snap-down', this.settings, () => this.snapEngine.snapDirection('down'));
+        this.mediator.bindShortcut('switch-layout', this.settings, () => this.cycleLayouts());
+        this.mediator.bindShortcut('quick-tiler-hotkey', this.settings, () => this.showQuickTiler());
 
         for (let i = 1; i <= 9; i++) {
-            this._bindSafe(`layout-hotkey-${i}`, () => this.activateLayoutBySlot(i));
+            this.mediator.bindShortcut(`layout-hotkey-${i}`, this.settings, () => this.activateLayoutBySlot(i));
         }
 
         let defaultLayout = this.settings.get_string('default-layout');
         if (defaultLayout) {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this.mediator.addTimer(0, () => {
                 this.storage.restoreNamedLayout(defaultLayout);
                 return GLib.SOURCE_REMOVE;
             });
         }
 
         this.stackManager.enable();
-        this._startStateTracking();
+        
+        this.mediator.addTimerSeconds(5, () => {
+            if (!this._enabled) return GLib.SOURCE_REMOVE;
+            try { this.storage.saveCurrentLayoutStates(); } catch { }
+            return GLib.SOURCE_CONTINUE;
+        });
     }
 
     disable() {
@@ -116,46 +567,7 @@ export default class TilingManager {
         this.stackManager.disable();
         this.snapEngine.disable();
 
-        if (this._monitorsChangedId) {
-            Main.layoutManager.disconnect(this._monitorsChangedId);
-            this._monitorsChangedId = 0;
-        }
-        if (this._windowCreatedId) {
-            global.display.disconnect(this._windowCreatedId);
-            this._windowCreatedId = 0;
-        }
-        if (this._grabBeginId) {
-            global.display.disconnect(this._grabBeginId);
-            this._grabBeginId = 0;
-        }
-        if (this._grabEndId) {
-            global.display.disconnect(this._grabEndId);
-            this._grabEndId = 0;
-        }
-        if (this._timeoutId) {
-            GLib.source_remove(this._timeoutId);
-            this._timeoutId = 0;
-        }
-        
-        for (let item of this._trackedSignals) {
-            try { item.obj.disconnect(item.id); } catch {}
-        }
-        this._trackedSignals = [];
-
-        for (let timerId of this._trackedTimers) {
-            GLib.source_remove(timerId);
-        }
-        this._trackedTimers.clear();
-
-        try { Main.wm.removeKeybinding('snap-left'); } catch {}
-        try { Main.wm.removeKeybinding('snap-right'); } catch {}
-        try { Main.wm.removeKeybinding('snap-up'); } catch {}
-        try { Main.wm.removeKeybinding('snap-down'); } catch {}
-        try { Main.wm.removeKeybinding('switch-layout'); } catch {}
-        
-        for (let i = 1; i <= 9; i++) {
-            try { Main.wm.removeKeybinding(`layout-hotkey-${i}`); } catch {}
-        }
+        this.mediator.destroy();
 
         if (this._activeOverlay) {
             try { Main.popModal(this._activeOverlay); } catch {}
@@ -167,6 +579,107 @@ export default class TilingManager {
         }
 
         this.stopZoneDesigner();
+    }
+
+    showQuickTiler() {
+        if (!this._enabled) return;
+        new QuickTilerOverlay(this);
+    }
+
+    queueAutoTiling() {
+        if (!this.settings.get_boolean('auto-tiling-enabled')) return;
+        if (this._autoTilingTimerId) {
+            this.mediator.clearTimer(this._autoTilingTimerId);
+        }
+        this._autoTilingTimerId = this.mediator.addTimer(100, () => {
+            this._autoTilingTimerId = 0;
+            this.doAutoTiling();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    doAutoTiling() {
+        if (!this.settings.get_boolean('auto-tiling-enabled')) return;
+        let mode = this.settings.get_string('auto-tiling-mode');
+        let gap = this.settings.get_int('auto-tiling-gap');
+        let workspace = global.workspace_manager.get_active_workspace();
+        let allWindows = global.display.get_tab_list(Meta.TabList.NORMAL, workspace);
+
+        let monitors = Main.layoutManager.monitors;
+        for (let i = 0; i < monitors.length; i++) {
+            let monWindows = allWindows.filter(w => {
+                if (w.get_monitor() !== i) return false;
+                if (isWindowIgnored(w, this.settings)) return false;
+                let actor = w.get_compositor_private();
+                if (!actor || actor.is_destroyed()) return false;
+                if (w.is_override_redirect() || w.get_transient_for() !== null) return false;
+                let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
+                if (isSkipTaskbar) return false;
+                return true;
+            });
+            
+            if (monWindows.length === 0) continue;
+
+            monWindows.sort((a, b) => {
+                let ida = 0, idb = 0;
+                try { ida = a.get_id(); idb = b.get_id(); } catch {}
+                return ida - idb;
+            });
+
+            let mon = monitors[i];
+            let panelHeight = Main.panel.height;
+            let wx = mon.x;
+            let wy = mon.y + panelHeight;
+            let ww = mon.width;
+            let wh = mon.height - panelHeight;
+
+            if (mode === 'bsp') {
+                this._applyBSP(monWindows, wx, wy, ww, wh, gap, i);
+            } else if (mode === 'cascade') {
+                this._applyCascade(monWindows, wx, wy, ww, wh, i);
+            }
+        }
+    }
+
+    _applyBSP(windows, x, y, w, h, gap, monitorIndex) {
+        if (windows.length === 0) return;
+        if (windows.length === 1) {
+            let rect = {
+                x: Math.round(x + gap),
+                y: Math.round(y + gap),
+                width: Math.round(w - 2 * gap),
+                height: Math.round(h - 2 * gap)
+            };
+            applyWindowTransform(windows[0], monitorIndex, rect, false, this._log.bind(this));
+            return;
+        }
+
+        let splitVertical = w > h;
+        let mid = Math.ceil(windows.length / 2);
+        if (splitVertical) {
+            let w1 = w / 2;
+            this._applyBSP(windows.slice(0, mid), x, y, w1, h, gap, monitorIndex);
+            this._applyBSP(windows.slice(mid), x + w1, y, w - w1, h, gap, monitorIndex);
+        } else {
+            let h1 = h / 2;
+            this._applyBSP(windows.slice(0, mid), x, y, w, h1, gap, monitorIndex);
+            this._applyBSP(windows.slice(mid), x, y + h1, w, h - h1, gap, monitorIndex);
+        }
+    }
+
+    _applyCascade(windows, x, y, w, h, monitorIndex) {
+        let offset = 40;
+        let tw = w * 0.7;
+        let th = h * 0.7;
+        for (let i = 0; i < windows.length; i++) {
+            let cx = x + ((i * offset) % Math.max(1, w - tw));
+            let cy = y + ((i * offset) % Math.max(1, h - th));
+            applyWindowTransform(windows[i], monitorIndex, {
+                x: Math.round(cx), y: Math.round(cy), width: Math.round(tw), height: Math.round(th)
+            }, false, this._log.bind(this));
+            
+            try { windows[i].raise(); } catch {}
+        }
     }
 
     activateLayoutBySlot(slotId) {
@@ -351,21 +864,18 @@ export default class TilingManager {
         }
     }
 
-    _startStateTracking() {
-        this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
-            if (!this._enabled) return GLib.SOURCE_REMOVE;
-            try {
-                this.storage.saveCurrentLayoutStates();
-            } catch { }
-            return GLib.SOURCE_CONTINUE;
-        });
-    }
-
     _executePlacement(window, wmClass, winTitle, winId) {
         this._log(`[${winId}] Starting Layout Evaluation. Class=${wmClass} Title=${winTitle}`);
         try {
             if (isWindowIgnored(window, this.settings)) {
                 this._log(`[${winId}] Ignoring WM_CLASS/Title [${wmClass} / ${winTitle}] due to user ignore-list configuration.`);
+                return;
+            }
+
+            // --- AUTO TILING OVERRIDE ---
+            if (this.settings.get_boolean('auto-tiling-enabled')) {
+                this._log(`[${winId}] Auto-tiling is enabled. Triggering full workspace layout recalculation.`);
+                this.queueAutoTiling();
                 return;
             }
 
@@ -448,15 +958,13 @@ export default class TilingManager {
                     this._log(`[${winId}] Target zone resolved. Triggering applyWindowTransform on monitor ${targetMonitor}`);
                     applyWindowTransform(window, targetMonitor, targetRect, isMax, this._log.bind(this));
                     
-                    let stackTid = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-                        this._trackedTimers.delete(stackTid);
+                    this.mediator.addTimer(200, () => {
                         if (this.stackManager) {
                             this.stackManager.invalidateSignature(targetZoneName);
                             try { this.stackManager.updateOverlays(); } catch {}
                         }
                         return GLib.SOURCE_REMOVE;
                     });
-                    this._trackedTimers.add(stackTid);
                 } else {
                      this._log(`[${winId}] ERROR: getSectionRect returned null for [${targetZoneName}]`);
                 }
@@ -467,143 +975,5 @@ export default class TilingManager {
         } catch {
             this._log(`[${winId}] FATAL CATCH in _executePlacement`);
         }
-    }
-
-    _onWindowCreated(display, window) {
-        let winId = 'unknown';
-        try { winId = window.get_id ? window.get_id() : 'unknown'; } catch {}
-        
-        let title = 'unknown', wmClass = 'unknown';
-        try { title = window.get_title() || 'unknown'; wmClass = window.get_wm_class() || 'unknown'; } catch {}
-
-        this._log(`[${winId}] ------------------------------------------------`);
-        this._log(`[${winId}] 🪲 EXTREME DEBUG: NEW WINDOW DETECTED`);
-        this._log(`[${winId}] 🪲 APP: ${wmClass} | TITLE: ${title}`);
-        
-        try {
-            let rect = window.get_frame_rect();
-            this._log(`[${winId}] 🪲 INITIAL COMPOSITOR SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
-            if (rect.width < 100 || rect.height < 100) {
-                this._log(`[${winId}] 🚨 COMPOSITOR HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
-                    if (isWindowValid(window)) {
-                        let m = Main.layoutManager.monitors[window.get_monitor() || 0] || Main.layoutManager.monitors[0];
-                        if (window.get_maximized() > 0) {
-                            window.unmaximize(Meta.MaximizeFlags.BOTH);
-                        }
-                        window.move_resize_frame(false, m.x + 100, m.y + 100, 800, 600);
-                    }
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-        } catch {}
-
-        try {
-            window._omnipanel_is_dead = false;
-
-            if (window._omnipanel_unmanaged_id === undefined) {
-                let sigId = window.connect('unmanaged', () => {
-                    window._omnipanel_is_dead = true;
-                    if (window._omnipanel_creation_timer) {
-                        GLib.source_remove(window._omnipanel_creation_timer);
-                        this._trackedTimers.delete(window._omnipanel_creation_timer);
-                        window._omnipanel_creation_timer = 0;
-                    }
-                    
-                    this._trackedSignals = this._trackedSignals.filter(s => {
-                        if (s.obj === window) {
-                            try { window.disconnect(s.id); } catch {}
-                            return false;
-                        }
-                        return true;
-                    });
-                });
-                window._omnipanel_unmanaged_id = sigId;
-                this._trackedSignals.push({ obj: window, id: sigId });
-            }
-
-            let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
-            let isSkipPager = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
-
-            if (window.is_override_redirect() || isSkipTaskbar || isSkipPager) {
-                this._log(`[${winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
-                return;
-            }
-
-            let role = typeof window.get_role === 'function' ? window.get_role() : '';
-            if (role === 'browser-tab' || role === 'pop-up') {
-                this._log(`[${winId}] Ignoring browser tab or popup.`);
-                return;
-            }
-
-            let transient = window.get_transient_for();
-            if (transient !== null) {
-                this._log(`[${winId}] Window is transient (dialog). Aborting entirely.`);
-                return; 
-            }
-
-            let wType = window.get_window_type();
-            if (wType !== Meta.WindowType.NORMAL) {
-                this._log(`[${winId}] Window is not NORMAL. Aborting entirely.`);
-                return;
-            }
-
-        } catch {}
-
-        this._log(`[${winId}] >> Starting rapid DBus metadata polling (50ms intervals)...`);
-
-        let attempts = 0;
-        let maxAttempts = 15;
-
-        let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-            if (window._omnipanel_is_dead || !isWindowValid(window)) {
-                this._trackedTimers.delete(window._omnipanel_creation_timer);
-                window._omnipanel_creation_timer = 0;
-                this._log(`[${winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
-                return GLib.SOURCE_REMOVE;
-            }
-
-            try {
-                let isSkipTaskbarNow = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
-                let isSkipPagerNow = typeof window.is_skip_pager === 'function' ? window.is_skip_pager() : false;
-
-                if (isSkipTaskbarNow || isSkipPagerNow) {
-                    this._trackedTimers.delete(window._omnipanel_creation_timer);
-                    this._log(`[${winId}] Window became skip_taskbar during yield. Aborting.`);
-                    return GLib.SOURCE_REMOVE;
-                }
-
-                let finalWmClass = window.get_wm_class() || '';
-                
-                if (!finalWmClass && attempts < maxAttempts) {
-                    attempts++;
-                    return GLib.SOURCE_CONTINUE;
-                }
-
-                this._trackedTimers.delete(window._omnipanel_creation_timer);
-                window._omnipanel_creation_timer = 0;
-
-                if (!finalWmClass) {
-                    this._log(`[${winId}] Window has no wm_class after max attempts. Aborting.`);
-                    return GLib.SOURCE_REMOVE;
-                }
-                
-                this._log(`[${winId}] Metadata retrieved safely on attempt ${attempts + 1}. Moving to execution phase.`);
-                this._executePlacement(window, finalWmClass, window.get_title() || '', winId);
-                
-            } catch {
-                this._trackedTimers.delete(window._omnipanel_creation_timer);
-                this._log(`[${winId}] FATAL CATCH in Timer`);
-            }
-
-            return GLib.SOURCE_REMOVE;
-        });
-        window._omnipanel_creation_timer = timerId;
-        this._trackedTimers.add(timerId);
-
-        try {
-            let sizeSigId = window.connect('size-changed', () => {});
-            this._trackedSignals.push({ obj: window, id: sizeSigId });
-        } catch {}
     }
 }

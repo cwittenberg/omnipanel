@@ -84,5 +84,17 @@ export function buildHotkeysPage() {
     ));
     pageHotkeys.add(groupStacks);
 
+    // 5. Quick Tiler
+    const groupQuickTiler = new Adw.PreferencesGroup({
+        title: 'Quick Tiler (Grid Spawning)',
+        description: 'Instantly resize the focused window using an interactive grid overlay. Configure this hotkey in the Layouts tab.'
+    });
+    groupQuickTiler.add(createHotkeyRow(
+        'Open Quick Tiler',
+        'Press to spawn a centered 8x8 grid on the active monitor, then click and drag across cells to reshape the active window.',
+        'Configurable (Default: Super + G)'
+    ));
+    pageHotkeys.add(groupQuickTiler);
+
     return pageHotkeys;
 }

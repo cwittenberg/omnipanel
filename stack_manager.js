@@ -1,19 +1,297 @@
 // omnipanel/stack_manager.js
-/*
- * COMPARISON TO PREVIOUS:
- * - CRITICAL BUG FIX (X11): Replaced `Main.layoutManager.uiGroup.add_child()` with `Main.layoutManager.addChrome()`.
- * This explicitly registers the overlay with Mutter's input tracker, forcing the X server to dynamically 
- * recalculate the input shape (XShape) when the menu expands on hover, preventing clicks from falling through to the client window.
- * - Updated cleanup functions to use `removeChrome()` respectively.
- */
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { getSectionRect, Sections, isWindowIgnored } from './layout_definitions.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
 
+// --- VIEW LAYER (MVC) ---
+const StackOverlayView = GObject.registerClass(
+    class StackOverlayView extends St.BoxLayout {
+        _init(zone, actualMonitor, stackManager) {
+            super._init({
+                vertical: false,
+                style: 'background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;',
+                reactive: true,
+                track_hover: true 
+            });
+
+            this.zone = zone;
+            this.monitor = actualMonitor;
+            this.stackManager = stackManager;
+            this.windows = [];
+            this.topWindow = null;
+            this.lastSignature = '';
+            this.lastActualMode = 'stack';
+            this.currentIndex = 0;
+            
+            this.hideTimeoutId = 0;
+            this.keyPressId = 0;
+
+            this.btnStyle = 'padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; background-color: transparent; transition-duration: 100ms; margin: 0 2px;';
+            this.btnHoverStyle = 'background-color: rgba(255,255,255,0.2);';
+            this.btnActiveStyle = 'background-color: rgba(46, 204, 113, 0.25); color: #2ecc71;';
+
+            this._buildUI();
+            this._bindEvents();
+        }
+
+        _buildUI() {
+            this.countLabel = new St.Label({
+                text: '2',
+                y_align: Clutter.ActorAlign.CENTER,
+                style: 'color: white; font-weight: bold; margin: 0 8px;'
+            });
+
+            this.prevBtn = new St.Button({ child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+            this.nextBtn = new St.Button({ child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+            this.toggleMenuBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+
+            this.modeBox = new St.BoxLayout({ vertical: false, visible: false, reactive: true });
+            
+            let separator = new St.Widget({ style: 'width: 1px; background-color: rgba(255,255,255,0.2); margin: 0 6px;' });
+            this.modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+            this.modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+            this.modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+            this.modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
+
+            this.modeBox.add_child(separator);
+            this.modeBox.add_child(this.modeGridBtn);
+            this.modeBox.add_child(this.modeColsBtn);
+            this.modeBox.add_child(this.modeRowsBtn);
+            this.modeBox.add_child(this.modeStackBtn);
+
+            this.prevBtn.hide();
+            this.nextBtn.hide();
+            this.toggleMenuBtn.hide();
+
+            this.add_child(this.countLabel);
+            this.add_child(this.toggleMenuBtn);
+            this.add_child(this.modeBox);
+            this.add_child(this.prevBtn);
+            this.add_child(this.nextBtn);
+        }
+
+        _bindEvents() {
+            this.connect('button-press-event', () => Clutter.EVENT_STOP);
+            this.connect('button-release-event', () => Clutter.EVENT_STOP);
+            this.modeBox.connect('button-press-event', () => Clutter.EVENT_STOP);
+            this.modeBox.connect('button-release-event', () => Clutter.EVENT_STOP);
+            this.connect('notify::hover', this._onHoverChanged.bind(this));
+            
+            this.prevBtn.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === 1) { this.doPrev(); return Clutter.EVENT_STOP; }
+                return Clutter.EVENT_PROPAGATE;
+            });
+            
+            this.nextBtn.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === 1) { this.doNext(); return Clutter.EVENT_STOP; }
+                return Clutter.EVENT_PROPAGATE;
+            });
+
+            this.toggleMenuBtn.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === 1) {
+                    this.toggleMenuBtn.hide();
+                    this.modeBox.show();
+                    this.syncModeStyles();
+                    this.reposition();
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+
+            let bindStandardHover = (btn) => {
+                btn.connect('notify::hover', () => btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle));
+            };
+            
+            bindStandardHover(this.prevBtn);
+            bindStandardHover(this.nextBtn);
+            bindStandardHover(this.toggleMenuBtn);
+
+            this._bindModePreviewAndClick(this.modeStackBtn, 'stack');
+            this._bindModePreviewAndClick(this.modeColsBtn, 'columns');
+            this._bindModePreviewAndClick(this.modeRowsBtn, 'rows');
+            this._bindModePreviewAndClick(this.modeGridBtn, 'grid');
+
+            this.connect('destroy', this._cleanup.bind(this));
+        }
+
+        _cleanup() {
+            if (this.keyPressId) {
+                global.stage.disconnect(this.keyPressId);
+                this.keyPressId = 0;
+            }
+            if (this.hideTimeoutId) {
+                GLib.source_remove(this.hideTimeoutId);
+                this.hideTimeoutId = 0;
+            }
+        }
+
+        _bindModePreviewAndClick(btn, modeName) {
+            btn.connect('notify::hover', () => {
+                this.syncModeStyles();
+            });
+
+            btn.connect('button-press-event', (actor, event) => {
+                if (event.get_button() === 1) { 
+                    this.stackManager.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${this.zone}`);
+                    if (!btn.reactive) return Clutter.EVENT_PROPAGATE;
+
+                    let cs = this.stackManager.manager.storage.getCustomSections();
+                    if (!cs[this.zone]) cs[this.zone] = {}; 
+                    cs[this.zone].stackMode = modeName;
+                    this.stackManager.manager.storage.setCustomSectionsAndSave(cs);
+                    
+                    this.lastActualMode = modeName;
+                    this.syncModeStyles();
+                    
+                    if (this.lastActualMode === 'stack') {
+                        this.prevBtn.show();
+                        this.nextBtn.show();
+                    } else {
+                        this.prevBtn.hide();
+                        this.nextBtn.hide();
+                    }
+                    
+                    btn.set_style(this.btnStyle + 'background-color: #2ecc71; color: #111;');
+
+                    for (let w of this.windows) {
+                        w._omnipanel_last_req = '';
+                    }
+
+                    this.stackManager.applyStackLayout(this.zone, this.windows, this.monitor, modeName);
+                    this.stackManager.invalidateSignature(this.zone);
+
+                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                        if (btn) this.syncModeStyles();
+                        return GLib.SOURCE_REMOVE;
+                    });
+
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+        }
+
+        doPrev() {
+            if (this.windows.length === 0) return;
+            this.currentIndex = (this.currentIndex - 1 + this.windows.length) % this.windows.length;
+            Main.activateWindow(this.windows[this.currentIndex]);
+        }
+
+        doNext() {
+            if (this.windows.length === 0) return;
+            this.currentIndex = (this.currentIndex + 1) % this.windows.length;
+            Main.activateWindow(this.windows[this.currentIndex]);
+        }
+
+        syncModeStyles() {
+            let actualMode = this.lastActualMode || 'stack';
+            
+            let applyStyle = (btn, modeName) => {
+                btn.reactive = true;
+                if (modeName === actualMode) {
+                    btn.set_style(this.btnStyle + this.btnActiveStyle);
+                } else {
+                    btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle);
+                }
+            };
+
+            applyStyle(this.modeStackBtn, 'stack');
+            applyStyle(this.modeColsBtn, 'columns');
+            applyStyle(this.modeRowsBtn, 'rows');
+            applyStyle(this.modeGridBtn, 'grid');
+        }
+
+        _onHoverChanged() {
+            let isHovered = this.hover;
+            
+            if (isHovered) {
+                if (this.hideTimeoutId) {
+                    GLib.source_remove(this.hideTimeoutId);
+                    this.hideTimeoutId = 0;
+                }
+
+                if (this.lastActualMode === 'stack') {
+                    this.prevBtn.show();
+                    this.nextBtn.show();
+                } else {
+                    this.prevBtn.hide();
+                    this.nextBtn.hide();
+                }
+                
+                this.toggleMenuBtn.hide();
+                this.modeBox.show();
+
+                this.syncModeStyles();
+                this.set_style('background-color: rgba(20, 20, 20, 0.95); border: 1px solid #2ecc71; border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); transition-duration: 150ms;');
+                
+                if (!this.keyPressId) {
+                    this.keyPressId = global.stage.connect('captured-event', (actor, event) => {
+                        if (event.type() === Clutter.EventType.KEY_PRESS) {
+                            let sym = event.get_key_symbol();
+                            if (sym === Clutter.KEY_Left) {
+                                this.doPrev();
+                                return Clutter.EVENT_STOP;
+                            } else if (sym === Clutter.KEY_Right) {
+                                this.doNext();
+                                return Clutter.EVENT_STOP;
+                            }
+                        }
+                        return Clutter.EVENT_PROPAGATE;
+                    });
+                }
+
+            } else {
+                if (!this.hideTimeoutId) {
+                    this.hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                        this.hideTimeoutId = 0;
+                        if (this.hover) return GLib.SOURCE_REMOVE;
+
+                        this.prevBtn.hide();
+                        this.nextBtn.hide();
+                        
+                        this.toggleMenuBtn.show();
+                        this.modeBox.hide();
+                        
+                        this.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
+                        
+                        if (this.keyPressId) {
+                            global.stage.disconnect(this.keyPressId);
+                            this.keyPressId = 0;
+                        }
+
+                        this.reposition();
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
+            }
+
+            if (isHovered) {
+                this.reposition();
+            }
+        }
+
+        reposition() {
+            let cs = this.stackManager.manager.storage.getCustomSections();
+            let zRect = getSectionRect(this.monitor, this.zone, cs);
+            if (zRect) {
+                let padding = 16;
+                let prefWidth = this.get_preferred_width(-1)[1];
+                let prefHeight = this.get_preferred_height(-1)[1];
+                let pos = this.stackManager.settings.get_string('stack-indicator-position') || 'bottom-right';
+                let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
+                let oy = zRect.y + zRect.height - prefHeight - padding;
+                this.set_position(ox, oy);
+            }
+        }
+    }
+);
+
+// --- CONTROLLER LAYER (MVC) ---
 export class StackManager {
     constructor(tilingManager) {
         this.manager = tilingManager;
@@ -43,8 +321,8 @@ export class StackManager {
 
     clearOverlays() {
         for (let overlay of this._overlays.values()) {
-            Main.layoutManager.removeChrome(overlay.widget);
-            overlay.widget.destroy();
+            Main.layoutManager.removeChrome(overlay);
+            overlay.destroy();
         }
         this._overlays.clear();
     }
@@ -140,300 +418,6 @@ export class StackManager {
         return null;
     }
 
-    _createOverlay(zone, actualMonitor) {
-        let widget = new St.BoxLayout({
-            vertical: false,
-            style: 'background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;',
-            reactive: true,
-            track_hover: true 
-        });
-
-        widget.connect('button-press-event', () => Clutter.EVENT_STOP);
-        widget.connect('button-release-event', () => Clutter.EVENT_STOP);
-
-        let countLabel = new St.Label({
-            text: '2',
-            y_align: Clutter.ActorAlign.CENTER,
-            style: 'color: white; font-weight: bold; margin: 0 8px;'
-        });
-
-        let btnStyle = 'padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; background-color: transparent; transition-duration: 100ms; margin: 0 2px;';
-        let btnHoverStyle = 'background-color: rgba(255,255,255,0.2);';
-        let btnActiveStyle = 'background-color: rgba(46, 204, 113, 0.25); color: #2ecc71;';
-        
-        let prevBtn = new St.Button({ child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-        let nextBtn = new St.Button({ child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-        let toggleMenuBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-
-        let modeBox = new St.BoxLayout({ vertical: false, visible: false, reactive: true });
-        modeBox.connect('button-press-event', () => Clutter.EVENT_STOP);
-        modeBox.connect('button-release-event', () => Clutter.EVENT_STOP);
-
-        let separator = new St.Widget({ style: 'width: 1px; background-color: rgba(255,255,255,0.2); margin: 0 6px;' });
-        let modeGridBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-        let modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-        let modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-        let modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: btnStyle, reactive: true, track_hover: true, can_focus: true });
-
-        modeBox.add_child(separator);
-        modeBox.add_child(modeGridBtn);
-        modeBox.add_child(modeColsBtn);
-        modeBox.add_child(modeRowsBtn);
-        modeBox.add_child(modeStackBtn);
-
-        prevBtn.hide();
-        nextBtn.hide();
-        toggleMenuBtn.hide();
-
-        widget.add_child(countLabel);
-        widget.add_child(toggleMenuBtn);
-        widget.add_child(modeBox);
-        widget.add_child(prevBtn);
-        widget.add_child(nextBtn);
-
-        let data = { 
-            widget, 
-            countLabel, 
-            windows: [], 
-            topWindow: null, 
-            monitor: actualMonitor, 
-            lastSignature: '', 
-            lastActualMode: 'stack',
-            currentIndex: 0
-        };
-
-        data.syncModeStyles = () => {
-            let actualMode = data.lastActualMode || 'stack';
-            
-            let applyStyle = (btn, modeName) => {
-                btn.reactive = true;
-                
-                if (modeName === actualMode) {
-                    btn.set_style(btnStyle + btnActiveStyle);
-                } else {
-                    btn.set_style(btn.hover ? btnStyle + btnHoverStyle : btnStyle);
-                }
-            };
-
-            applyStyle(modeStackBtn, 'stack');
-            applyStyle(modeColsBtn, 'columns');
-            applyStyle(modeRowsBtn, 'rows');
-            applyStyle(modeGridBtn, 'grid');
-        };
-
-        let doPrev = () => {
-            if (data.windows.length === 0) return;
-            data.currentIndex = (data.currentIndex - 1 + data.windows.length) % data.windows.length;
-            Main.activateWindow(data.windows[data.currentIndex]);
-        };
-        let doNext = () => {
-            if (data.windows.length === 0) return;
-            data.currentIndex = (data.currentIndex + 1) % data.windows.length;
-            Main.activateWindow(data.windows[data.currentIndex]);
-        };
-
-        prevBtn.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === 1) { doPrev(); return Clutter.EVENT_STOP; }
-            return Clutter.EVENT_PROPAGATE;
-        });
-        nextBtn.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === 1) { doNext(); return Clutter.EVENT_STOP; }
-            return Clutter.EVENT_PROPAGATE;
-        });
-
-        let hideTimeoutId = 0;
-        let keyPressId = 0;
-
-        widget.connect('destroy', () => {
-            if (keyPressId) {
-                global.stage.disconnect(keyPressId);
-                keyPressId = 0;
-            }
-            if (hideTimeoutId) {
-                GLib.source_remove(hideTimeoutId);
-                hideTimeoutId = 0;
-            }
-        });
-
-        let updateUIState = () => {
-            let isHovered = widget.hover;
-            
-            if (isHovered) {
-                if (hideTimeoutId) {
-                    GLib.source_remove(hideTimeoutId);
-                    hideTimeoutId = 0;
-                }
-
-                if (data.lastActualMode === 'stack') {
-                    prevBtn.show();
-                    nextBtn.show();
-                } else {
-                    prevBtn.hide();
-                    nextBtn.hide();
-                }
-                
-                toggleMenuBtn.hide();
-                modeBox.show();
-
-                data.syncModeStyles();
-                widget.set_style('background-color: rgba(20, 20, 20, 0.95); border: 1px solid #2ecc71; border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); transition-duration: 150ms;');
-                
-                if (!keyPressId) {
-                    keyPressId = global.stage.connect('captured-event', (actor, event) => {
-                        if (event.type() === Clutter.EventType.KEY_PRESS) {
-                            let sym = event.get_key_symbol();
-                            if (sym === Clutter.KEY_Left) {
-                                doPrev();
-                                return Clutter.EVENT_STOP;
-                            } else if (sym === Clutter.KEY_Right) {
-                                doNext();
-                                return Clutter.EVENT_STOP;
-                            }
-                        }
-                        return Clutter.EVENT_PROPAGATE;
-                    });
-                }
-
-            } else {
-                if (!hideTimeoutId) {
-                    hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-                        hideTimeoutId = 0;
-                        if (widget.hover) return GLib.SOURCE_REMOVE;
-
-                        prevBtn.hide();
-                        nextBtn.hide();
-                        
-                        toggleMenuBtn.show();
-                        modeBox.hide();
-                        
-                        widget.set_style('background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;');
-                        
-                        if (keyPressId) {
-                            global.stage.disconnect(keyPressId);
-                            keyPressId = 0;
-                        }
-
-                        let cs = this.manager.storage.getCustomSections();
-                        let zRect = getSectionRect(data.monitor, zone, cs);
-                        if (zRect) {
-                            let padding = 16;
-                            let prefWidth = widget.get_preferred_width(-1)[1];
-                            let prefHeight = widget.get_preferred_height(-1)[1];
-                            let pos = this.settings.get_string('stack-indicator-position') || 'bottom-right';
-                            let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
-                            let oy = zRect.y + zRect.height - prefHeight - padding;
-                            widget.set_position(ox, oy);
-                        }
-                        return GLib.SOURCE_REMOVE;
-                    });
-                }
-            }
-
-            let cs = this.manager.storage.getCustomSections();
-            let zRect = getSectionRect(data.monitor, zone, cs);
-            if (zRect && isHovered) {
-                let padding = 16;
-                let prefWidth = widget.get_preferred_width(-1)[1];
-                let prefHeight = widget.get_preferred_height(-1)[1];
-                let pos = this.settings.get_string('stack-indicator-position') || 'bottom-right';
-                let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
-                let oy = zRect.y + zRect.height - prefHeight - padding;
-                widget.set_position(ox, oy);
-            }
-        };
-
-        widget.connect('notify::hover', updateUIState);
-
-        let bindStandardHover = (btn) => {
-            btn.connect('notify::hover', () => btn.set_style(btn.hover ? btnStyle + btnHoverStyle : btnStyle));
-        };
-        
-        bindStandardHover(prevBtn);
-        bindStandardHover(nextBtn);
-        bindStandardHover(toggleMenuBtn);
-
-        toggleMenuBtn.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === 1) {
-                toggleMenuBtn.hide();
-                modeBox.show();
-                data.syncModeStyles();
-                
-                let cs = this.manager.storage.getCustomSections();
-                let zRect = getSectionRect(data.monitor, zone, cs);
-                if (zRect) {
-                    let padding = 16;
-                    let prefWidth = widget.get_preferred_width(-1)[1];
-                    let prefHeight = widget.get_preferred_height(-1)[1];
-                    let pos = this.settings.get_string('stack-indicator-position') || 'bottom-right';
-                    let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
-                    let oy = zRect.y + zRect.height - prefHeight - padding;
-                    widget.set_position(ox, oy);
-                }
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-
-        let bindModePreviewAndClick = (btn, modeName) => {
-            btn.connect('notify::hover', () => {
-                data.syncModeStyles();
-            });
-
-            let executeActivation = () => {
-                this.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${zone}`);
-                if (!btn.reactive) return;
-
-                let cs = this.manager.storage.getCustomSections();
-                if (!cs[zone]) cs[zone] = {}; 
-                cs[zone].stackMode = modeName;
-                this.manager.storage.setCustomSectionsAndSave(cs);
-                
-                data.lastActualMode = modeName;
-                data.syncModeStyles();
-                
-                if (data.lastActualMode === 'stack') {
-                    prevBtn.show();
-                    nextBtn.show();
-                } else {
-                    prevBtn.hide();
-                    nextBtn.hide();
-                }
-                
-                btn.set_style(btnStyle + 'background-color: #2ecc71; color: #111;');
-
-                for (let w of data.windows) {
-                    w._omnipanel_last_req = '';
-                }
-
-                this.applyStackLayout(zone, data.windows, data.monitor, modeName);
-                this.invalidateSignature(zone);
-
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-                    if (btn) data.syncModeStyles();
-                    return GLib.SOURCE_REMOVE;
-                });
-            };
-
-            btn.connect('button-press-event', (actor, event) => {
-                if (event.get_button() === 1) { 
-                    executeActivation();
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
-        };
-
-        bindModePreviewAndClick(modeStackBtn, 'stack');
-        bindModePreviewAndClick(modeColsBtn, 'columns');
-        bindModePreviewAndClick(modeRowsBtn, 'rows');
-        bindModePreviewAndClick(modeGridBtn, 'grid');
-
-        // FORCE MUTTER TO TRACK THE X11 INPUT SHAPE
-        Main.layoutManager.addChrome(widget);
-
-        return data;
-    }
-
     updateOverlays() {
         if (!this.settings.get_boolean('enable-stack-indicators')) {
             this.clearOverlays();
@@ -512,8 +496,8 @@ export class StackManager {
                     }
                 }
 
-                Main.layoutManager.removeChrome(overlay.widget);
-                overlay.widget.destroy();
+                Main.layoutManager.removeChrome(overlay);
+                overlay.destroy();
                 this._overlays.delete(key);
             }
         }
@@ -530,8 +514,11 @@ export class StackManager {
             })[0];
 
             if (!this._overlays.has(key)) {
-                this._overlays.set(key, this._createOverlay(zone, actualMonitor));
+                let newOverlay = new StackOverlayView(zone, actualMonitor, this);
+                Main.layoutManager.addChrome(newOverlay);
+                this._overlays.set(key, newOverlay);
             }
+            
             let overlay = this._overlays.get(key);
             let zRect = getSectionRect(actualMonitor, zone, customSections);
             
@@ -562,23 +549,14 @@ export class StackManager {
             }
 
             overlay.syncModeStyles();
-
-            if (zRect) {
-                let padding = 16;
-                let prefWidth = overlay.widget.get_preferred_width(-1)[1];
-                let prefHeight = overlay.widget.get_preferred_height(-1)[1];
-                let pos = this.settings.get_string('stack-indicator-position') || 'bottom-right';
-                let ox = pos === 'bottom-right' ? zRect.x + zRect.width - prefWidth - padding : zRect.x + padding;
-                let oy = zRect.y + zRect.height - prefHeight - padding;
-                overlay.widget.set_position(ox, oy);
-            }
+            overlay.reposition();
             
             let isActiveStack = focusWindow && stackWindows.includes(focusWindow);
             if (isActiveStack) {
-                if (!overlay.widget.visible) overlay.widget.show();
+                if (!overlay.visible) overlay.show();
                 overlay.currentIndex = stackWindows.indexOf(focusWindow);
             } else {
-                if (overlay.widget.visible) overlay.widget.hide();
+                if (overlay.visible) overlay.hide();
             }
         }
     }

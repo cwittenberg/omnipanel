@@ -7,10 +7,262 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { hexToRgba, getLayoutColors } from './layout_definitions.js';
 
 // --- USER ADJUSTABLE UI VARIABLES ---
-const TOPBAR_HEIGHT = 110; // Adjust the height of the top toolbar
-const BUTTON_PADDING = '4px 8px'; // Adjust button inner padding (top/bottom left/right)
-const ENTRY_PADDING = '4px'; // Adjust text entry inner padding
-const QUIT_BUTTON_HEIGHT = 55; // Adjust the total height of the Quit Designer button
+const TOPBAR_HEIGHT = 110; 
+const BUTTON_PADDING = '4px 8px'; 
+const ENTRY_PADDING = '4px'; 
+const QUIT_BUTTON_HEIGHT = 55; 
+// ------------------------------------
+
+// --- STATE PATTERN DEFINITIONS ---
+class DesignerState {
+    onMotion() { return Clutter.EVENT_PROPAGATE; }
+    onRelease() { return Clutter.EVENT_PROPAGATE; }
+}
+
+class IdleState extends DesignerState {}
+
+class DrawState extends DesignerState {
+    constructor(startX, startY) {
+        super();
+        this.startX = startX;
+        this.startY = startY;
+    }
+
+    onMotion(designer, x, y) {
+        let rawW = Math.abs(x - this.startX);
+        let rawH = Math.abs(y - this.startY);
+        let showWarning = false;
+        
+        if (rawW < 450 || rawH < 400) {
+            showWarning = true;
+        }
+        
+        let rectW = Math.max(450, rawW);
+        let rectH = Math.max(400, rawH);
+        
+        let rectX = x < this.startX ? this.startX - rectW : this.startX;
+        let rectY = y < this.startY ? this.startY - rectH : this.startY;
+        
+        rectX = Math.max(0, Math.min(rectX, global.stage.width - rectW));
+        rectY = Math.max(TOPBAR_HEIGHT, Math.min(rectY, global.stage.height - rectH));
+
+        designer._selection.set_position(rectX, rectY);
+        designer._selection.set_size(rectW, rectH);
+
+        if (showWarning) {
+            designer._warningLabel.set_position(x + 15, y + 15);
+            if (!designer._warningLabel.visible) designer._warningLabel.show();
+        } else {
+            if (designer._warningLabel.visible) designer._warningLabel.hide();
+        }
+        
+        return Clutter.EVENT_STOP;
+    }
+
+    onRelease(designer) {
+        if (designer._warningLabel && designer._warningLabel.visible) {
+            designer._warningLabel.hide();
+        }
+
+        let sW = designer._selection.width !== undefined ? designer._selection.width : designer._selection.get_width();
+        let sH = designer._selection.height !== undefined ? designer._selection.height : designer._selection.get_height();
+        let sX = designer._selection.x !== undefined ? designer._selection.x : designer._selection.get_x();
+        let sY = designer._selection.y !== undefined ? designer._selection.y : designer._selection.get_y();
+        let panelH = Main.panel.height;
+        
+        sW = Math.max(450, sW);
+        sH = Math.max(400, sH);
+
+        if (sX + sW > global.stage.width) sX = global.stage.width - sW;
+        if (sY + sH > global.stage.height) sY = global.stage.height - sH;
+
+        let snapX = sX, snapY = sY, snapR = sX + sW, snapB = sY + sH;
+        for (let mon of designer._monitors) {
+            if (Math.abs(snapX - mon.x) < 30) snapX = mon.x;
+            if (Math.abs(snapY - (mon.y + panelH)) < 30) snapY = mon.y + panelH;
+            if (Math.abs(snapR - (mon.x + mon.width)) < 30) snapR = mon.x + mon.width;
+            if (Math.abs(snapB - (mon.y + mon.height)) < 30) snapB = mon.y + mon.height;
+        }
+        sX = snapX;
+        sY = snapY;
+        sW = snapR - sX;
+        sH = snapB - sY;
+        
+        designer._selection.set_position(sX, sY);
+        designer._selection.set_size(sW, sH);
+
+        designer._lastRect = { x: sX, y: sY, width: sW, height: sH };
+
+        let px = sX;
+        let py = sY + sH + 10;
+        
+        let currMon = designer._monitors[designer._currentDrawMonitorIndex];
+        if (py + 60 > currMon.y + currMon.height) py = sY - 60; 
+        if (px + 360 > currMon.x + currMon.width) px = currMon.x + currMon.width - 360; 
+
+        designer._entry.set_text('');
+        designer._promptBox.set_position(px, py);
+        designer._promptBox.show();
+        designer._entry.grab_key_focus();
+
+        designer.transitionTo(new IdleState());
+        return Clutter.EVENT_STOP;
+    }
+}
+
+class MoveState extends DesignerState {
+    constructor(zoneName, offsetX, offsetY, monitorIndex) {
+        super();
+        this.zoneName = zoneName;
+        this.offsetX = offsetX;
+        this.offsetY = offsetY;
+        this.monitorIndex = monitorIndex;
+    }
+
+    onMotion(designer, x, y) {
+        let zoneBox = designer._zoneWidgets[this.zoneName];
+        if (zoneBox) {
+            let newX = x - this.offsetX;
+            let newY = y - this.offsetY;
+            
+            let bxWidth = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
+            let bxHeight = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
+            
+            newX = Math.max(0, Math.min(newX, global.stage.width - bxWidth));
+            newY = Math.max(0, Math.min(newY, global.stage.height - bxHeight));
+            
+            zoneBox.set_position(newX, newY);
+        }
+        return Clutter.EVENT_STOP;
+    }
+
+    onRelease(designer) {
+        let zoneBox = designer._zoneWidgets[this.zoneName];
+        if (zoneBox) {
+            let targetMonitorIndex = this.monitorIndex;
+
+            let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
+            let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
+            let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
+            let bxH = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
+            
+            let cx = bxX + bxW / 2;
+            let cy = bxY + bxH / 2;
+            
+            let foundIndex = designer._monitors.findIndex(mon => 
+                cx >= mon.x && cx < mon.x + mon.width && cy >= mon.y && cy < mon.y + mon.height
+            );
+            
+            if (foundIndex !== -1) {
+                targetMonitorIndex = foundIndex;
+            }
+
+            let panelH = Main.panel.height;
+            let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
+            
+            for (let mon of designer._monitors) {
+                if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
+                if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
+                if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
+                if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
+            }
+            
+            bxX = snapBxX;
+            bxY = snapBxY;
+            bxW = snapBxR - bxX;
+            bxH = snapBxB - bxY;
+
+            designer._manager.storage.saveCustomZoneRect(
+                this.zoneName,
+                { x: bxX, y: bxY, width: bxW, height: bxH },
+                targetMonitorIndex
+            );
+            designer._zonesModified = true;
+            designer._refreshZones(); 
+        }
+
+        designer.transitionTo(new IdleState());
+        return Clutter.EVENT_STOP;
+    }
+}
+
+class ResizeState extends DesignerState {
+    constructor(zoneName, monitorIndex) {
+        super();
+        this.zoneName = zoneName;
+        this.monitorIndex = monitorIndex;
+    }
+
+    onMotion(designer, x, y) {
+        let zoneBox = designer._zoneWidgets[this.zoneName];
+        if (zoneBox) {
+            let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
+            let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
+            
+            let rawW = x - bxX;
+            let rawH = y - bxY;
+            let showWarning = false;
+            
+            if (rawW < 450 || rawH < 400) {
+                showWarning = true;
+            }
+            
+            let newW = Math.max(450, rawW);
+            let newH = Math.max(400, rawH);
+            
+            newW = Math.min(newW, global.stage.width - bxX);
+            newH = Math.min(newH, global.stage.height - bxY);
+            
+            zoneBox.set_size(newW, newH);
+
+            if (showWarning) {
+                designer._warningLabel.set_position(x + 15, y + 15);
+                if (!designer._warningLabel.visible) designer._warningLabel.show();
+            } else {
+                if (designer._warningLabel.visible) designer._warningLabel.hide();
+            }
+        }
+        return Clutter.EVENT_STOP;
+    }
+
+    onRelease(designer) {
+        if (designer._warningLabel && designer._warningLabel.visible) {
+            designer._warningLabel.hide();
+        }
+
+        let zoneBox = designer._zoneWidgets[this.zoneName];
+        if (zoneBox) {
+            let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
+            let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
+            let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
+            let bxH = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
+
+            let panelH = Main.panel.height;
+            let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
+            
+            for (let mon of designer._monitors) {
+                if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
+                if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
+                if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
+                if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
+            }
+
+            bxW = snapBxR - snapBxX;
+            bxH = snapBxB - snapBxY;
+
+            designer._manager.storage.saveCustomZoneRect(
+                this.zoneName,
+                { x: snapBxX, y: snapBxY, width: bxW, height: bxH },
+                this.monitorIndex
+            );
+            designer._zonesModified = true;
+            designer._refreshZones();
+        }
+
+        designer.transitionTo(new IdleState());
+        return Clutter.EVENT_STOP;
+    }
+}
 // ------------------------------------
 
 export const ZoneDesignerRoot = GObject.registerClass(
@@ -24,8 +276,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             
             this._manager = manager;
             this._monitors = Main.layoutManager.monitors;
-            this._dragAction = null; 
-            this._activeZoneName = null;
+            this._currentState = new IdleState();
             this._zoneWidgets = {};
             this._zonesModified = false;
             this._currentDrawMonitorIndex = -1;
@@ -89,7 +340,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             
             this._cancelBtn.connect('clicked', () => {
                 this._hidePromptSafe();
-                this._dragAction = null;
+                this.transitionTo(new IdleState());
             });
 
             let saveBox = new St.BoxLayout({ vertical: false });
@@ -264,9 +515,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     this._hidePromptSafe();
                 }
 
-                this._startX = x;
-                this._startY = y;
-                this._dragAction = 'draw';
+                this.transitionTo(new DrawState(x, y));
                 
                 this._selection.set_position(x, y);
                 this._selection.set_size(0, 0);
@@ -276,187 +525,23 @@ export const ZoneDesignerRoot = GObject.registerClass(
             });
 
             this.connect('motion-event', (_, event) => {
-                if (!this._dragAction || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
+                if (this._currentState instanceof IdleState || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
 
                 let [x, y] = event.get_coords();
-                let showWarning = false;
-                
-                if (this._dragAction === 'draw') {
-                    let rawW = Math.abs(x - this._startX);
-                    let rawH = Math.abs(y - this._startY);
-                    
-                    if (rawW < 450 || rawH < 400) {
-                        showWarning = true;
-                    }
-                    
-                    let rectW = Math.max(450, rawW);
-                    let rectH = Math.max(400, rawH);
-                    
-                    let rectX = x < this._startX ? this._startX - rectW : this._startX;
-                    let rectY = y < this._startY ? this._startY - rectH : this._startY;
-                    
-                    rectX = Math.max(0, Math.min(rectX, global.stage.width - rectW));
-                    rectY = Math.max(TOPBAR_HEIGHT, Math.min(rectY, global.stage.height - rectH));
-
-                    this._selection.set_position(rectX, rectY);
-                    this._selection.set_size(rectW, rectH);
-                } 
-                else if (this._dragAction === 'move' && this._activeZoneName) {
-                    let zoneBox = this._zoneWidgets[this._activeZoneName];
-                    if (zoneBox) {
-                        let newX = x - this._dragOffsetX;
-                        let newY = y - this._dragOffsetY;
-                        
-                        let bxWidth = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
-                        let bxHeight = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
-                        
-                        newX = Math.max(0, Math.min(newX, global.stage.width - bxWidth));
-                        newY = Math.max(0, Math.min(newY, global.stage.height - bxHeight));
-                        
-                        zoneBox.set_position(newX, newY);
-                    }
-                } 
-                else if (this._dragAction === 'resize' && this._activeZoneName) {
-                    let zoneBox = this._zoneWidgets[this._activeZoneName];
-                    if (zoneBox) {
-                        let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
-                        let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-                        
-                        let rawW = x - bxX;
-                        let rawH = y - bxY;
-                        
-                        if (rawW < 450 || rawH < 400) {
-                            showWarning = true;
-                        }
-                        
-                        let newW = Math.max(450, rawW);
-                        let newH = Math.max(400, rawH);
-                        
-                        newW = Math.min(newW, global.stage.width - bxX);
-                        newH = Math.min(newH, global.stage.height - bxY);
-                        
-                        zoneBox.set_size(newW, newH);
-                    }
-                }
-
-                if (showWarning) {
-                    this._warningLabel.set_position(x + 15, y + 15);
-                    if (!this._warningLabel.visible) this._warningLabel.show();
-                } else {
-                    if (this._warningLabel.visible) this._warningLabel.hide();
-                }
-                
-                return Clutter.EVENT_STOP;
+                return this._currentState.onMotion(this, x, y);
             });
 
             this.connect('button-release-event', () => {
-                if (!this._dragAction) return Clutter.EVENT_PROPAGATE;
+                if (this._currentState instanceof IdleState) return Clutter.EVENT_PROPAGATE;
                 
-                if (this._warningLabel && this._warningLabel.visible) {
-                    this._warningLabel.hide();
-                }
-                
-                if (this._dragAction === 'draw') {
-                    let sW = this._selection.width !== undefined ? this._selection.width : this._selection.get_width();
-                    let sH = this._selection.height !== undefined ? this._selection.height : this._selection.get_height();
-                    let sX = this._selection.x !== undefined ? this._selection.x : this._selection.get_x();
-                    let sY = this._selection.y !== undefined ? this._selection.y : this._selection.get_y();
-                    let panelH = Main.panel.height;
-                    
-                    sW = Math.max(450, sW);
-                    sH = Math.max(400, sH);
-
-                    if (sX + sW > global.stage.width) sX = global.stage.width - sW;
-                    if (sY + sH > global.stage.height) sY = global.stage.height - sH;
-
-                    let snapX = sX, snapY = sY, snapR = sX + sW, snapB = sY + sH;
-                    for (let mon of this._monitors) {
-                        if (Math.abs(snapX - mon.x) < 30) snapX = mon.x;
-                        if (Math.abs(snapY - (mon.y + panelH)) < 30) snapY = mon.y + panelH;
-                        if (Math.abs(snapR - (mon.x + mon.width)) < 30) snapR = mon.x + mon.width;
-                        if (Math.abs(snapB - (mon.y + mon.height)) < 30) snapB = mon.y + mon.height;
-                    }
-                    sX = snapX;
-                    sY = snapY;
-                    sW = snapR - sX;
-                    sH = snapB - sY;
-                    
-                    this._selection.set_position(sX, sY);
-                    this._selection.set_size(sW, sH);
-
-                    this._lastRect = {
-                        x: sX,
-                        y: sY,
-                        width: sW,
-                        height: sH
-                    };
-
-                    let px = sX;
-                    let py = sY + sH + 10;
-                    
-                    let currMon = this._monitors[this._currentDrawMonitorIndex];
-                    if (py + 60 > currMon.y + currMon.height) py = sY - 60; 
-                    if (px + 360 > currMon.x + currMon.width) px = currMon.x + currMon.width - 360; 
-
-                    this._entry.set_text('');
-                    this._promptBox.set_position(px, py);
-                    this._promptBox.show();
-                    this._entry.grab_key_focus();
-                } 
-                else if ((this._dragAction === 'move' || this._dragAction === 'resize') && this._activeZoneName) {
-                    let zoneBox = this._zoneWidgets[this._activeZoneName];
-                    if (zoneBox) {
-                        let targetMonitorIndex = this._currentDrawMonitorIndex;
-
-                        let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
-                        let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-                        let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
-                        let bxH = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
-                        
-                        if (this._dragAction === 'move') {
-                            let cx = bxX + bxW / 2;
-                            let cy = bxY + bxH / 2;
-                            
-                            let foundIndex = this._monitors.findIndex(mon => 
-                                cx >= mon.x && cx < mon.x + mon.width && cy >= mon.y && cy < mon.y + mon.height
-                            );
-                            
-                            if (foundIndex !== -1) {
-                                targetMonitorIndex = foundIndex;
-                            }
-                        }
-
-                        let panelH = Main.panel.height;
-                        let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
-                        
-                        for (let mon of this._monitors) {
-                            if (Math.abs(snapBxX - mon.x) < 30) snapBxX = mon.x;
-                            if (Math.abs(snapBxY - (mon.y + panelH)) < 30) snapBxY = mon.y + panelH;
-                            if (Math.abs(snapBxR - (mon.x + mon.width)) < 30) snapBxR = mon.x + mon.width;
-                            if (Math.abs(snapBxB - (mon.y + mon.height)) < 30) snapBxB = mon.y + mon.height;
-                        }
-                        
-                        bxX = snapBxX;
-                        bxY = snapBxY;
-                        bxW = snapBxR - bxX;
-                        bxH = snapBxB - bxY;
-
-                        this._manager.storage.saveCustomZoneRect(
-                            this._activeZoneName,
-                            { x: bxX, y: bxY, width: bxW, height: bxH },
-                            targetMonitorIndex
-                        );
-                        this._zonesModified = true;
-                        this._refreshZones(); 
-                    }
-                }
-
-                this._dragAction = null;
-                this._activeZoneName = null;
-                return Clutter.EVENT_STOP;
+                return this._currentState.onRelease(this);
             });
 
             this._refreshZones();
+        }
+
+        transitionTo(state) {
+            this._currentState = state;
         }
 
         _refreshToolbars() {
@@ -515,13 +600,20 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let rw = Math.max(450, Math.round(monitor.width * crw));
                     let rh = Math.max(400, Math.round(workAreaHeight * crh));
                     
+                    let isTemp = name.startsWith('__unnamed_') || cs.isTemporary;
+                    let displayName = isTemp ? '' : name;
+
                     let color = cs.color || '#2ecc71';
                     let borderCol = hexToRgba(color, 1.0);
+
+                    // Styling for temporary quick tiler zones
+                    let borderStyle = isTemp ? `2px dotted rgba(255, 255, 255, 0.6)` : `2px dashed ${borderCol}`;
+                    let bgStyle = isTemp ? `rgba(255, 255, 255, 0.05)` : `rgba(0,0,0,0.15)`;
 
                     let zoneBox = new St.Widget({
                         reactive: true,
                         x: rx, y: ry, width: rw, height: rh,
-                        style: `background-color: rgba(0,0,0,0.15); border: 2px dashed ${borderCol}; border-radius: 12px;`
+                        style: `background-color: ${bgStyle}; border: ${borderStyle}; border-radius: 12px;`
                     });
 
                     zoneBox.set_layout_manager(new Clutter.BinLayout());
@@ -534,7 +626,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     });
                     
                     let nameEntry = new St.Entry({
-                        text: name,
+                        text: displayName,
+                        hint_text: isTemp ? 'Unnamed Zone' : '',
                         style: `min-width: 120px; background-color: rgba(0,0,0,0.2); border-radius: 4px; color: white; font-weight: bold; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                         can_focus: true, reactive: true
                     });
@@ -543,7 +636,18 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         let newName = nameEntry.get_text().trim();
                         if (newName && newName !== name) {
                             let zones = this._manager.storage.getCustomSections();
-                            zones[newName] = zones[name];
+                            let oldData = zones[name];
+
+                            // Evolve the temporary zone into a permanent colored zone
+                            if (isTemp) {
+                                delete oldData.isTemporary;
+                                const COLORS = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c', '#2ecc71', '#ff7979'];
+                                let used = Object.values(zones).map(z => z.color);
+                                let available = COLORS.filter(c => !used.includes(c));
+                                oldData.color = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : COLORS[Math.floor(Math.random() * COLORS.length)];
+                            }
+
+                            zones[newName] = oldData;
                             delete zones[name];
                             this._manager.storage.setCustomSectionsAndSave(zones);
                             this._zonesModified = true;
@@ -652,15 +756,11 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
                         let [x, y] = event.get_coords();
                         
-                        this._dragAction = 'move';
-                        this._activeZoneName = name;
-
                         let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
                         let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-
-                        this._dragOffsetX = x - bxX;
-                        this._dragOffsetY = y - bxY;
+                        
                         this._currentDrawMonitorIndex = safeIndex;
+                        this.transitionTo(new MoveState(name, x - bxX, y - bxY, safeIndex));
 
                         return Clutter.EVENT_STOP;
                     });
@@ -674,9 +774,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             }
                             
                             if (this._promptBox.visible) this._hidePromptSafe();
-                            this._dragAction = 'resize';
-                            this._activeZoneName = name;
                             this._currentDrawMonitorIndex = safeIndex;
+                            this.transitionTo(new ResizeState(name, safeIndex));
                             return Clutter.EVENT_STOP;
                         }
                         return Clutter.EVENT_PROPAGATE;
@@ -696,9 +795,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
             
             this._captureId = global.stage.connect('captured-event', (_, event) => {
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
-                    if (this._dragAction) {
-                        this._dragAction = null;
-                        this._activeZoneName = null;
+                    if (!(this._currentState instanceof IdleState)) {
+                        this.transitionTo(new IdleState());
                         if (this._selection) this._selection.hide();
                         if (this._warningLabel) this._warningLabel.hide();
                         this._refreshZones(); 

@@ -1,4 +1,4 @@
-// layout_indicator.js
+// omnipanel/layout_indicator.js
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
@@ -27,6 +27,18 @@ export const LayoutIndicator = GObject.registerClass(
             this._rebuildMenu();
             
             Main.panel.addToStatusArea('omnipanel-layouts', this, 1, 'right');
+
+            this._syncVisibility = () => {
+                let isTilingOn = this.settings.get_boolean('enable-tiling');
+                let isAutoOn = this.settings.get_boolean('auto-tiling-enabled');
+                
+                // Hide the system tray button completely if pure window tiling is taking over
+                this.visible = !(isTilingOn && isAutoOn);
+            };
+
+            this._settingsChangedId1 = this.settings.connect('changed::enable-tiling', this._syncVisibility.bind(this));
+            this._settingsChangedId2 = this.settings.connect('changed::auto-tiling-enabled', this._syncVisibility.bind(this));
+            this._syncVisibility();
         }
 
         _escapeMarkup(text) {
@@ -44,14 +56,16 @@ export const LayoutIndicator = GObject.registerClass(
             this.menu.addMenuItem(panelToggle);
 
             let isTilingEnabled = this.settings.get_boolean('enable-tiling');
-            let tilingToggle = new PopupMenu.PopupSwitchMenuItem('Window Layouts', isTilingEnabled);
+            let isAutoTilingEnabled = this.settings.get_boolean('auto-tiling-enabled');
+            
+            let tilingToggle = new PopupMenu.PopupSwitchMenuItem('Window Management', isTilingEnabled);
             tilingToggle.connect('toggled', (_, state) => {
                 this.settings.set_boolean('enable-tiling', state);
                 this._rebuildMenu(); 
             });
             this.menu.addMenuItem(tilingToggle);
 
-            if (isTilingEnabled) {
+            if (isTilingEnabled && !isAutoTilingEnabled) {
                 this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
                 let designerToggle = new PopupMenu.PopupSwitchMenuItem('Zone Designer Mode', this._tilingManager.isDesignerActive);
@@ -63,6 +77,16 @@ export const LayoutIndicator = GObject.registerClass(
                     }
                 });
                 this.menu.addMenuItem(designerToggle);
+
+                // Add Quick Tiler Menu Item
+                let hotkeyRaw = this.settings.get_strv('quick-tiler-hotkey');
+                let hotkeyTxt = (hotkeyRaw && hotkeyRaw.length > 0) ? hotkeyRaw[0] : '<Super>g';
+                // Note: We intentionally don't escape markup here so <Super> doesn't turn into &lt;Super&gt;
+                let quickTilerItem = new PopupMenu.PopupMenuItem(`Quick Tiler Grid (${hotkeyTxt})`);
+                quickTilerItem.connect('activate', () => {
+                    this._tilingManager.showQuickTiler();
+                });
+                this.menu.addMenuItem(quickTilerItem);
 
                 let layoutsStr = this.settings.get_string('named-layouts');
                 let layouts = {};
@@ -121,6 +145,18 @@ export const LayoutIndicator = GObject.registerClass(
                 }
             });
             this.menu.addMenuItem(prefsItem);
+        }
+
+        destroy() {
+            if (this._settingsChangedId1) {
+                this.settings.disconnect(this._settingsChangedId1);
+                this._settingsChangedId1 = 0;
+            }
+            if (this._settingsChangedId2) {
+                this.settings.disconnect(this._settingsChangedId2);
+                this._settingsChangedId2 = 0;
+            }
+            super.destroy();
         }
     }
 );
