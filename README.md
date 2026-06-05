@@ -1,6 +1,13 @@
 # OmniPanel for GNOME Shell
 
-**OmniPanel** is a true multi-monitor panel extension and advanced window management system for GNOME Shell (versions 46, 47, and 50) OmniPanel is a powerful **Window Management and Tiling** engine featuring a visual Zone Designer, smart auto-placement, directional snapping, and pure automatic tiling algorithms. OmniPanel also introduces a revolutionary **Active Toolbar Movement** engine. Instead of cloning, OmniPanel dynamically sweeps the *real* native GNOME top bar directly to whichever monitor - you are actively using. This includes all your extensions to maximize productivity.
+**OmniPanel** is a true multi-monitor panel extension and advanced window management system for GNOME Shell (versions 46, 47, and 50) OmniPanel is a powerful **Window Management and Tiling** engine featuring a visual Zone Designer, smart auto-placement, directional snapping, and pure automatic tiling algorithms. 
+
+https://github.com/user-attachments/assets/3f818d5e-e8df-4233-9a10-aae4e615074e
+
+OmniPanel also introduces a revolutionary **Active Toolbar Movement** engine. Instead of cloning, OmniPanel dynamically sweeps the *real* native GNOME top bar directly to whichever monitor - you are actively using. This includes all your extensions to maximize productivity.
+
+
+
 
 ## Features
 
