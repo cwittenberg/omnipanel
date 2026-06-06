@@ -20,9 +20,15 @@ Steps to reproduce the behavior:
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
+**Debug log**
+- In About screen of the Extension enable debug
+- Then run journalctl -f -o cat /usr/bin/gnome-shell | tee -a ~/gnome-shell.log
+- Include output of gnome-shell.log in your bug report please.
+
 **Information (please complete the following):**
- - Tiling Shell version: [e.g. v9.0]
- - GNOME version: [e.g. 42, 46]. If you don't know, run `gnome-shell --version`
+ - OmniPanel version: [e.g. v10.0]
+ - Wayland or X11? If you don't know run `echo "$XDG_SESSION_TYPE`
+ - GNOME version: [e.g. 46, 50]. If you don't know, run `gnome-shell --version`
 
 **Additional context**
 Add any other context about the problem here.
