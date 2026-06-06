@@ -7,6 +7,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { getSectionRect, Sections, isWindowIgnored } from './layout_definitions.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
+import { applyStackLayout, getViableStackModes } from './layout_algorithms.js';
 
 // --- VIEW LAYER (MVC) ---
 const StackOverlayView = GObject.registerClass(
@@ -27,6 +28,7 @@ const StackOverlayView = GObject.registerClass(
             this.lastSignature = '';
             this.lastActualMode = 'stack';
             this.currentIndex = 0;
+            this._viableModes = { stack: true, grid: true, columns: true, rows: true };
             
             this._signalIds = [];
             this._timeouts = new Set();
@@ -128,7 +130,9 @@ const StackOverlayView = GObject.registerClass(
             });
 
             let bindStandardHover = (btn) => {
-                this._connectSignal(btn, 'notify::hover', () => btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle));
+                this._connectSignal(btn, 'notify::hover', () => {
+                    if (btn.reactive) btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle);
+                });
             };
             
             bindStandardHover(this.prevBtn);
@@ -140,7 +144,6 @@ const StackOverlayView = GObject.registerClass(
             this._bindModePreviewAndClick(this.modeRowsBtn, 'rows');
             this._bindModePreviewAndClick(this.modeGridBtn, 'grid');
 
-            // Native connect for self destruction
             this.connect('destroy', this._cleanup.bind(this));
         }
 
@@ -166,14 +169,22 @@ const StackOverlayView = GObject.registerClass(
 
             this._connectSignal(btn, 'button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { 
-                    this.stackManager.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${this.zone}`);
-                    if (!btn.reactive) return Clutter.EVENT_PROPAGATE;
+                    if (!this._viableModes[modeName]) {
+                        this.stackManager.manager._log(`[StackManager] Mode ${modeName} clicked but is not currently physically viable.`);
+                        return Clutter.EVENT_STOP;
+                    }
 
+                    this.stackManager.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${this.zone}`);
+                    
                     let cs = this.stackManager.manager.storage.getCustomSections();
                     if (!cs[this.zone]) cs[this.zone] = {}; 
                     cs[this.zone].stackMode = modeName;
                     this.stackManager.manager.storage.setCustomSectionsAndSave(cs);
                     
+                    for (let w of this.windows) {
+                        w._omnipanel_last_req = '';
+                    }
+
                     this.lastActualMode = modeName;
                     this.syncModeStyles();
                     
@@ -185,14 +196,8 @@ const StackOverlayView = GObject.registerClass(
                         this.nextBtn.hide();
                     }
                     
-                    btn.set_style(this.btnStyle + 'background-color: #2ecc71; color: #111;');
-
-                    for (let w of this.windows) {
-                        w._omnipanel_last_req = '';
-                    }
-
-                    this.stackManager.applyStackLayout(this.zone, this.windows, this.monitor, modeName);
                     this.stackManager.invalidateSignature(this.zone);
+                    this.stackManager.updateOverlays();
 
                     this._addTimeout(200, () => {
                         if (btn) this.syncModeStyles();
@@ -217,11 +222,23 @@ const StackOverlayView = GObject.registerClass(
             Main.activateWindow(this.windows[this.currentIndex]);
         }
 
+        updateViableModes(modes) {
+            this._viableModes = modes;
+            this.syncModeStyles();
+        }
+
         syncModeStyles() {
             let actualMode = this.lastActualMode || 'stack';
+            let viable = this._viableModes;
             
-            let applyStyle = (btn, modeName) => {
-                btn.reactive = true;
+            let applyStyle = (btn, modeName, isViable) => {
+                btn.reactive = isViable;
+                
+                if (!isViable) {
+                    btn.set_style(this.btnStyle + 'opacity: 0.25; color: #666;');
+                    return;
+                }
+
                 if (modeName === actualMode) {
                     btn.set_style(this.btnStyle + this.btnActiveStyle);
                 } else {
@@ -229,10 +246,10 @@ const StackOverlayView = GObject.registerClass(
                 }
             };
 
-            applyStyle(this.modeStackBtn, 'stack');
-            applyStyle(this.modeColsBtn, 'columns');
-            applyStyle(this.modeRowsBtn, 'rows');
-            applyStyle(this.modeGridBtn, 'grid');
+            applyStyle(this.modeStackBtn, 'stack', viable.stack);
+            applyStyle(this.modeColsBtn, 'columns', viable.columns);
+            applyStyle(this.modeRowsBtn, 'rows', viable.rows);
+            applyStyle(this.modeGridBtn, 'grid', viable.grid);
         }
 
         _onHoverChanged() {
@@ -374,66 +391,6 @@ export class StackManager {
         }
     }
 
-    applyStackLayout(zoneName, windows, monitorIndex, mode) {
-        let customSections = this.manager.storage.getCustomSections();
-        
-        let actualMonitor = monitorIndex;
-        if (customSections[zoneName] && customSections[zoneName].monitorIndex !== undefined) {
-            actualMonitor = customSections[zoneName].monitorIndex;
-        }
-
-        let zRect = getSectionRect(actualMonitor, zoneName, customSections);
-        if (!zRect || windows.length === 0) return;
-
-        let validWindows = windows.filter(w => w && w.get_workspace());
-        let count = validWindows.length;
-        if (count === 0) return;
-
-        for (let i = 0; i < count; i++) {
-            let win = validWindows[i];
-            
-            let rx = zRect.x;
-            let ry = zRect.y;
-            let rw = zRect.width;
-            let rh = zRect.height;
-
-            if (mode === 'grid') {
-                let cols = Math.ceil(Math.sqrt(count));
-                let rows = Math.ceil(count / cols);
-                let row = Math.floor(i / cols);
-                let col = i % cols;
-                
-                let itemsInThisRow = (row === rows - 1) ? (count - (row * cols)) : cols;
-                rw = zRect.width / itemsInThisRow;
-                rh = zRect.height / rows;
-                
-                rx = zRect.x + (col * rw);
-                ry = zRect.y + (row * rh);
-
-            } else if (mode === 'rows' || mode === 'horizontal') {
-                rh = zRect.height / count;
-                ry = zRect.y + (i * rh);
-                rw = zRect.width;
-                rx = zRect.x;
-
-            } else if (mode === 'columns' || mode === 'vertical') {
-                rw = zRect.width / count;
-                rx = zRect.x + (i * rw);
-                rh = zRect.height;
-                ry = zRect.y;
-            }
-            
-            let finalRect = {
-                x: Math.round(rx),
-                y: Math.round(ry),
-                width: Math.round(rw),
-                height: Math.round(rh)
-            };
-
-            applyWindowTransform(win, actualMonitor, finalRect, false, this.manager._log.bind(this.manager));
-        }
-    }
-
     _getStackZoneForWindow(win, customSections) {
         if (!win._omnipanel_zone) {
             return null;
@@ -556,9 +513,16 @@ export class StackManager {
             let evalMode = pMode;
             if (evalMode === 'horizontal') evalMode = 'rows';
             if (evalMode === 'vertical') evalMode = 'columns';
-            
+
+            // Calculate which layout modes are physically possible given window minimum sizes
+            let viableModes = getViableStackModes(stackWindows, zRect);
+
+            // Force override if user's target layout violates the bounds
             let actualMode = evalMode;
-            overlay.lastActualMode = actualMode;
+            if (!viableModes[actualMode]) {
+                this.manager._log(`[StackManager] Stack layout ${actualMode} is unviable due to bounds. Transforming ENTIRE STACK into on-top (stack) mode until windows are closed.`);
+                actualMode = 'stack'; // Fallback to safe layout
+            }
             
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
             let currentSignature = stackWindows.map(w => {
@@ -572,12 +536,16 @@ export class StackManager {
                 overlay.monitor = actualMonitor;
                 overlay.countLabel.set_text(count.toString());
                 
-                this.applyStackLayout(zone, stackWindows, actualMonitor, actualMode);
+                overlay.lastActualMode = actualMode;
+                overlay.updateViableModes(viableModes);
+                
+                applyStackLayout(stackWindows, actualMonitor, zRect, actualMode, this.manager._log.bind(this.manager));
             } else {
                 overlay.topWindow = topWindow;
+                // Keep viability synced in case window min sizes change dynamically
+                overlay.updateViableModes(viableModes);
             }
 
-            overlay.syncModeStyles();
             overlay.reposition();
             
             let isActiveStack = focusWindow && stackWindows.includes(focusWindow);

@@ -30,8 +30,6 @@ export class WaylandTransformStrategy {
     _isTargetGeometryReached(window, targetX, targetY, targetW, targetH) {
         try {
             let rect = window.get_frame_rect();
-            // Wayland CSDs (Client-Side Decorations) can sometimes introduce a shadow/border offset.
-            // Ensure high-dpi scale awareness is implemented so tolerances work accurately on fractional scaling.
             let scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
             let tolerance = 2 * scale;
             
@@ -57,7 +55,6 @@ export class WaylandTransformStrategy {
             
             if (task.isMax) {
                 if (!isAlreadyMax) task.window.maximize(Meta.MaximizeFlags.BOTH);
-                // Maximizing is atomic enough on Wayland, no retries needed.
                 this.activeTasks.delete(taskId); 
             } else {
                 if (isAlreadyMax || task.window.get_maximized() > 0) {
@@ -65,20 +62,21 @@ export class WaylandTransformStrategy {
                 }
                 
                 if (!this._isTargetGeometryReached(task.window, task.x, task.y, task.w, task.h)) {
-                    // Only blast the move_resize_frame if we are explicitly out of bounds
                     task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
                     
                     task.attempts--;
                     if (task.attempts > 0) {
-                        // Retry evaluation in 150ms. This acts as a net to catch windows that 
-                        // ignored the first request because they were busy mapping or unmaximizing.
                         this._safeTimeout(150, () => this._executeTask(taskId));
                     } else {
                         if (task.logger) task.logger(`[WaylandStrategy] Transform timed out after 3s for [${task.title}]`);
+                        try {
+                            let actual = task.window.get_frame_rect();
+                            if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
+                            if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
+                        } catch {}
                         this.activeTasks.delete(taskId);
                     }
                 } else {
-                    // Target reached. Clean up map.
                     this.activeTasks.delete(taskId);
                 }
             }
@@ -89,15 +87,9 @@ export class WaylandTransformStrategy {
     }
 
     applyTransform(task) {
-        // Initialize tracking (20 attempts * 150ms = 3.0 seconds maximum patience per window)
         task.attempts = 20; 
-        
-        // Set or Overwrite (Debouncing). If StackManager spams transforms for the same window,
-        // we simply update the target coordinates and reset the attempt counter, preventing queue jams.
         this.activeTasks.set(task.id, task);
-        
         if (task.logger) task.logger(`[WaylandStrategy] Committing transform [${task.title}] -> [X:${task.x} Y:${task.y} W:${task.w} H:${task.h}]`);
-        
         this._executeTask(task.id);
     }
 }

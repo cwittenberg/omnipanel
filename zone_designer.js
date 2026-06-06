@@ -87,6 +87,7 @@ class DrawState extends DesignerState {
             if (Math.abs(snapR - (mon.x + mon.width)) < snapTolerance) snapR = mon.x + mon.width;
             if (Math.abs(snapB - (mon.y + mon.height)) < snapTolerance) snapB = mon.y + mon.height;
         }
+
         sX = snapX;
         sY = snapY;
         sW = snapR - sX;
@@ -94,7 +95,6 @@ class DrawState extends DesignerState {
         
         designer._selection.set_position(sX, sY);
         designer._selection.set_size(sW, sH);
-
         designer._lastRect = { x: sX, y: sY, width: sW, height: sH };
 
         let px = sX;
@@ -104,10 +104,10 @@ class DrawState extends DesignerState {
         if (py + 60 > currMon.y + currMon.height) py = sY - 60; 
         if (px + 360 > currMon.x + currMon.width) px = currMon.x + currMon.width - 360; 
 
-        designer._entry.set_text('');
+        if (designer._entry) designer._entry.set_text('');
         designer._promptBox.set_position(px, py);
         designer._promptBox.show();
-        designer._entry.grab_key_focus();
+        if (designer._entry) designer._entry.grab_key_focus();
 
         designer.transitionTo(new IdleState());
         return Clutter.EVENT_STOP;
@@ -144,7 +144,6 @@ class MoveState extends DesignerState {
         let zoneBox = designer._zoneWidgets[this.zoneName];
         if (zoneBox) {
             let targetMonitorIndex = this.monitorIndex;
-
             let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
             let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
             let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
@@ -273,6 +272,7 @@ class ResizeState extends DesignerState {
         return Clutter.EVENT_STOP;
     }
 }
+
 // ------------------------------------
 
 export const ZoneDesignerRoot = GObject.registerClass(
@@ -305,7 +305,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.add_child(this._zonesContainer);
 
             let colors = getLayoutColors(manager);
-
             this._selection = new St.Widget({
                 style: `background-color: rgba(255,255,255,0.1); border: 2px solid ${colors.border}; border-radius: 12px;`,
                 visible: false
@@ -319,26 +318,27 @@ export const ZoneDesignerRoot = GObject.registerClass(
             });
             this.add_child(this._warningLabel);
 
-            this._promptBox = new St.BoxLayout({ 
-                 vertical: false, 
-                 visible: false, 
-                 reactive: true,
-                 style: 'background-color: rgba(40,40,40,0.95); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.5);' 
-             });
+            this._promptBox = new St.BoxLayout({
+                  vertical: false,
+                  visible: false,
+                  reactive: true,
+                 style: 'background-color: rgba(40,40,40,0.95); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.5);'
+              });
             
-            this._entry = new St.Entry({ 
-                 hint_text: t(this._manager.settings, 'Name this Zone...'), 
-                 style: `min-width: 220px; margin-right: 12px; padding: ${ENTRY_PADDING};`, 
-                 can_focus: true, 
-                 reactive: true 
-             });
+            this._entry = new St.Entry({
+                  hint_text: t(this._manager.settings, 'Name this Zone...'),
+                  style: `min-width: 220px; margin-right: 12px; padding: ${ENTRY_PADDING};`,
+                  can_focus: true,
+                  reactive: true
+              });
+            this._entry.connect('destroy', () => { this._entry = null; });
 
             let cancelBox = new St.BoxLayout({ vertical: false });
             let cancelIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
             let cancelLabel = new St.Label({ text: t(this._manager.settings, 'Cancel'), y_align: Clutter.ActorAlign.CENTER });
             cancelBox.add_child(cancelIcon);
             cancelBox.add_child(cancelLabel);
-
+            
             this._cancelBtn = new St.Button({
                 child: cancelBox,
                 style_class: 'button',
@@ -369,6 +369,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
              });
             
             let saveAction = () => {
+                if (!this._entry) return;
                 let name = this._entry.get_text().trim();
                 if (name && this._lastRect && this._currentDrawMonitorIndex >= 0) {
                     this._manager.storage.saveCustomZoneRect(name, this._lastRect, this._currentDrawMonitorIndex);
@@ -408,6 +409,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     y_align: Clutter.ActorAlign.CENTER,
                     reactive: true, track_hover: true, can_focus: true
                 });
+
                 cycleBtn.connect('clicked', () => {
                     manager.cycleLayouts();
                     this._refreshToolbars();
@@ -452,6 +454,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         this._refreshZones(); 
                     }
                 };
+
                 newLayoutBtn.connect('clicked', handleCreateLayout);
                 newLayoutEntry.clutter_text.connect('activate', handleCreateLayout);
 
@@ -461,7 +464,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 let spacer = new St.Widget({ x_expand: true, y_expand: true });
                 
                 let hintLabel = new St.Label({
-                    text: t(this._manager.settings, '💡 Right-click overlapping zones to send them to the back'),
+                    text: t(this._manager.settings, '  Right-click overlapping zones to send them to the back'),
                     y_align: Clutter.ActorAlign.CENTER,
                     style: 'color: rgba(255,255,255,0.7); font-weight: 500; margin-right: 24px;'
                 });
@@ -490,6 +493,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         quitBtn.set_style(`padding: ${BUTTON_PADDING}; height: ${QUIT_BUTTON_HEIGHT}px; background-color: #E95420; border: 1px solid #C84617; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);`);
                     }
                 });
+
                 quitBtn.connect('clicked', () => this.close());
                 
                 toolbar.add_child(titleLabel);
@@ -536,7 +540,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
             this.connect('motion-event', (_, event) => {
                 if (this._currentState instanceof IdleState || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
-
                 let [x, y] = event.get_coords();
                 return this._currentState.onMotion(this, x, y);
             });
@@ -562,16 +565,18 @@ export const ZoneDesignerRoot = GObject.registerClass(
         }
 
         _hidePromptSafe() {
-            if (this._entry && this._entry.clutter_text) {
-                this._entry.clutter_text.set_cursor_visible(false);
+            if (this._entry) {
+                try {
+                    this._entry.clutter_text.set_cursor_visible(false);
+                } catch {}
             }
+            
             global.stage.set_key_focus(this);
-
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 if (this._promptBox) {
                     this._promptBox.hide();
                     this._selection.hide();
-                    this._entry.set_text('');
+                    if (this._entry) this._entry.set_text('');
                 }
                 return GLib.SOURCE_REMOVE;
             });
@@ -726,6 +731,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     labelBox.add_child(zSaveBtn);
                     labelBox.add_child(sendToBackBtn);
                     labelBox.add_child(delBtn);
+
                     zoneBox.add_child(labelBox);
                     zoneBox.add_child(resizeHandle);
                     
@@ -771,12 +777,12 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         
                         this._currentDrawMonitorIndex = safeIndex;
                         this.transitionTo(new MoveState(name, x - bxX, y - bxY, safeIndex));
-
                         return Clutter.EVENT_STOP;
                     });
 
                     resizeHandle.connect('button-press-event', (_, event) => {
                         let button = event.get_button();
+
                         if (button === 1) {
                             if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
                                 this._zonesContainer.remove_child(zoneBox);
@@ -784,6 +790,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             }
                             
                             if (this._promptBox.visible) this._hidePromptSafe();
+
                             this._currentDrawMonitorIndex = safeIndex;
                             this.transitionTo(new ResizeState(name, safeIndex));
                             return Clutter.EVENT_STOP;
@@ -812,20 +819,24 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         this._refreshZones(); 
                         return Clutter.EVENT_STOP;
                     }
+
                     if (this._promptBox && this._promptBox.visible) {
                         this._hidePromptSafe();
                         return Clutter.EVENT_STOP;
                     }
+
                     let focus = global.stage.get_key_focus();
                     if (focus && focus.has_style_class_name && focus.has_style_class_name('new-layout-entry')) {
                         global.stage.set_key_focus(this);
                         return Clutter.EVENT_STOP;
                     }
+
                     this.close();
                     return Clutter.EVENT_STOP;
                 }
                 return Clutter.EVENT_PROPAGATE;
             });
+
             this.grab_key_focus();
         }
 
@@ -838,9 +849,12 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 this._captureId = 0;
             }
 
-            if (this._entry && this._entry.clutter_text) {
-                this._entry.clutter_text.set_cursor_visible(false);
+            if (this._entry) {
+                try {
+                    this._entry.clutter_text.set_cursor_visible(false);
+                } catch {}
             }
+
             global.stage.set_key_focus(null);
 
             if (this._pushedModal) {
@@ -849,17 +863,19 @@ export const ZoneDesignerRoot = GObject.registerClass(
             }
             
             let didModify = this._zonesModified;
-
+            
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                if (this.get_parent()) {
-                    Main.layoutManager.uiGroup.remove_child(this);
-                }
-                
-                this._cycleBtns = [];
-                this._zoneWidgets = {};
-                this._lastRect = null;
-                
-                this.destroy();
+                try {
+                    if (this.get_parent && this.get_parent()) {
+                        Main.layoutManager.uiGroup.remove_child(this);
+                    }
+                    this._cycleBtns = [];
+                    this._zoneWidgets = {};
+                    this._lastRect = null;
+                    
+                    this.destroy();
+                } catch {}
+
                 this._manager.onDesignerClosed(didModify);
                 return GLib.SOURCE_REMOVE;
             });

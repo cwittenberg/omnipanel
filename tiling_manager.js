@@ -4,581 +4,19 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { ZoneDesignerRoot } from './zone_designer.js';
 import { LayoutStorage } from './layout_storage.js';
 import { SnapEngine } from './snap_engine.js';
 import { StackManager } from './stack_manager.js';
-import { getSectionRect, fuzzyMatchAppToZone, Sections, calculateTitleSimilarity, isWindowValid, isWindowIgnored } from './layout_definitions.js';
+import { getSectionRect, fuzzyMatchAppToZone, Sections, calculateTitleSimilarity, isWindowIgnored } from './layout_definitions.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
+import { applyBSP, applyCascade, applyMasterStack } from './layout_algorithms.js';
 import { t } from './i18n.js';
 
-const QuickTilerOverlay = GObject.registerClass(
-    class QuickTilerOverlay extends St.Widget {
-        _init(tilingManager) {
-            super._init({
-                name: 'QuickTilerOverlay',
-                reactive: true,
-                style: 'background-color: rgba(0, 0, 0, 0.5);'
-            });
-            this.manager = tilingManager;
-            this.set_position(0, 0);
-            this.set_size(global.stage.width, global.stage.height);
-
-            this._targetWindow = global.display.get_focus_window();
-            
-            if (!this._targetWindow || this._targetWindow.get_window_type() !== Meta.WindowType.NORMAL) {
-                let workspace = global.workspace_manager.get_active_workspace();
-                let windows = global.display.get_tab_list(Meta.TabList.NORMAL, workspace);
-                if (windows.length > 0) {
-                    this._targetWindow = windows[0];
-                } else {
-                    this.destroy();
-                    return;
-                }
-            }
-
-            let [px, py] = global.get_pointer();
-            let pointerRect = new Meta.Rectangle({ x: Math.round(px), y: Math.round(py), width: 1, height: 1 });
-            this._monitorIndex = global.display.get_monitor_index_for_rect(pointerRect);
-            this._monitor = Main.layoutManager.monitors[this._monitorIndex];
-            
-            let panelH = Main.panel.height;
-            this._workX = this._monitor.x;
-            this._workY = this._monitor.y + panelH;
-            this._workW = this._monitor.width;
-            this._workH = this._monitor.height - panelH;
-
-            this._gridContainer = new St.Widget({
-                reactive: true,
-                style: 'background-color: rgba(20, 20, 20, 0.9); border: 2px solid #2ecc71; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8);'
-            });
-            
-            let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
-            let gridW = 400 * scaleFactor;
-            let gridH = 400 * scaleFactor;
-            let padding = 16 * scaleFactor;
-            let cellPadding = 4 * scaleFactor;
-            let gridOffset = 8 * scaleFactor;
-
-            this._gridContainer.set_size(gridW, gridH);
-            this._gridContainer.set_position(
-                this._monitor.x + (this._monitor.width - gridW)/2,
-                this._monitor.y + (this._monitor.height - gridH)/2
-            );
-            
-            this.add_child(this._gridContainer);
-
-            this._cells = [];
-            this._gridSize = 8;
-            this._startIndex = -1;
-            this._endIndex = -1;
-            this._isDragging = false;
-
-            let cellW = (gridW - padding) / this._gridSize;
-            let cellH = (gridH - padding) / this._gridSize;
-
-            for (let row = 0; row < this._gridSize; row++) {
-                for (let col = 0; col < this._gridSize; col++) {
-                    let cell = new St.Widget({
-                        reactive: true,
-                        style: 'background-color: rgba(255,255,255,0.1); border-radius: 4px; transition-duration: 100ms;'
-                    });
-                    cell.set_position(gridOffset + col * cellW, gridOffset + row * cellH);
-                    cell.set_size(cellW - cellPadding, cellH - cellPadding);
-                    
-                    cell._gridRow = row;
-                    cell._gridCol = col;
-                    cell._index = row * this._gridSize + col;
-                    
-                    this._cells.push(cell);
-                    this._gridContainer.add_child(cell);
-                }
-            }
-
-            this._promptBox = new St.BoxLayout({
-                vertical: false, visible: false, reactive: true,
-                style: 'background-color: rgba(40,40,40,0.95); padding: 12px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); border: 1px solid #555;'
-            });
-            
-            this._entry = new St.Entry({
-                hint_text: t(this.manager.settings, 'Name this Zone (or leave blank to just resize)...'),
-                style: 'min-width: 340px; padding: 8px; margin-right: 12px; border-radius: 6px;',
-                can_focus: true, reactive: true
-            });
-            
-            let saveBtn = new St.Button({ 
-                label: t(this.manager.settings, 'Apply'), 
-                style: 'background-color: #2ecc71; color: #111; font-weight: bold; padding: 6px 20px; border-radius: 6px;',
-                reactive: true, can_focus: true, track_hover: true
-            });
-            
-            saveBtn.connect('clicked', () => this._submitPrompt());
-            this._entry.clutter_text.connect('activate', () => this._submitPrompt());
-            
-            this._promptBox.add_child(this._entry);
-            this._promptBox.add_child(saveBtn);
-            this.add_child(this._promptBox);
-
-            this.connect('button-press-event', (actor, event) => {
-                let [x, y] = event.get_coords();
-                
-                if (this._promptBox.visible) {
-                    let pX = this._promptBox.x !== undefined ? this._promptBox.x : this._promptBox.get_x();
-                    let pY = this._promptBox.y !== undefined ? this._promptBox.y : this._promptBox.get_y();
-                    let pW = this._promptBox.width !== undefined ? this._promptBox.width : this._promptBox.get_width();
-                    let pH = this._promptBox.height !== undefined ? this._promptBox.height : this._promptBox.get_height();
-                    
-                    if (x >= pX && x <= pX + pW && y >= pY && y <= pY + pH) {
-                        return Clutter.EVENT_PROPAGATE; 
-                    }
-                }
-
-                let cell = this._getCellAt(x, y);
-                if (cell) {
-                    this._isDragging = true;
-                    this._startIndex = cell._index;
-                    this._endIndex = cell._index;
-                    this._updateHighlight();
-                } else {
-                    this.close(); 
-                }
-                return Clutter.EVENT_STOP;
-            });
-
-            this.connect('motion-event', (actor, event) => {
-                if (!this._isDragging) return Clutter.EVENT_PROPAGATE;
-                let [x, y] = event.get_coords();
-                let cell = this._getCellAt(x, y);
-                if (cell && cell._index !== this._endIndex) {
-                    this._endIndex = cell._index;
-                    this._updateHighlight();
-                }
-                return Clutter.EVENT_STOP;
-            });
-
-            this.connect('button-release-event', () => {
-                if (this._isDragging) {
-                    this._isDragging = false;
-                    this._applyTiling();
-                }
-                return Clutter.EVENT_STOP;
-            });
-
-            Main.layoutManager.uiGroup.add_child(this);
-            this._pushedModal = Main.pushModal(this);
-
-            this._captureId = this.manager.mediator.connectSignal(global.stage, 'captured-event', (_, event) => {
-                if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
-                    this.close();
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
-        }
-
-        _getCellAt(x, y) {
-            let gX = this._gridContainer.x;
-            let gY = this._gridContainer.y;
-            let gW = this._gridContainer.width;
-            let gH = this._gridContainer.height;
-            if (x < gX || x > gX + gW || y < gY || y > gY + gH) return null;
-            
-            let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
-            let padding = 16 * scaleFactor;
-            let gridOffset = 8 * scaleFactor;
-
-            let relX = x - gX - gridOffset;
-            let relY = y - gY - gridOffset;
-            let cellW = (gW - padding) / this._gridSize;
-            let cellH = (gH - padding) / this._gridSize;
-            
-            let col = Math.floor(relX / cellW);
-            let row = Math.floor(relY / cellH);
-            
-            col = Math.max(0, Math.min(col, this._gridSize - 1));
-            row = Math.max(0, Math.min(row, this._gridSize - 1));
-            
-            return this._cells[row * this._gridSize + col];
-        }
-
-        _updateHighlight() {
-            if (this._startIndex === -1 || this._endIndex === -1) return;
-            let sr = Math.floor(this._startIndex / this._gridSize);
-            let sc = this._startIndex % this._gridSize;
-            let er = Math.floor(this._endIndex / this._gridSize);
-            let ec = this._endIndex % this._gridSize;
-
-            let minR = Math.min(sr, er), maxR = Math.max(sr, er);
-            let minC = Math.min(sc, ec), maxC = Math.max(sc, ec);
-
-            for (let cell of this._cells) {
-                let isHighlighted = cell._gridRow >= minR && cell._gridRow <= maxR && cell._gridCol >= minC && cell._gridCol <= maxC;
-                if (isHighlighted) {
-                    cell.set_style('background-color: rgba(46, 204, 113, 0.7); border: 1px solid #2ecc71; border-radius: 4px; transition-duration: 50ms;');
-                } else {
-                    cell.set_style('background-color: rgba(255,255,255,0.1); border-radius: 4px; transition-duration: 100ms;');
-                }
-            }
-        }
-
-        _applyTiling() {
-            if (this._startIndex === -1 || this._endIndex === -1) {
-                this.close();
-                return;
-            }
-            
-            let sr = Math.floor(this._startIndex / this._gridSize);
-            let sc = this._startIndex % this._gridSize;
-            let er = Math.floor(this._endIndex / this._gridSize);
-            let ec = this._endIndex % this._gridSize;
-
-            let minR = Math.min(sr, er), maxR = Math.max(sr, er);
-            let minC = Math.min(sc, ec), maxC = Math.max(sc, ec);
-
-            let rx = minC / this._gridSize;
-            let ry = minR / this._gridSize;
-            let rw = (maxC - minC + 1) / this._gridSize;
-            let rh = (maxR - minR + 1) / this._gridSize;
-
-            this._targetRect = {
-                x: Math.round(this._workX + (this._workW * rx)),
-                y: Math.round(this._workY + (this._workH * ry)),
-                width: Math.round(this._workW * rw),
-                height: Math.round(this._workH * rh)
-            };
-            
-            this._targetRx = rx;
-            this._targetRy = ry;
-            this._targetRw = rw;
-            this._targetRh = rh;
-
-            this._gridContainer.hide();
-            
-            if (this.manager.isDesignerActive) {
-                let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
-                let pW = 440 * scaleFactor; 
-                let pH = 60 * scaleFactor;
-                this._promptBox.set_position(
-                    this._monitor.x + (this._monitor.width - pW) / 2,
-                    this._monitor.y + (this._monitor.height - pH) / 2
-                );
-                this._promptBox.show();
-                this._entry.grab_key_focus();
-            } else {
-                let unnamedKey = `__unnamed_${Date.now()}`;
-                let cs = this.manager.storage.getCustomSections();
-                cs[unnamedKey] = {
-                    rx: rx, ry: ry, rw: rw, rh: rh,
-                    monitorIndex: this._monitorIndex,
-                    color: '#7f8c8d', 
-                    isTemporary: true
-                };
-                this.manager.storage.setCustomSectionsAndSave(cs);
-
-                this._targetWindow._omnipanel_zone = unnamedKey;
-                this._targetWindow._omnipanel_monitor = this._monitorIndex;
-
-                let targetRect = this._targetRect;
-                let win = this._targetWindow;
-                let mon = this._monitorIndex;
-                let logger = this.manager._log.bind(this.manager);
-                
-                this.close(); 
-
-                this.manager.mediator.addIdle(() => {
-                    applyWindowTransform(win, mon, targetRect, false, logger);
-                    return GLib.SOURCE_REMOVE;
-                });
-
-                this.manager.mediator.addTimer(500, () => {
-                    this.manager.storage.saveCurrentLayoutStates();
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-        }
-
-        _submitPrompt() {
-            let name = this._entry.get_text().trim();
-            
-            if (name) {
-                let cs = this.manager.storage.getCustomSections();
-                cs[name] = {
-                    rx: this._targetRx, ry: this._targetRy, rw: this._targetRw, rh: this._targetRh,
-                    monitorIndex: this._monitorIndex,
-                    color: '#3498db',
-                    hotkeySlot: 0
-                };
-                this.manager.storage.setCustomSectionsAndSave(cs);
-                this._targetWindow._omnipanel_zone = name;
-                this._targetWindow._omnipanel_monitor = this._monitorIndex;
-            } else {
-                delete this._targetWindow._omnipanel_zone;
-                delete this._targetWindow._omnipanel_monitor;
-            }
-            
-            let targetRect = this._targetRect;
-            let win = this._targetWindow;
-            let mon = this._monitorIndex;
-            let logger = this.manager._log.bind(this.manager);
-            
-            this.close(); 
-
-            this.manager.mediator.addIdle(() => {
-                applyWindowTransform(win, mon, targetRect, false, logger);
-                return GLib.SOURCE_REMOVE;
-            });
-
-            this.manager.mediator.addTimer(500, () => {
-                this.manager.storage.saveCurrentLayoutStates();
-                return GLib.SOURCE_REMOVE;
-            });
-        }
-
-        close() {
-            if (this._captureId) {
-                this.manager.mediator.disconnectSignal(global.stage, this._captureId);
-                this._captureId = 0;
-            }
-            if (this._entry && this._entry.clutter_text) {
-                this._entry.clutter_text.set_cursor_visible(false);
-            }
-            global.stage.set_key_focus(null);
-
-            if (this._pushedModal) {
-                try { Main.popModal(this); } catch { }
-                this._pushedModal = false;
-            }
-            if (this.get_parent()) {
-                Main.layoutManager.uiGroup.remove_child(this);
-            }
-            this.destroy();
-        }
-    }
-);
-
-
-class LifecycleMediator {
-    constructor(logger) {
-        this._signals = [];
-        this._bindings = [];
-        this._timers = new Set();
-        this._logger = logger;
-    }
-
-    connectSignal(obj, signal, handler) {
-        let id = obj.connect(signal, handler);
-        this._signals.push({ obj, id });
-        return id;
-    }
-
-    disconnectSignal(obj, id) {
-        try { obj.disconnect(id); } catch {}
-        this._signals = this._signals.filter(s => s.id !== id);
-    }
-
-    bindShortcut(name, settings, handler) {
-        try { Main.wm.removeKeybinding(name); } catch {}
-        Main.wm.addKeybinding(name, settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT, Shell.ActionMode.NORMAL, handler);
-        this._bindings.push(name);
-    }
-
-    addTimer(delayMs, handler) {
-        let id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
-            let res = handler();
-            if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
-            return res;
-        });
-        this._timers.add(id);
-        return id;
-    }
-
-    addTimerSeconds(delaySec, handler) {
-        let id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, delaySec, () => {
-            let res = handler();
-            if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
-            return res;
-        });
-        this._timers.add(id);
-        return id;
-    }
-
-    addIdle(handler) {
-        let id = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            let res = handler();
-            if (res === GLib.SOURCE_REMOVE) this._timers.delete(id);
-            return res;
-        });
-        this._timers.add(id);
-        return id;
-    }
-
-    clearTimer(id) {
-        if (this._timers.has(id)) {
-            GLib.source_remove(id);
-            this._timers.delete(id);
-        }
-    }
-
-    destroy() {
-        for (let {obj, id} of this._signals) {
-            try { obj.disconnect(id); } catch {}
-        }
-        this._signals = [];
-
-        for (let name of this._bindings) {
-            try { Main.wm.removeKeybinding(name); } catch {}
-        }
-        this._bindings = [];
-
-        for (let id of this._timers) {
-            GLib.source_remove(id);
-        }
-        this._timers.clear();
-    }
-}
-
-class WindowBootstrapper {
-    constructor(window, mediator, settings, logger, placementCallback, tilingManager) {
-        this.window = window;
-        this.mediator = mediator;
-        this.settings = settings;
-        this.logger = logger;
-        this.placementCallback = placementCallback;
-        this.tilingManager = tilingManager;
-        
-        this.winId = 'unknown';
-        try { this.winId = window.get_id ? window.get_id() : 'unknown'; } catch {}
-        
-        this.attempts = 0;
-        this.maxAttempts = 15;
-        this.timerId = 0;
-
-        this._bootstrap();
-    }
-
-    _bootstrap() {
-        let title = 'unknown', wmClass = 'unknown';
-        try { title = this.window.get_title() || 'unknown'; wmClass = this.window.get_wm_class() || 'unknown'; } catch {}
-
-        this.logger(`[${this.winId}] ------------------------------------------------`);
-        this.logger(`[${this.winId}] 🪲 EXTREME DEBUG: NEW WINDOW DETECTED`);
-        this.logger(`[${this.winId}] 🪲 APP: ${wmClass} | TITLE: ${title}`);
-
-        try {
-            let rect = this.window.get_frame_rect();
-            this.logger(`[${this.winId}] 🪲 INITIAL COMPOSITOR SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
-            if (rect.width < 100 || rect.height < 100) {
-                this.logger(`[${this.winId}] 🚨 COMPOSITOR HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
-                this.mediator.addTimer(10, () => {
-                    if (isWindowValid(this.window)) {
-                        let m = Main.layoutManager.monitors[this.window.get_monitor() || 0] || Main.layoutManager.monitors[0];
-                        if (this.window.get_maximized() > 0) {
-                            this.window.unmaximize(Meta.MaximizeFlags.BOTH);
-                        }
-                        this.window.move_resize_frame(false, m.x + 100, m.y + 100, 800, 600);
-                    }
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-        } catch {}
-
-        try {
-            this.window._omnipanel_is_dead = false;
-
-            if (this.window._omnipanel_unmanaged_id === undefined) {
-                let sigId = this.mediator.connectSignal(this.window, 'unmanaged', () => {
-                    this.window._omnipanel_is_dead = true;
-                    if (this.timerId) {
-                        this.mediator.clearTimer(this.timerId);
-                        this.timerId = 0;
-                    }
-                    this.mediator.disconnectSignal(this.window, sigId);
-                    if (this.tilingManager) this.tilingManager.queueAutoTiling(); 
-                });
-                this.window._omnipanel_unmanaged_id = sigId;
-            }
-
-            let isSkipTaskbar = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
-            let isSkipPager = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
-
-            if (this.window.is_override_redirect() || isSkipTaskbar || isSkipPager) {
-                this.logger(`[${this.winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
-                return;
-            }
-
-            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
-            if (role === 'browser-tab' || role === 'pop-up') {
-                this.logger(`[${this.winId}] Ignoring browser tab or popup.`);
-                return;
-            }
-
-            let transient = this.window.get_transient_for();
-            if (transient !== null) {
-                this.logger(`[${this.winId}] Window is transient (dialog). Aborting entirely.`);
-                return; 
-            }
-
-            let wType = this.window.get_window_type();
-            if (wType !== Meta.WindowType.NORMAL) {
-                this.logger(`[${this.winId}] Window is not NORMAL. Aborting entirely.`);
-                return;
-            }
-        } catch {}
-
-        this.logger(`[${this.winId}] >> Starting rapid DBus metadata polling (50ms intervals)...`);
-        
-        this.timerId = this.mediator.addTimer(50, this._pollMetadata.bind(this));
-        
-        try {
-            this.mediator.connectSignal(this.window, 'size-changed', () => {});
-        } catch {}
-    }
-
-    _pollMetadata() {
-        if (this.window._omnipanel_is_dead || !isWindowValid(this.window)) {
-            this.timerId = 0;
-            this.logger(`[${this.winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
-            return GLib.SOURCE_REMOVE;
-        }
-
-        try {
-            let isSkipTaskbarNow = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
-            let isSkipPagerNow = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
-
-            if (isSkipTaskbarNow || isSkipPagerNow) {
-                this.logger(`[${this.winId}] Window became skip_taskbar during yield. Aborting.`);
-                return GLib.SOURCE_REMOVE;
-            }
-
-            let finalWmClass = this.window.get_wm_class() || '';
-            
-            if (!finalWmClass && this.attempts < this.maxAttempts) {
-                this.attempts++;
-                return GLib.SOURCE_CONTINUE;
-            }
-
-            this.timerId = 0;
-
-            if (!finalWmClass) {
-                this.logger(`[${this.winId}] Window has no wm_class after max attempts. Aborting.`);
-                return GLib.SOURCE_REMOVE;
-            }
-            
-            this.logger(`[${this.winId}] Metadata retrieved safely on attempt ${this.attempts + 1}. Moving to execution phase.`);
-            this.placementCallback(this.window, finalWmClass, this.window.get_title() || '', this.winId);
-            
-        } catch {
-            this.timerId = 0;
-            this.logger(`[${this.winId}] FATAL CATCH in Timer`);
-        }
-
-        return GLib.SOURCE_REMOVE;
-    }
-}
-
+import { QuickTilerOverlay } from './quick_tiler.js';
+import { LifecycleMediator, WindowBootstrapper } from './lifecycle.js';
 
 export default class TilingManager {
     constructor(settings) {
@@ -685,16 +123,18 @@ export default class TilingManager {
         this.mediator.destroy();
 
         if (this._quickTiler) {
-            this._quickTiler.close();
+            try { this._quickTiler.close(); } catch {}
             this._quickTiler = null;
         }
 
         if (this._activeOverlay) {
             try { Main.popModal(this._activeOverlay); } catch {}
-            if (this._activeOverlay.get_parent()) {
-                Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
-            }
-            this._activeOverlay.destroy();
+            try {
+                if (this._activeOverlay.get_parent && this._activeOverlay.get_parent()) {
+                    Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
+                }
+            } catch {}
+            try { this._activeOverlay.destroy(); } catch {}
             this._activeOverlay = null;
         }
 
@@ -703,7 +143,10 @@ export default class TilingManager {
 
     showQuickTiler() {
         if (!this._enabled) return;
-        if (this._quickTiler) this._quickTiler.close();
+        if (this._quickTiler) {
+            try { this._quickTiler.close(); } catch {}
+            this._quickTiler = null;
+        }
         this._quickTiler = new QuickTilerOverlay(this);
     }
 
@@ -755,98 +198,12 @@ export default class TilingManager {
             let wh = mon.height - panelHeight;
 
             if (mode === 'bsp') {
-                this._applyBSP(monWindows, wx, wy, ww, wh, gap, i);
+                applyBSP(monWindows, wx, wy, ww, wh, gap, i, this._log.bind(this));
             } else if (mode === 'cascade') {
-                this._applyCascade(monWindows, wx, wy, ww, wh, i);
+                applyCascade(monWindows, wx, wy, ww, wh, i, this._log.bind(this));
             } else if (mode === 'master-stack') {
-                this._applyMasterStack(monWindows, wx, wy, ww, wh, gap, i);
+                applyMasterStack(monWindows, wx, wy, ww, wh, gap, i, this._log.bind(this));
             }
-        }
-    }
-
-    _applyBSP(windows, x, y, w, h, gap, monitorIndex) {
-        if (windows.length === 0) return;
-        if (windows.length === 1) {
-            let rect = {
-                x: Math.round(x + gap),
-                y: Math.round(y + gap),
-                width: Math.round(w - 2 * gap),
-                height: Math.round(h - 2 * gap)
-            };
-            applyWindowTransform(windows[0], monitorIndex, rect, false, this._log.bind(this));
-            return;
-        }
-
-        let splitVertical = w > h;
-        let mid = Math.ceil(windows.length / 2);
-        if (splitVertical) {
-            let w1 = w / 2;
-            this._applyBSP(windows.slice(0, mid), x, y, w1, h, gap, monitorIndex);
-            this._applyBSP(windows.slice(mid), x + w1, y, w - w1, h, gap, monitorIndex);
-        } else {
-            let h1 = h / 2;
-            this._applyBSP(windows.slice(0, mid), x, y, w, h1, gap, monitorIndex);
-            this._applyBSP(windows.slice(mid), x, y + h1, w, h - h1, gap, monitorIndex);
-        }
-    }
-
-    _applyCascade(windows, x, y, w, h, monitorIndex) {
-        let offset = 40;
-        let tw = w * 0.7;
-        let th = h * 0.7;
-        for (let i = 0; i < windows.length; i++) {
-            let cx = x + ((i * offset) % Math.max(1, w - tw));
-            let cy = y + ((i * offset) % Math.max(1, h - th));
-            applyWindowTransform(windows[i], monitorIndex, {
-                x: Math.round(cx), y: Math.round(cy), width: Math.round(tw), height: Math.round(th)
-            }, false, this._log.bind(this));
-            
-            try { windows[i].raise(); } catch {}
-        }
-    }
-
-    _applyMasterStack(windows, x, y, w, h, gap, monitorIndex) {
-        if (windows.length === 0) return;
-        if (windows.length === 1) {
-            let rect = {
-                x: Math.round(x + gap),
-                y: Math.round(y + gap),
-                width: Math.round(w - 2 * gap),
-                height: Math.round(h - 2 * gap)
-            };
-            applyWindowTransform(windows[0], monitorIndex, rect, false, this._log.bind(this));
-            return;
-        }
-
-        // Master window gets left half
-        let masterW = Math.floor((w - 3 * gap) / 2); // 2 gaps on edges, 1 in middle
-        let masterRect = {
-            x: Math.round(x + gap),
-            y: Math.round(y + gap),
-            width: Math.round(masterW),
-            height: Math.round(h - 2 * gap)
-        };
-        applyWindowTransform(windows[0], monitorIndex, masterRect, false, this._log.bind(this));
-
-        // Stack gets right half
-        let stackX = Math.round(x + 2 * gap + masterW);
-        let stackW = Math.round(w - 3 * gap - masterW);
-        let stackCount = windows.length - 1;
-        let stackH = Math.floor((h - (stackCount + 1) * gap) / stackCount);
-
-        for (let i = 0; i < stackCount; i++) {
-            let win = windows[i + 1];
-            let rectY = Math.round(y + gap + i * (stackH + gap));
-            // Adjust last window height to fill remaining space precisely
-            let currentH = (i === stackCount - 1) ? Math.round(h - gap - (rectY - y)) : stackH;
-            
-            let rect = {
-                x: stackX,
-                y: rectY,
-                width: stackW,
-                height: currentH
-            };
-            applyWindowTransform(win, monitorIndex, rect, false, this._log.bind(this));
         }
     }
 
@@ -904,6 +261,7 @@ export default class TilingManager {
 
         let label = new St.Label({ text: title, style: 'font-weight: bold; font-size: 18px; margin-bottom: 16px; color: white;' });
         let entry = new St.Entry({ style: 'min-width: 300px; padding: 10px; border-radius: 6px; margin-bottom: 24px;', can_focus: true, reactive: true });
+        entry.connect('destroy', () => { entry = null; });
         
         let btnBox = new St.BoxLayout({ vertical: false, style: 'spacing: 16px;' });
         let cancelBtn = new St.Button({ label: t(this.settings, 'Cancel'), style: 'background-color: #444; color: white; padding: 8px 24px; border-radius: 6px;', reactive: true, can_focus: true, track_hover: true });
@@ -921,16 +279,19 @@ export default class TilingManager {
         this._activeOverlay = overlay;
 
         let pushedModal = Main.pushModal(overlay);
-        entry.grab_key_focus();
+        if (entry) entry.grab_key_focus();
 
         let isClosed = false;
         let closeOverlay = (runCallback, text) => {
             if (isClosed) return;
             isClosed = true;
 
-            if (entry && entry.clutter_text) {
-                entry.clutter_text.set_cursor_visible(false);
-            }
+            try {
+                if (entry && entry.clutter_text) {
+                    entry.clutter_text.set_cursor_visible(false);
+                }
+            } catch {}
+
             global.stage.set_key_focus(overlay);
 
             if (pushedModal) {
@@ -939,10 +300,12 @@ export default class TilingManager {
             }
 
             this.mediator.addIdle(() => {
-                if (overlay.get_parent()) {
-                    Main.layoutManager.uiGroup.remove_child(overlay);
-                }
-                overlay.destroy();
+                try {
+                    if (overlay && overlay.get_parent && overlay.get_parent()) {
+                        Main.layoutManager.uiGroup.remove_child(overlay);
+                    }
+                    if (overlay) overlay.destroy();
+                } catch {}
                 this._activeOverlay = null;
 
                 if (runCallback && callback) {
@@ -953,8 +316,8 @@ export default class TilingManager {
         };
 
         cancelBtn.connect('clicked', () => closeOverlay(false, null));
-        saveBtn.connect('clicked', () => closeOverlay(true, entry.get_text().trim()));
-        entry.clutter_text.connect('activate', () => closeOverlay(true, entry.get_text().trim()));
+        saveBtn.connect('clicked', () => closeOverlay(true, entry ? entry.get_text().trim() : ''));
+        entry.clutter_text.connect('activate', () => closeOverlay(true, entry ? entry.get_text().trim() : ''));
         
         overlay.connect('button-press-event', () => Clutter.EVENT_STOP);
         overlay.connect('key-press-event', (_, event) => {
@@ -1156,8 +519,8 @@ export default class TilingManager {
                 this._log(`[${winId}] NO MATCH: Ignoring window. Letting GNOME handle natively.`);
             }
 
-        } catch {
-            this._log(`[${winId}] FATAL CATCH in _executePlacement`);
+        } catch (e) {
+            this._log(`[${winId}] FATAL CATCH in _executePlacement: ${e}`);
         }
     }
 }

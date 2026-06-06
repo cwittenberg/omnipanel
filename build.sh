@@ -52,6 +52,9 @@ gnome-extensions pack "$EXT_NAME" \
     --extra-source=transform_wayland.js \
     --extra-source=transform_x11.js \
     --extra-source=window_manager_adapter.js \
+    --extra-source=quick_tiler.js \
+    --extra-source=lifecycle.js \
+    --extra-source=layout_algorithms.js \
     --extra-source=README.md \
     --extra-source=LICENSE \
     --force

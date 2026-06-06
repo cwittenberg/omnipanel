@@ -34,7 +34,7 @@ export function clearPendingTransforms() {
     }
 }
 
-export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null) {
+export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null, zoneRect = null) {
     if (!window) return;
     
     let winTitle = 'unknown';
@@ -46,33 +46,23 @@ export function applyWindowTransform(window, targetMonitorIndex, targetRect, isM
 
     if (window._omnipanel_is_dead) return;
 
-    let targetX = Number.isFinite(Number(targetRect.x)) ? targetRect.x : 0;
-    let targetY = Number.isFinite(Number(targetRect.y)) ? targetRect.y : 0;
-    let targetW = Number.isFinite(Number(targetRect.width)) ? targetRect.width : 400;
-    let targetH = Number.isFinite(Number(targetRect.height)) ? targetRect.height : 300;
+    let safeW = Math.max(50, Math.round(targetRect.width));
+    let safeH = Math.max(50, Math.round(targetRect.height));
+    let safeX = Math.round(targetRect.x);
+    let safeY = Math.round(targetRect.y);
 
-    let minW = 50, minH = 50;
-    try {
-        if (typeof window.get_min_size === 'function') {
-            let minSize = window.get_min_size();
-            if (Array.isArray(minSize) && minSize.length >= 2) {
-                if (minSize[0] > 0) minW = Math.max(minW, minSize[0]);
-                if (minSize[1] > 0) minH = Math.max(minH, minSize[1]);
-            }
-        }
-    } catch {}
+    let zX = zoneRect ? Math.round(zoneRect.x) : safeX;
+    let zY = zoneRect ? Math.round(zoneRect.y) : safeY;
+    let zW = zoneRect ? Math.round(zoneRect.width) : safeW;
+    let zH = zoneRect ? Math.round(zoneRect.height) : safeH;
 
-    let safeW = Math.max(minW, Math.round(targetW));
-    let safeH = Math.max(minH, Math.round(targetH));
-    let safeX = Math.round(targetX);
-    let safeY = Math.round(targetY);
-
-    if (logger) logger(`[WindowManagerAdapter] Routing transform request on [${winTitle}]`);
+    if (logger) logger(`[WindowManagerAdapter] Routing transform request on [${winTitle}] to [X:${safeX} Y:${safeY} W:${safeW} H:${safeH}]`);
 
     let task = {
         id: winId,
         window: window,
         x: safeX, y: safeY, w: safeW, h: safeH,
+        zoneX: zX, zoneY: zY, zoneW: zW, zoneH: zH,
         isMax: isMaximized,
         title: winTitle,
         logger: logger

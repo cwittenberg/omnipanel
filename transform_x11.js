@@ -1,11 +1,12 @@
 // omnipanel/transform_x11.js
 import Meta from 'gi://Meta';
+import GLib from 'gi://GLib';
 
 export class X11TransformStrategy {
     constructor() {}
 
     clear() {
-        // X11 transformations are synchronous and instantaneous, no queue memory required
+        // X11 transformations are synchronous
     }
 
     applyTransform(task) {
@@ -23,9 +24,39 @@ export class X11TransformStrategy {
                         task.window.unmaximize(Meta.MaximizeFlags.BOTH);
                     }
                     
-                    // CRITICAL FIX: user_op MUST be false for programmatic window movement.
-                    // Setting it to true causes the window manager to ignore the request under certain X11 environments.
                     task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
+
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                        if (task.window && !task.window._omnipanel_is_dead) {
+                            try {
+                                let actual = task.window.get_frame_rect();
+                                
+                                if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
+                                if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
+
+                                let zRight = task.zoneX + task.zoneW;
+                                let zBottom = task.zoneY + task.zoneH;
+
+                                let aRight = actual.x + actual.width;
+                                let aBottom = actual.y + actual.height;
+
+                                let shiftX = 0;
+                                let shiftY = 0;
+
+                                if (aRight > zRight) shiftX = zRight - aRight;
+                                if (aBottom > zBottom) shiftY = zBottom - aBottom;
+
+                                if (actual.x + shiftX < task.zoneX) shiftX = task.zoneX - actual.x;
+                                if (actual.y + shiftY < task.zoneY) shiftY = task.zoneY - actual.y;
+
+                                if (shiftX !== 0 || shiftY !== 0) {
+                                    if (task.logger) task.logger(`[X11Strategy] Correcting Zone Boundary Overflow for [${task.title}]: Shift X by ${shiftX}, Y by ${shiftY}`);
+                                    task.window.move_resize_frame(false, actual.x + shiftX, actual.y + shiftY, actual.width, actual.height);
+                                }
+                            } catch {}
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
                 }
             } catch (err) {
                 if (task.logger) task.logger(`[X11Strategy Error] ${err}`);
