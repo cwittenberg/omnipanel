@@ -35,6 +35,23 @@ function wrap(row) {
     return row;
 }
 
+function createLinkButton(title, uri, styleClass = null) {
+    const button = new Gtk.Button({
+        label: title,
+        valign: Gtk.Align.CENTER
+    });
+    
+    if (styleClass) {
+        button.add_css_class(styleClass);
+    }
+    
+    button.connect('clicked', () => {
+        Gio.app_info_launch_default_for_uri(uri, null);
+    });
+    
+    return button;
+}
+
 export function buildGuidePage(settings, dir) {
     const pageGuide = new Adw.PreferencesPage({
         title: t(settings, 'Guide'),
@@ -90,11 +107,13 @@ export function buildGuidePage(settings, dir) {
 
     // 3. Window Layouts & The Zone Designer
     const groupDesigner = new Adw.PreferencesGroup({ title: t(settings, 'Window Layouts & The Zone Designer') });
+
     groupDesigner.add(createFeatureRow(
         t(settings, 'Draw Your Workspace'),
         t(settings, 'Open the OmniPanel system tray menu and toggle "Zone Designer Mode". Click and drag your mouse on any monitor to draw a rectangular zone, name it, and hit Save.'),
         'document-edit-symbolic'
     ));
+
     groupDesigner.add(createFeatureRow(
         t(settings, 'Auto-Restore and Fuzzy Matching'),
         t(settings, 'Layouts are automatically saved based on your current monitor setup. Unplug and replug your screens, and your customized layouts return instantly.'),
@@ -104,16 +123,19 @@ export function buildGuidePage(settings, dir) {
 
     // 4. Smart Placement & Exclusions
     const groupPlacement = new Adw.PreferencesGroup({ title: t(settings, 'Smart Placement & Exclusions') });
+
     groupPlacement.add(createFeatureRow(
         t(settings, 'Auto-Routing and Affinity'),
         t(settings, 'Name a zone "Terminals" and apps like Alacritty snap there automatically. Drag a window into a different zone, and OmniPanel learns your preference permanently.'),
         'focus-windows-symbolic'
     ));
+
     groupPlacement.add(createFeatureRow(
         t(settings, 'Quick Desktop Access'),
         t(settings, 'Use the "Show Desktop" button in the top bar to instantly minimize and restore windows on your current monitor.'),
         'computer-symbolic'
     ));
+
     groupPlacement.add(createFeatureRow(
         t(settings, 'Ignored Applications'),
         t(settings, 'Define a comma-separated list of app names (like "steam" or "gimp") in the layout settings to keep OmniPanel from ever managing them.'),
@@ -125,6 +147,7 @@ export function buildGuidePage(settings, dir) {
         t(settings, 'OmniPanel teleports the active Top Bar to the monitor where your focus is. See your current time, system tray, and app indicators no matter which screen you are on.'),
         'video-display-symbolic'
     ));
+
     groupPlacement.add(createFeatureRow(
         t(settings, 'Active and Inactive Appearance'),
         t(settings, 'Highlight the active Top Bar with a custom color, or make inactive panels translucent and distraction-free.'),
@@ -140,6 +163,7 @@ export function buildGuidePage(settings, dir) {
         t(settings, 'When multiple windows share the exact same zone, a Stack Indicator appears. Hover over it to quickly cycle apps or seamlessly expand them into Stack, Column, Row, or Grid views.'),
         'view-grid-symbolic'
     ));
+
     groupHotkeys.add(createFeatureRow(
         t(settings, 'Directional Snapping and Cycling'),
         t(settings, 'Press Alt + Arrows to intuitively snap the active window into a neighboring Drop Zone. Bind a hotkey to instantly loop through your saved Layouts.'),
@@ -228,6 +252,36 @@ export function buildAboutPage(settings, metadata, dir) {
     rowDebugLogs.add_suffix(switchDebugLogs);
     groupAdvanced.add(wrap(rowDebugLogs));
 
+    // --- Support & Links Group ---
+    const groupLinks = new Adw.PreferencesGroup();
+
+    const linkBox = new Gtk.Box({
+        orientation: Gtk.Orientation.HORIZONTAL,
+        spacing: 12,
+        halign: Gtk.Align.CENTER,
+        margin_top: 24,
+        margin_bottom: 24
+    });
+
+    linkBox.append(createLinkButton(
+        t(settings, 'Buy me a coffee') + ' 💙☕',
+        'https://ko-fi.com/cwittenberg',
+        'suggested-action' // Adds a subtle highlight to the donation button
+    ));
+
+    linkBox.append(createLinkButton(
+        t(settings, 'Report a Bug') + ' 🪲',
+        'https://github.com/cwittenberg/omnipanel/issues/new?template=bug_report.md'
+    ));
+
+    linkBox.append(createLinkButton(
+        t(settings, 'Request a Feature'),
+        'https://github.com/cwittenberg/omnipanel/issues/new?template=feature_request.md'
+    ));
+
+    groupLinks.add(linkBox);
+
+    pageAbout.add(groupLinks);
     pageAbout.add(groupLang);
     pageAbout.add(groupAboutInfo);
     pageAbout.add(groupAdvanced);

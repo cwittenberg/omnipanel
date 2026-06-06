@@ -1,7 +1,9 @@
+// omnipanel/panel_mover.js
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import GnomeDesktop from 'gi://GnomeDesktop';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -11,9 +13,8 @@ const SecondaryPanel = GObject.registerClass(
             super._init({
                 name: 'panel',
                 reactive: true,
-                style_class: 'panel', 
-            });
-
+                style_class: 'panel',
+             });
             this.add_style_class_name('solid');
             this._monitorIndex = monitorIndex;
             this._ext = panelMoverInstance;
@@ -22,22 +23,62 @@ const SecondaryPanel = GObject.registerClass(
             
             this.set_size(monitor.width, Main.panel.height);
             this.set_position(monitor.x, monitor.y);
-
             this.layout_manager = new Clutter.BinLayout();
-
-            this._leftBox = new St.BoxLayout({ 
-                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.FILL 
-            });
-            this._centerBox = new St.BoxLayout({ 
-                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.FILL 
-            });
-            this._rightBox = new St.BoxLayout({ 
-                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.FILL 
-            });
-
+            
+            this._leftBox = new St.BoxLayout({
+                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.FILL
+             });
+            this._centerBox = new St.BoxLayout({
+                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.FILL
+             });
+            this._rightBox = new St.BoxLayout({
+                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.FILL
+             });
             this.add_child(this._leftBox);
             this.add_child(this._centerBox);
             this.add_child(this._rightBox);
+
+            // Catch the click to pass dragging to maximized windows
+            this.connect('button-press-event', this._onButtonPress.bind(this));
+        }
+
+        _onButtonPress(actor, event) {
+            if (event.get_source() !== actor)
+                return Clutter.EVENT_PROPAGATE;
+
+            let button = event.get_button();
+            if (button !== 1) // Only react to left-clicks
+                return Clutter.EVENT_PROPAGATE;
+
+            let focusWindow = global.display.get_focus_window();
+            if (!focusWindow)
+                return Clutter.EVENT_PROPAGATE;
+
+            // Ensure the window is fully maximized
+            let isMaximized = focusWindow.get_maximized() === Meta.MaximizeFlags.BOTH || focusWindow.get_maximized() === 3 || focusWindow.get_maximized() === true;
+            if (!isMaximized)
+                return Clutter.EVENT_PROPAGATE;
+
+            // Ensure the maximized window is actually on the monitor the user is dragging from
+            if (focusWindow.get_monitor() !== this._monitorIndex)
+                return Clutter.EVENT_PROPAGATE;
+
+            let [x, y] = event.get_coords();
+            
+            // Hand over the window drag operation to the window manager
+            global.display.begin_grab_op(
+                focusWindow,
+                Meta.GrabOp.MOVING,
+                false,
+                true,
+                button,
+                event.get_state(),
+                event.get_time(),
+                x,
+                y
+            );
+
+            return Clutter.EVENT_STOP;
         }
     }
 );
@@ -52,6 +93,7 @@ export default class PanelMover {
         this._activeMonitor = -1;
         this._lastTargetPanel = null;
         this._settingsChangedId = 0;
+        this._grabOpEndId = 0;
     }
 
     enable() {
@@ -62,6 +104,9 @@ export default class PanelMover {
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', this._createPanels.bind(this));
         
         this._settingsChangedId = this._settings.connect('changed', this._onSettingsChanged.bind(this));
+        
+        // Listen for the end of a window drag operation
+        this._grabOpEndId = global.display.connect('grab-op-end', this._onGrabOpEnd.bind(this));
 
         this._startMovementEngine();
     }
@@ -74,15 +119,40 @@ export default class PanelMover {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = 0;
         }
+
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
             this._settingsChangedId = 0;
+        }
+
+        if (this._grabOpEndId) {
+            global.display.disconnect(this._grabOpEndId);
+            this._grabOpEndId = 0;
         }
         
         this._stopMovementEngine();
         this._returnExtensionsToPrimary();
         this._removePlaceholders(Main.panel);
         this._destroyPanels();
+    }
+
+    _onGrabOpEnd(display, window, op) {
+        // Only react if the operation was moving a window
+        if (op !== Meta.GrabOp.MOVING || !window) return;
+
+        let [x, y] = global.get_pointer();
+
+        // Check if the user dropped the window on any of our secondary panels
+        for (let panel of this._panels) {
+            let [px, py] = panel.get_transformed_position();
+            let [pw, ph] = panel.get_transformed_size();
+
+            if (x >= px && x <= px + pw && y >= py && y <= py + ph) {
+                // Force maximize the window
+                window.maximize(Meta.MaximizeFlags.BOTH);
+                break;
+            }
+        }
     }
 
     _onSettingsChanged(settings, key) {
@@ -196,6 +266,7 @@ export default class PanelMover {
         
         let animStyle = this._settings.get_string('animation-style');
         let animDuration = this._settings.get_int('animation-duration');
+
         let isNewSwitch = (this._lastTargetPanel !== targetPanel && this._lastTargetPanel !== null);
 
         if (targetPanel._omniClock) targetPanel._omniClock.hide();
@@ -204,7 +275,7 @@ export default class PanelMover {
             let targetBox = targetPanel[boxName];
             
             for (let panel of allPanels) {
-                if (panel === targetPanel) continue; 
+                if (panel === targetPanel) continue;
                 
                 let sourceBox = panel[boxName];
                 if (!sourceBox) continue;
@@ -214,7 +285,7 @@ export default class PanelMover {
                     if (child._isOmniPlaceholder) continue;
 
                     sourceBox.remove_child(child);
-                    targetBox.add_child(child); 
+                    targetBox.add_child(child);
 
                     if (isNewSwitch && animStyle !== 'none') {
                         if (animStyle === 'fade') {
@@ -272,6 +343,7 @@ export default class PanelMover {
                 if (panel._omniClock) {
                     if (!panel._omniClock._isPrimaryPlaceholder || this._settings.get_boolean('show-clock')) {
                         panel._omniClock.show();
+
                         if (isNewSwitch && animStyle === 'fade') {
                             panel._omniClock.opacity = 0;
                             panel._omniClock.ease({ opacity: 255, duration: animDuration, mode: Clutter.AnimationMode.EASE_OUT_QUAD });
