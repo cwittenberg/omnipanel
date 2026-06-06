@@ -22,9 +22,9 @@ If applicable, add screenshots to help explain your problem.
 
 **Debug log**
 - In About screen of the Extension enable debug
-- Then run journalctl -f -o cat /usr/bin/gnome-shell | tee -a ~/gnome-shell.log
+- Then run `journalctl -f -o cat /usr/bin/gnome-shell | tee -a ~/gnome-shell.log`
 - Repeat the situation / error or even crash you get.
-- Include output of gnome-shell.log in your bug report please, you may need to login again to access it (in case of GNOME session issue).
+- Include output of `~/gnome-shell.log` in your bug report please, you may need to login again to access it (in case of GNOME session issue).
 
 **Information (please complete the following):**
  - OmniPanel version: [e.g. v10.0]
