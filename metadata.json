@@ -8,5 +8,8 @@
     "47",
     "50"    
   ],
-  "url": "https://github.com/cwittenberg/omnipanel"
+  "url": "https://github.com/cwittenberg/omnipanel",
+  "donations": {
+    "kofi": "cwittenberg"
+  }
 }

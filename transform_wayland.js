@@ -28,19 +28,15 @@ export class WaylandTransformStrategy {
     }
 
     _isTargetGeometryReached(window, targetX, targetY, targetW, targetH) {
-        try {
-            const rect = window.get_frame_rect();
-            const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
-            const tolerance = 2 * scale;
-            
-            const xMatch = Math.abs(rect.x - targetX) <= tolerance;
-            const yMatch = Math.abs(rect.y - targetY) <= tolerance;
-            const wMatch = Math.abs(rect.width - targetW) <= tolerance;
-            const hMatch = Math.abs(rect.height - targetH) <= tolerance;
-            return (xMatch && yMatch && wMatch && hMatch);
-        } catch {
-            return false;
-        }
+        const rect = window.get_frame_rect();
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
+        const tolerance = 2 * scale;
+        
+        const xMatch = Math.abs(rect.x - targetX) <= tolerance;
+        const yMatch = Math.abs(rect.y - targetY) <= tolerance;
+        const wMatch = Math.abs(rect.width - targetW) <= tolerance;
+        const hMatch = Math.abs(rect.height - targetH) <= tolerance;
+        return (xMatch && yMatch && wMatch && hMatch);
     }
 
     _executeTask(taskIdentifier) {
@@ -50,39 +46,32 @@ export class WaylandTransformStrategy {
             return;
         }
 
-        try {
-            const isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
+        const isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
+        
+        if (task.isMax) {
+            if (!isAlreadyMax) task.window.maximize(Meta.MaximizeFlags.BOTH);
+            this.activeTasks.delete(taskIdentifier); 
+        } else {
+            if (isAlreadyMax || task.window.get_maximized() > 0) {
+                task.window.unmaximize(Meta.MaximizeFlags.BOTH);
+            }
             
-            if (task.isMax) {
-                if (!isAlreadyMax) task.window.maximize(Meta.MaximizeFlags.BOTH);
-                this.activeTasks.delete(taskIdentifier); 
-            } else {
-                if (isAlreadyMax || task.window.get_maximized() > 0) {
-                    task.window.unmaximize(Meta.MaximizeFlags.BOTH);
-                }
+            if (!this._isTargetGeometryReached(task.window, task.x, task.y, task.w, task.h)) {
+                task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
                 
-                if (!this._isTargetGeometryReached(task.window, task.x, task.y, task.w, task.h)) {
-                    task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
-                    
-                    task.attempts--;
-                    if (task.attempts > 0) {
-                        this._safeTimeout(150, () => this._executeTask(taskIdentifier));
-                    } else {
-                        if (task.logger) task.logger(`[WaylandStrategy] Transform timed out after 3s for [${task.title}]`);
-                        try {
-                            const actual = task.window.get_frame_rect();
-                            if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
-                            if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
-                        } catch {}
-                        this.activeTasks.delete(taskIdentifier);
-                    }
+                task.attempts--;
+                if (task.attempts > 0) {
+                    this._safeTimeout(150, () => this._executeTask(taskIdentifier));
                 } else {
+                    if (task.logger) task.logger(`[WaylandStrategy] Transform timed out after 3s for [${task.title}]`);
+                    const actual = task.window.get_frame_rect();
+                    if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
+                    if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
                     this.activeTasks.delete(taskIdentifier);
                 }
+            } else {
+                this.activeTasks.delete(taskIdentifier);
             }
-        } catch (err) {
-            if (task.logger) task.logger(`[WaylandStrategy Error] ${err}`);
-            this.activeTasks.delete(taskIdentifier);
         }
     }
 
