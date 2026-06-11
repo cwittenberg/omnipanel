@@ -99,9 +99,41 @@ export class WindowBootstrapper {
         
         this.attempts = 0;
         this.maxAttempts = 15;
+        
+        // Ensure we explicitly track all timers/signals for strict cleanup
         this.timerId = 0;
+        this.titleTimerId = 0;
+        this.rescueTimerId = 0;
+        this.titleChangeSig = 0;
+        
+        this.placed = false;
 
         this._bootstrap();
+    }
+
+    _cleanup() {
+        if (this.timerId) {
+            this.mediator.clearTimer(this.timerId);
+            this.timerId = 0;
+        }
+        if (this.titleTimerId) {
+            this.mediator.clearTimer(this.titleTimerId);
+            this.titleTimerId = 0;
+        }
+        if (this.rescueTimerId) {
+            this.mediator.clearTimer(this.rescueTimerId);
+            this.rescueTimerId = 0;
+        }
+        if (this.titleChangeSig && this.window) {
+            this.mediator.disconnectSignal(this.window, this.titleChangeSig);
+            this.titleChangeSig = 0;
+        }
+        if (this.window && this.window._omnipanel_unmanaged_id) {
+            this.mediator.disconnectSignal(this.window, this.window._omnipanel_unmanaged_id);
+            this.window._omnipanel_unmanaged_id = undefined;
+        }
+        // Free window reference to ensure garbage collection
+        this.window = null;
     }
 
     _bootstrap() {
@@ -117,7 +149,8 @@ export class WindowBootstrapper {
             this.logger(`[${this.winId}] 🪲 INITIAL COMPOSITOR SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
             if (rect.width < 100 || rect.height < 100) {
                 this.logger(`[${this.winId}] 🚨 COMPOSITOR HEALER: Rescuing 0x0 window. Instantly applying safe float.`);
-                this.mediator.addTimer(10, () => {
+                this.rescueTimerId = this.mediator.addTimer(10, () => {
+                    this.rescueTimerId = 0;
                     if (isWindowValid(this.window)) {
                         let m = Main.layoutManager.monitors[this.window.get_monitor() || 0] || Main.layoutManager.monitors[0];
                         if (this.window.get_maximized() > 0) {
@@ -134,15 +167,11 @@ export class WindowBootstrapper {
             this.window._omnipanel_is_dead = false;
 
             if (this.window._omnipanel_unmanaged_id === undefined) {
-                // WindowBootstrapper is a plain class, NOT a GObject, so we must use the Mediator here
                 let sigId = this.mediator.connectSignal(this.window, 'unmanaged', () => {
-                    this.window._omnipanel_is_dead = true;
-                    if (this.timerId) {
-                        this.mediator.clearTimer(this.timerId);
-                        this.timerId = 0;
-                    }
-                    this.mediator.disconnectSignal(this.window, sigId);
+                    if (this.window) this.window._omnipanel_is_dead = true;
                     if (this.tilingManager) this.tilingManager.queueAutoTiling(); 
+                    
+                    this._cleanup(); // Trigger full strict cleanup
                 });
                 this.window._omnipanel_unmanaged_id = sigId;
             }
@@ -150,26 +179,22 @@ export class WindowBootstrapper {
             let isSkipTaskbar = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
             let isSkipPager = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
 
-            if (this.window.is_override_redirect() || isSkipTaskbar || isSkipPager) {
+            let wType = this.window.get_window_type();
+            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
+            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
+
+            if (this.window.is_override_redirect() || (!isDialog && (isSkipTaskbar || isSkipPager))) {
                 this.logger(`[${this.winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
                 return;
             }
 
-            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
-            if (role === 'browser-tab' || role === 'pop-up') {
-                this.logger(`[${this.winId}] Ignoring browser tab or popup.`);
+            if (role === 'browser-tab') {
+                this.logger(`[${this.winId}] Ignoring browser tab.`);
                 return;
             }
 
-            let transient = this.window.get_transient_for();
-            if (transient !== null) {
-                this.logger(`[${this.winId}] Window is transient (dialog). Aborting entirely.`);
-                return; 
-            }
-
-            let wType = this.window.get_window_type();
-            if (wType !== Meta.WindowType.NORMAL) {
-                this.logger(`[${this.winId}] Window is not NORMAL. Aborting entirely.`);
+            if (wType !== Meta.WindowType.NORMAL && !isDialog) {
+                this.logger(`[${this.winId}] Window is not NORMAL or DIALOG. Aborting entirely.`);
                 return;
             }
         } catch {}
@@ -179,14 +204,39 @@ export class WindowBootstrapper {
         this.timerId = this.mediator.addTimer(50, this._pollMetadata.bind(this));
         
         try {
-            this.mediator.connectSignal(this.window, 'size-changed', () => {});
+            // Add dynamic title observation for late-updating windows (like VS Code terminals)
+            // Seems to be no other (more elegant) solution than to keep this listener active during the entire grace period, and remove it explicitly after 2000ms
+            let initialTitle = this.window.get_title() || '';
+            this.titleChangeSig = this.mediator.connectSignal(this.window, 'notify::title', () => {
+                if (!this.window || !isWindowValid(this.window)) return;
+                let newTitle = this.window.get_title() || '';
+                if (newTitle && newTitle !== initialTitle) {
+                    this.logger(`[${this.winId}] 🪲 TITLE CHANGED during grace period: '${initialTitle}' -> '${newTitle}'`);
+                    initialTitle = newTitle;
+                    if (this.placed) {
+                        this.logger(`[${this.winId}] Re-evaluating placement due to late title update.`);
+                        this.placementCallback(this.window, this.window.get_wm_class() || '', newTitle, this.winId);
+                    }
+                }
+            });
+
+            // Remove the title listener explicitly after 2000ms
+            this.titleTimerId = this.mediator.addTimer(2000, () => {
+                this.titleTimerId = 0;
+                if (this.titleChangeSig && this.window) {
+                    this.mediator.disconnectSignal(this.window, this.titleChangeSig);
+                    this.titleChangeSig = 0;
+                }
+                return GLib.SOURCE_REMOVE;
+            });
         } catch {}
     }
 
     _pollMetadata() {
-        if (this.window._omnipanel_is_dead || !isWindowValid(this.window)) {
+        if (!this.window || this.window._omnipanel_is_dead || !isWindowValid(this.window)) {
             this.timerId = 0;
             this.logger(`[${this.winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
+            this._cleanup();
             return GLib.SOURCE_REMOVE;
         }
 
@@ -194,8 +244,13 @@ export class WindowBootstrapper {
             let isSkipTaskbarNow = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
             let isSkipPagerNow = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
 
-            if (isSkipTaskbarNow || isSkipPagerNow) {
+            let wType = this.window.get_window_type();
+            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
+            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
+
+            if (!isDialog && (isSkipTaskbarNow || isSkipPagerNow)) {
                 this.logger(`[${this.winId}] Window became skip_taskbar during yield. Aborting.`);
+                this.timerId = 0;
                 return GLib.SOURCE_REMOVE;
             }
 
@@ -214,6 +269,7 @@ export class WindowBootstrapper {
             }
             
             this.logger(`[${this.winId}] Metadata retrieved safely on attempt ${this.attempts + 1}. Moving to execution phase.`);
+            this.placed = true;
             this.placementCallback(this.window, finalWmClass, this.window.get_title() || '', this.winId);
             
         } catch {

@@ -7,7 +7,7 @@ import { DEFAULT_APP_DICTIONARY, DEFAULT_CATEGORY_MAP } from './defaults.js';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (row) {
+    if (row && row.set_subtitle_lines) {
         row.set_subtitle_lines(0);
     }
     return row;

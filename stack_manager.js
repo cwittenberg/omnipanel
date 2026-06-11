@@ -344,7 +344,7 @@ export class StackManager {
         }
     }
     _getStackZoneForWindow(win, customSections) {
-        if (!win._omnipanel_zone) {
+        if (!win._omnipanel_zone || win._omnipanel_zone === 'maximized' || win._omnipanel_zone === 'Maximize') {
             return null;
         }
         let isStandard = Object.values(Sections).includes(win._omnipanel_zone);
@@ -368,12 +368,14 @@ export class StackManager {
                 let actor = w.get_compositor_private();
                 if (!actor || actor.is_destroyed()) return false;
                 
-                let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
-                let isSkipPager = typeof w.is_skip_pager === 'function' ? w.is_skip_pager() : false;
-                if (isSkipTaskbar || isSkipPager) return false;
                 let wType = w.get_window_type();
+                let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
+                let role = typeof w.get_role === 'function' ? w.get_role() : '';
+                let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || w.get_transient_for() !== null);
+
+                if (isDialog) return false;
+
                 if (w.is_override_redirect() || wType !== Meta.WindowType.NORMAL) return false;
-                if (w.get_transient_for() !== null) return false;
                 
                 let ws = w.get_workspace();
                 return ws === activeWs || w.is_on_all_workspaces() || !ws;

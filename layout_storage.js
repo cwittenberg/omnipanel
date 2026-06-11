@@ -39,6 +39,8 @@ export class LayoutStorage {
                 if (!window || !window.get_display()) continue;
                 if (window.is_override_redirect()) continue;
                 if (window.get_transient_for() !== null) continue;
+                let wType = window.get_window_type();
+                if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
                 if (isWindowIgnored(window, this.settings)) continue;
                 
                 let monitorIndex = window.get_monitor();
@@ -228,6 +230,8 @@ export class LayoutStorage {
             try {
                 if (!window || !window.get_display() || window.is_override_redirect()) continue;
                 if (window.get_transient_for() !== null) continue;
+                let wType = window.get_window_type();
+                if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
                 if (isWindowIgnored(window, this.settings)) continue;
 
                 let wmClass = window.get_wm_class();

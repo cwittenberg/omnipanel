@@ -297,7 +297,9 @@ export class SnapEngine {
     snapToZoneSlot(slotId) {
         let window = global.display.get_focus_window();
         try {
-            if (!window || !window.get_display() || window.get_window_type() !== Meta.WindowType.NORMAL) return;
+            if (!window || !window.get_display()) return;
+            let wType = window.get_window_type();
+            if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
             if (isWindowIgnored(window, this.settings)) return;
         } catch { return; }
 
@@ -328,7 +330,9 @@ export class SnapEngine {
     snapDirection(dir) {
         let window = global.display.get_focus_window();
         try {
-            if (!window || !window.get_display() || window.get_window_type() !== Meta.WindowType.NORMAL) return;
+            if (!window || !window.get_display()) return;
+            let wType = window.get_window_type();
+            if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
             if (isWindowIgnored(window, this.settings)) return;
         } catch { return; }
 

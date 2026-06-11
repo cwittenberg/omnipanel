@@ -187,9 +187,14 @@ export default class TilingManager {
                 if (isWindowIgnored(w, this.settings)) return false;
                 let actor = w.get_compositor_private();
                 if (!actor || actor.is_destroyed()) return false;
-                if (w.is_override_redirect() || w.get_transient_for() !== null) return false;
+                
+                let wType = w.get_window_type();
                 let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
-                if (isSkipTaskbar) return false;
+                let role = typeof w.get_role === 'function' ? w.get_role() : '';
+                let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || w.get_transient_for() !== null);
+
+                if (w.is_override_redirect() || isDialog) return false;
+                
                 return true;
             });
             
@@ -473,6 +478,7 @@ export default class TilingManager {
             }
 
             let matchedZone = null;
+            let fuzzyData = null;
             if (this.settings.get_boolean('enable-smart-placement')) {
                 let appDictStr = this.settings.get_string('app-dictionary');
                 let catMapStr = this.settings.get_string('category-map');
@@ -487,7 +493,7 @@ export default class TilingManager {
                     try { catMap = JSON.parse(catMapStr); } catch {}
                 }
 
-                let fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState), appDict, catMap);
+                fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState), appDict, catMap);
                 if (fuzzyData) {
                     matchedZone = fuzzyData.zone;
                 }
@@ -500,7 +506,20 @@ export default class TilingManager {
 
             let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
 
-            if (hasExplicitSection) {
+            let parent = window.get_transient_for();
+            let wType = window.get_window_type();
+            let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
+            let role = typeof window.get_role === 'function' ? window.get_role() : '';
+
+            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || parent !== null);
+
+            if (fuzzyData && fuzzyData.isExplicit) {
+                targetZoneName = fuzzyData.zone;
+                isDialog = false;
+            } else if (parent && parent._omnipanel_zone) {
+                targetZoneName = parent._omnipanel_zone;
+                targetMonitor = parent._omnipanel_monitor !== undefined ? parent._omnipanel_monitor : parent.get_monitor();
+            } else if (hasExplicitSection) {
                 targetZoneName = layout.section;
             } else if (matchedZone) {
                 targetZoneName = matchedZone;
@@ -508,24 +527,42 @@ export default class TilingManager {
 
             if (targetZoneName) {
                 this._log(`[${winId}] MATCH FOUND: Zone [${targetZoneName}]`);
-                targetMonitor = liveZonesState[targetZoneName] && liveZonesState[targetZoneName].monitorIndex !== undefined ? liveZonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
+                if (!parent || parent._omnipanel_monitor === undefined) {
+                    targetMonitor = liveZonesState[targetZoneName] && liveZonesState[targetZoneName].monitorIndex !== undefined ? liveZonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
+                }
                 targetRect = getSectionRect(targetMonitor, targetZoneName, liveZonesState);
                 isMax = (targetZoneName === 'maximized' || (hasExplicitSection && layout.section === 'maximized'));
+
+                if (isDialog) {
+                    isMax = false;
+                    let currentRect = window.get_frame_rect();
+                    let w = currentRect.width > 10 ? currentRect.width : 400;
+                    let h = currentRect.height > 10 ? currentRect.height : 300;
+                    if (w > targetRect.width) w = targetRect.width;
+                    if (h > targetRect.height) h = targetRect.height;
+                    
+                    let cx = targetRect.x + (targetRect.width - w) / 2;
+                    let cy = targetRect.y + (targetRect.height - h) / 2;
+                    targetRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(w), height: Math.round(h) };
+                    this._log(`[${winId}] Window is Dialog/Transient. Centering in zone instead of maximizing/stretching.`);
+                }
 
                 if (targetRect) {
                     window._omnipanel_zone = targetZoneName;
                     window._omnipanel_monitor = targetMonitor;
-                    
+
                     this._log(`[${winId}] Target zone resolved. Triggering applyWindowTransform on monitor ${targetMonitor}`);
                     applyWindowTransform(window, targetMonitor, targetRect, isMax, this._log.bind(this));
                     
-                    this.mediator.addTimer(200, () => {
-                        if (this.stackManager) {
-                            this.stackManager.invalidateSignature(targetZoneName);
-                            try { this.stackManager.updateOverlays(); } catch {}
-                        }
-                        return GLib.SOURCE_REMOVE;
-                    });
+                    if (!isDialog) {
+                        this.mediator.addTimer(200, () => {
+                            if (this.stackManager) {
+                                this.stackManager.invalidateSignature(targetZoneName);
+                                try { this.stackManager.updateOverlays(); } catch {}
+                            }
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    }
                 } else {
                      this._log(`[${winId}] ERROR: getSectionRect returned null for [${targetZoneName}]`);
                 }
