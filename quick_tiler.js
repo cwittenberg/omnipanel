@@ -5,7 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { t } from './i18n.js';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
 
 export const QuickTilerOverlay = GObject.registerClass(
@@ -97,26 +97,26 @@ export const QuickTilerOverlay = GObject.registerClass(
             });
             
             this._entry = new St.Entry({
-                hint_text: t(this.manager.settings, 'Name this Zone (or leave blank to just resize)...'),
+                hint_text: _('Name this Zone (or leave blank to just resize)...'),
                 style: 'min-width: 340px; padding: 8px; margin-right: 12px; border-radius: 6px;',
                 can_focus: true, reactive: true
             });
-            this._entry.connect('destroy', () => { this._entry = null; });
+            this._entry.connectObject('destroy', () => { this._entry = null; }, this);
             
             let saveBtn = new St.Button({ 
-                label: t(this.manager.settings, 'Apply'), 
+                label: _('Apply'), 
                 style: 'background-color: #2ecc71; color: #111; font-weight: bold; padding: 6px 20px; border-radius: 6px;',
                 reactive: true, can_focus: true, track_hover: true
             });
             
-            saveBtn.connect('clicked', () => this._submitPrompt());
-            this._entry.clutter_text.connect('activate', () => this._submitPrompt());
+            saveBtn.connectObject('clicked', () => this._submitPrompt(), this);
+            this._entry.clutter_text.connectObject('activate', () => this._submitPrompt(), this);
             
             this._promptBox.add_child(this._entry);
             this._promptBox.add_child(saveBtn);
             this.add_child(this._promptBox);
 
-            this.connect('button-press-event', (actor, event) => {
+            this.connectObject('button-press-event', (actor, event) => {
                 let [x, y] = event.get_coords();
                 
                 if (this._promptBox.visible) {
@@ -140,9 +140,9 @@ export const QuickTilerOverlay = GObject.registerClass(
                     this.close(); 
                 }
                 return Clutter.EVENT_STOP;
-            });
+            }, this);
 
-            this.connect('motion-event', (actor, event) => {
+            this.connectObject('motion-event', (actor, event) => {
                 if (!this._isDragging) return Clutter.EVENT_PROPAGATE;
                 let [x, y] = event.get_coords();
                 let cell = this._getCellAt(x, y);
@@ -151,15 +151,15 @@ export const QuickTilerOverlay = GObject.registerClass(
                     this._updateHighlight();
                 }
                 return Clutter.EVENT_STOP;
-            });
+            }, this);
 
-            this.connect('button-release-event', () => {
+            this.connectObject('button-release-event', () => {
                 if (this._isDragging) {
                     this._isDragging = false;
                     this._applyTiling();
                 }
                 return Clutter.EVENT_STOP;
-            });
+            }, this);
 
             Main.layoutManager.uiGroup.add_child(this);
             this._pushedModal = Main.pushModal(this);

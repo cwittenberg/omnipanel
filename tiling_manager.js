@@ -13,7 +13,7 @@ import { StackManager } from './stack_manager.js';
 import { getSectionRect, fuzzyMatchAppToZone, Sections, calculateTitleSimilarity, isWindowIgnored } from './layout_definitions.js';
 import { applyWindowTransform } from './window_manager_adapter.js';
 import { applyBSP, applyCascade, applyMasterStack } from './layout_algorithms.js';
-import { t } from './i18n.js';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { QuickTilerOverlay } from './quick_tiler.js';
 import { LifecycleMediator, WindowBootstrapper } from './lifecycle.js';
@@ -48,41 +48,47 @@ export default class TilingManager {
     enable() {
         if (this._enabled) return;
         this._enabled = true;
-        this._log("Extension ENABLED. Registering listeners via Mediator.");
+        this._log("Extension ENABLED. Registering listeners via Object tracking.");
 
         this.settings.set_boolean('designer-active', false);
         
-        this.mediator.connectSignal(this.settings, 'changed::designer-active', () => {
-            let isActive = this.settings.get_boolean('designer-active');
-            if (isActive && !this.isDesignerActive) {
-                this.startZoneDesigner();
-            } else if (!isActive && this.isDesignerActive) {
-                this.stopZoneDesigner();
-            }
-        });
-
-        this.mediator.connectSignal(this.settings, 'changed::named-layouts', () => {
-            let layouts = {};
-            try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch {}
-            if (this.activeLayoutName && !layouts[this.activeLayoutName]) {
-                this._log(`Active layout [${this.activeLayoutName}] was deleted. Purging unmanaged zones.`);
-                this.activeLayoutName = null;
-                this.settings.set_string('custom-sections', '{}');
-                this.stackManager.clearOverlays();
-                if (this.isDesignerActive) {
-                    this.settings.set_boolean('designer-active', false);
+        this.settings.connectObject(
+            'changed::designer-active', () => {
+                let isActive = this.settings.get_boolean('designer-active');
+                if (isActive && !this.isDesignerActive) {
+                    this.startZoneDesigner();
+                } else if (!isActive && this.isDesignerActive) {
+                    this.stopZoneDesigner();
                 }
-            }
-        });
+            },
+            'changed::named-layouts', () => {
+                let layouts = {};
+                try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch {}
+                if (this.activeLayoutName && !layouts[this.activeLayoutName]) {
+                    this._log(`Active layout [${this.activeLayoutName}] was deleted. Purging unmanaged zones.`);
+                    this.activeLayoutName = null;
+                    this.settings.set_string('custom-sections', '{}');
+                    this.stackManager.clearOverlays();
+                    if (this.isDesignerActive) {
+                        this.settings.set_boolean('designer-active', false);
+                    }
+                }
+            },
+            this
+        );
 
-        this.mediator.connectSignal(Main.layoutManager, 'monitors-changed', () => this.storage.onMonitorsChanged());
-        this.mediator.connectSignal(global.display, 'window-created', (d, w) => {
-            new WindowBootstrapper(w, this.mediator, this.settings, this._log.bind(this), this._executePlacement.bind(this), this);
-        });
-        this.mediator.connectSignal(global.workspace_manager, 'workspace-switched', () => this.queueAutoTiling());
+        Main.layoutManager.connectObject('monitors-changed', () => this.storage.onMonitorsChanged(), this);
         
-        this.mediator.connectSignal(global.display, 'grab-op-begin', (d, w, o) => this.snapEngine.onGrabBegin(d, w, o));
-        this.mediator.connectSignal(global.display, 'grab-op-end', (d, w, o) => this.snapEngine.onGrabEnd(d, w, o));
+        global.display.connectObject(
+            'window-created', (d, w) => {
+                new WindowBootstrapper(w, this.mediator, this.settings, this._log.bind(this), this._executePlacement.bind(this), this);
+            },
+            'grab-op-begin', (d, w, o) => this.snapEngine.onGrabBegin(d, w, o),
+            'grab-op-end', (d, w, o) => this.snapEngine.onGrabEnd(d, w, o),
+            this
+        );
+        
+        global.workspace_manager.connectObject('workspace-switched', () => this.queueAutoTiling(), this);
         
         this.mediator.bindShortcut('snap-left', this.settings, () => this.snapEngine.snapDirection('left'));
         this.mediator.bindShortcut('snap-right', this.settings, () => this.snapEngine.snapDirection('right'));
@@ -116,6 +122,11 @@ export default class TilingManager {
         if (!this._enabled) return;
         this._enabled = false;
         this._log("Extension DISABLED.");
+
+        this.settings.disconnectObject(this);
+        Main.layoutManager.disconnectObject(this);
+        global.display.disconnectObject(this);
+        global.workspace_manager.disconnectObject(this);
 
         this.stackManager.disable();
         this.snapEngine.disable();
@@ -261,11 +272,11 @@ export default class TilingManager {
 
         let label = new St.Label({ text: title, style: 'font-weight: bold; font-size: 18px; margin-bottom: 16px; color: white;' });
         let entry = new St.Entry({ style: 'min-width: 300px; padding: 10px; border-radius: 6px; margin-bottom: 24px;', can_focus: true, reactive: true });
-        entry.connect('destroy', () => { entry = null; });
+        entry.connectObject('destroy', () => { entry = null; }, this);
         
         let btnBox = new St.BoxLayout({ vertical: false, style: 'spacing: 16px;' });
-        let cancelBtn = new St.Button({ label: t(this.settings, 'Cancel'), style: 'background-color: #444; color: white; padding: 8px 24px; border-radius: 6px;', reactive: true, can_focus: true, track_hover: true });
-        let saveBtn = new St.Button({ label: t(this.settings, 'Save'), style: 'background-color: #0078d4; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold;', reactive: true, can_focus: true, track_hover: true });
+        let cancelBtn = new St.Button({ label: _('Cancel'), style: 'background-color: #444; color: white; padding: 8px 24px; border-radius: 6px;', reactive: true, can_focus: true, track_hover: true });
+        let saveBtn = new St.Button({ label: _('Save'), style: 'background-color: #0078d4; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold;', reactive: true, can_focus: true, track_hover: true });
 
         btnBox.add_child(cancelBtn);
         btnBox.add_child(saveBtn);
@@ -304,7 +315,10 @@ export default class TilingManager {
                     if (overlay && overlay.get_parent && overlay.get_parent()) {
                         Main.layoutManager.uiGroup.remove_child(overlay);
                     }
-                    if (overlay) overlay.destroy();
+                    if (overlay) {
+                        overlay.disconnectObject(this);
+                        overlay.destroy();
+                    }
                 } catch {}
                 this._activeOverlay = null;
 
@@ -315,22 +329,22 @@ export default class TilingManager {
             });
         };
 
-        cancelBtn.connect('clicked', () => closeOverlay(false, null));
-        saveBtn.connect('clicked', () => closeOverlay(true, entry ? entry.get_text().trim() : ''));
-        entry.clutter_text.connect('activate', () => closeOverlay(true, entry ? entry.get_text().trim() : ''));
+        cancelBtn.connectObject('clicked', () => closeOverlay(false, null), this);
+        saveBtn.connectObject('clicked', () => closeOverlay(true, entry ? entry.get_text().trim() : ''), this);
+        entry.clutter_text.connectObject('activate', () => closeOverlay(true, entry ? entry.get_text().trim() : ''), this);
         
-        overlay.connect('button-press-event', () => Clutter.EVENT_STOP);
-        overlay.connect('key-press-event', (_, event) => {
+        overlay.connectObject('button-press-event', () => Clutter.EVENT_STOP, this);
+        overlay.connectObject('key-press-event', (_, event) => {
             if (event.get_key_symbol() === Clutter.KEY_Escape) {
                 closeOverlay(false, null);
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
-        });
+        }, this);
     }
 
     promptForLayoutName() {
-        this._showPromptOverlay(t(this.settings, 'Enter a name for the current layout:'), (name) => {
+        this._showPromptOverlay(_('Enter a name for the current layout:'), (name) => {
             if (name) this.storage.saveNamedLayout(name);
         });
     }
@@ -339,7 +353,7 @@ export default class TilingManager {
         if (this.isDesignerActive) return;
         
         if (!this.activeLayoutName) {
-            this._showPromptOverlay(t(this.settings, 'No active layout. Name this layout first:'), (name) => {
+            this._showPromptOverlay(_('No active layout. Name this layout first:'), (name) => {
                 if (name) {
                     this.storage.saveNamedLayout(name);
                     this.isDesignerActive = true;

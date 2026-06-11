@@ -12,7 +12,7 @@ export class X11TransformStrategy {
     applyTransform(task) {
         if (task.window && !task.window._omnipanel_is_dead) {
             try {
-                let isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
+                const isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
                 
                 if (task.isMax) {
                     if (task.logger) task.logger(`[X11Strategy] Maximizing [${task.title}]`);
@@ -29,16 +29,16 @@ export class X11TransformStrategy {
                     GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                         if (task.window && !task.window._omnipanel_is_dead) {
                             try {
-                                let actual = task.window.get_frame_rect();
+                                const actual = task.window.get_frame_rect();
                                 
                                 if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
                                 if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
 
-                                let zRight = task.zoneX + task.zoneW;
-                                let zBottom = task.zoneY + task.zoneH;
+                                const zRight = task.zoneX + task.zoneW;
+                                const zBottom = task.zoneY + task.zoneH;
 
-                                let aRight = actual.x + actual.width;
-                                let aBottom = actual.y + actual.height;
+                                const aRight = actual.x + actual.width;
+                                const aBottom = actual.y + actual.height;
 
                                 let shiftX = 0;
                                 let shiftY = 0;

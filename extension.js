@@ -29,16 +29,13 @@ export default class OmniPanelExtension extends Extension {
 
         Main.panel.addToStatusArea('omnipanel-show-desktop', this._showDesktopBtn, 2, 'right');
 
-        this._settingsChangedId = this._settings.connect('changed', this._onSettingsChanged.bind(this));
+        this._settings.connectObject('changed', this._onSettingsChanged.bind(this), this);
 
         this._applyModules();
     }
 
     disable() {
-        if (this._settingsChangedId) {
-            this._settings.disconnect(this._settingsChangedId);
-            this._settingsChangedId = 0;
-        }
+        this._settings.disconnectObject(this);
 
         if (this._panelMover) {
             this._panelMover.disable();

@@ -4,10 +4,10 @@ import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
 import Gdk from 'gi://Gdk?version=4.0';
 import { ShortcutButton, DictionaryConfigWindow } from './prefs_components.js';
-import { t } from './i18n.js';
+import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (row && typeof row.set_subtitle_lines === 'function') {
+    if (row && row.set_subtitle_lines) {
         row.set_subtitle_lines(0);
     }
     return row;
@@ -15,15 +15,15 @@ function wrap(row) {
 
 export default function buildTilingPage(settings, window) {
     const pageTiling = new Adw.PreferencesPage({ 
-        title: t(settings, 'Layouts'), 
+        title: _('Layouts'), 
         icon_name: 'view-grid-symbolic' 
     });
 
     const groupMaster = new Adw.PreferencesGroup();
 
     const rowTilingEnabled = new Adw.ActionRow({ 
-        title: t(settings, 'Enable Window Management'), 
-        subtitle: t(settings, 'Master switch for all OmniPanel tiling, snapping, and layout features') 
+        title: _('Enable Window Management'), 
+        subtitle: _('Master switch for all OmniPanel tiling, snapping, and layout features') 
     });
     const switchTilingEnabled = new Gtk.Switch({ 
         active: settings.get_boolean('enable-tiling'), 
@@ -33,11 +33,11 @@ export default function buildTilingPage(settings, window) {
     rowTilingEnabled.add_suffix(switchTilingEnabled);
     groupMaster.add(wrap(rowTilingEnabled));
 
-    const groupZone = new Adw.PreferencesGroup({ title: t(settings, 'Zone-Based Tiling') });
+    const groupZone = new Adw.PreferencesGroup({ title: _('Zone-Based Tiling') });
 
     const rowDesigner = new Adw.ActionRow({ 
-        title: t(settings, 'Zone Designer Mode'), 
-        subtitle: t(settings, 'Draw and configure drop zones visually across your screens') 
+        title: _('Zone Designer Mode'), 
+        subtitle: _('Draw and configure drop zones visually across your screens') 
     });
     const switchDesigner = new Gtk.Switch({ 
         active: settings.get_boolean('designer-active'), 
@@ -48,8 +48,8 @@ export default function buildTilingPage(settings, window) {
     groupZone.add(wrap(rowDesigner));
 
     const rowAutoRestore = new Adw.ActionRow({ 
-        title: t(settings, 'Auto-Restore Layouts'), 
-        subtitle: t(settings, 'Remember window positions based on monitor setups') 
+        title: _('Auto-Restore Layouts'), 
+        subtitle: _('Remember window positions based on monitor setups') 
     });
     const switchAutoRestore = new Gtk.Switch({ 
         active: settings.get_boolean('auto-restore-layouts'), 
@@ -60,8 +60,8 @@ export default function buildTilingPage(settings, window) {
     groupZone.add(wrap(rowAutoRestore));
 
     const rowFuzzyMatch = new Adw.ActionRow({ 
-        title: t(settings, 'Fuzzy Monitor Matching'), 
-        subtitle: t(settings, 'Restore layouts if monitor count matches despite resolution changes') 
+        title: _('Fuzzy Monitor Matching'), 
+        subtitle: _('Restore layouts if monitor count matches despite resolution changes') 
     });
     const switchFuzzyMatch = new Gtk.Switch({ 
         active: settings.get_boolean('fuzzy-restore-monitors'), 
@@ -71,11 +71,11 @@ export default function buildTilingPage(settings, window) {
     rowFuzzyMatch.add_suffix(switchFuzzyMatch);
     groupZone.add(wrap(rowFuzzyMatch));
 
-    const groupAutomation = new Adw.PreferencesGroup({ title: t(settings, 'Automation & Defaults') });
+    const groupAutomation = new Adw.PreferencesGroup({ title: _('Automation & Defaults') });
 
     const rowSmartPlacement = new Adw.ActionRow({ 
-        title: t(settings, 'Fuzzy Auto-Placement'), 
-        subtitle: t(settings, 'Automatically assign new unrecognized windows to zones matching their name or category') 
+        title: _('Fuzzy Auto-Placement'), 
+        subtitle: _('Automatically assign new unrecognized windows to zones matching their name or category') 
     });
     const switchSmartPlacement = new Gtk.Switch({ 
         active: settings.get_boolean('enable-smart-placement'), 
@@ -86,8 +86,8 @@ export default function buildTilingPage(settings, window) {
     groupAutomation.add(wrap(rowSmartPlacement));
 
     const rowAffinity = new Adw.ActionRow({
-        title: t(settings, 'Remember App Affinity'),
-        subtitle: t(settings, 'Restore apps to their last known zone upon relaunch')
+        title: _('Remember App Affinity'),
+        subtitle: _('Restore apps to their last known zone upon relaunch')
     });
     const switchAffinity = new Gtk.Switch({
         active: settings.get_boolean('remember-app-affinity'),
@@ -98,11 +98,11 @@ export default function buildTilingPage(settings, window) {
     groupAutomation.add(wrap(rowAffinity));
 
     const rowDict = new Adw.ActionRow({
-        title: t(settings, 'Configure Auto-Placement Rules'),
-        subtitle: t(settings, 'Easily manage app keywords and categories for layout routing')
+        title: _('Configure Auto-Placement Rules'),
+        subtitle: _('Easily manage app keywords and categories for layout routing')
     });
     const btnDict = new Gtk.Button({
-        label: t(settings, 'Configure'),
+        label: _('Configure'),
         valign: Gtk.Align.CENTER
     });
     btnDict.connect('clicked', () => {
@@ -113,18 +113,18 @@ export default function buildTilingPage(settings, window) {
     groupAutomation.add(wrap(rowDict));
 
     let rowDefaultLayout = new Adw.ComboRow({
-        title: t(settings, 'Default Startup Layout'),
-        subtitle: t(settings, 'Layout applied automatically when extension loads')
+        title: _('Default Startup Layout'),
+        subtitle: _('Layout applied automatically when extension loads')
     });
     groupAutomation.add(wrap(rowDefaultLayout));
 
     const groupExclusions = new Adw.PreferencesGroup({ 
-        title: t(settings, 'Window Exclusions'),
-        description: t(settings, 'Provide a comma-separated list of application names (e.g. gimp, steam) to completely exclude them from being snapped or managed by OmniPanel.')
+        title: _('Window Exclusions'),
+        description: _('Provide a comma-separated list of application names (e.g. gimp, steam) to completely exclude them from being snapped or managed by OmniPanel.')
     });
 
     const rowIgnoreList = new Adw.EntryRow({
-        title: t(settings, 'Ignored Applications')
+        title: _('Ignored Applications')
     });
     let currentIgnore = settings.get_strv('ignore-wm-classes') || [];
     rowIgnoreList.set_text(currentIgnore.join(', '));
@@ -136,11 +136,11 @@ export default function buildTilingPage(settings, window) {
     });
     groupExclusions.add(wrap(rowIgnoreList));
 
-    const groupStacks = new Adw.PreferencesGroup({ title: t(settings, 'Stack Indicators') });
+    const groupStacks = new Adw.PreferencesGroup({ title: _('Stack Indicators') });
 
     const rowStacks = new Adw.ActionRow({ 
-        title: t(settings, 'Zone Stack Indicators'), 
-        subtitle: t(settings, 'Show a fast-switching overlay when multiple windows share the same drop zone') 
+        title: _('Zone Stack Indicators'), 
+        subtitle: _('Show a fast-switching overlay when multiple windows share the same drop zone') 
     });
     const switchStacks = new Gtk.Switch({ 
         active: settings.get_boolean('enable-stack-indicators'), 
@@ -151,9 +151,9 @@ export default function buildTilingPage(settings, window) {
     groupStacks.add(wrap(rowStacks));
 
     const rowStackPos = new Adw.ComboRow({
-        title: t(settings, 'Stack Indicator Position'),
-        subtitle: t(settings, 'Corner of the window to draw the overlay'),
-        model: Gtk.StringList.new([t(settings, 'Bottom Left'), t(settings, 'Bottom Right')])
+        title: _('Stack Indicator Position'),
+        subtitle: _('Corner of the window to draw the overlay'),
+        model: Gtk.StringList.new([_('Bottom Left'), _('Bottom Right')])
     });
     const currentPos = settings.get_string('stack-indicator-position');
     rowStackPos.selected = (currentPos === 'bottom-left') ? 0 : 1;
@@ -164,9 +164,9 @@ export default function buildTilingPage(settings, window) {
     groupStacks.add(wrap(rowStackPos));
 
     const rowDefaultStackMode = new Adw.ComboRow({
-        title: t(settings, 'Default Stack Layout'),
-        subtitle: t(settings, 'Initial view behavior when multiple windows enter a zone'),
-        model: Gtk.StringList.new([t(settings, 'Stack (On Top)'), t(settings, 'Columns (Side by Side)'), t(settings, 'Rows (Vertical List)'), t(settings, 'Grid (Tiled)')])
+        title: _('Default Stack Layout'),
+        subtitle: _('Initial view behavior when multiple windows enter a zone'),
+        model: Gtk.StringList.new([_('Stack (On Top)'), _('Columns (Side by Side)'), _('Rows (Vertical List)'), _('Grid (Tiled)')])
     });
     const currentStackMode = settings.get_string('default-stack-mode');
     if (currentStackMode === 'columns') rowDefaultStackMode.selected = 1;
@@ -182,25 +182,25 @@ export default function buildTilingPage(settings, window) {
     });
     groupStacks.add(wrap(rowDefaultStackMode));
 
-    const groupShortcuts = new Adw.PreferencesGroup({ title: t(settings, 'Keyboard Shortcuts') });
+    const groupShortcuts = new Adw.PreferencesGroup({ title: _('Keyboard Shortcuts') });
 
     let rowShortcut = new Adw.ActionRow({
-        title: t(settings, 'Cycle Layouts Shortcut'),
-        subtitle: t(settings, 'Click to capture keybinding')
+        title: _('Cycle Layouts Shortcut'),
+        subtitle: _('Click to capture keybinding')
     });
     rowShortcut.add_suffix(new ShortcutButton(settings, 'switch-layout'));
     groupShortcuts.add(wrap(rowShortcut));
 
     let rowQuickTilerShortcut = new Adw.ActionRow({
-        title: t(settings, 'Quick Tiler Grid Shortcut'),
-        subtitle: t(settings, 'Click to capture keybinding (Default: <Super>g)')
+        title: _('Quick Tiler Grid Shortcut'),
+        subtitle: _('Click to capture keybinding (Default: <Super>g)')
     });
     rowQuickTilerShortcut.add_suffix(new ShortcutButton(settings, 'quick-tiler-hotkey'));
     groupShortcuts.add(wrap(rowQuickTilerShortcut));
 
     const groupLayouts = new Adw.PreferencesGroup({ 
-        title: t(settings, 'Saved Layouts & Drop Zones'),
-        description: t(settings, 'Click a layout to expand and manage its associated drop zones.') 
+        title: _('Saved Layouts & Drop Zones'),
+        description: _('Click a layout to expand and manage its associated drop zones.') 
     });
 
     let layoutRows = [];
@@ -244,14 +244,14 @@ export default function buildTilingPage(settings, window) {
                 return;
             }
 
-            let modelList = rawKeys.length > 0 ? rawKeys : [t(settings, 'None')];
+            let modelList = rawKeys.length > 0 ? rawKeys : [_('None')];
             rowDefaultLayout.model = Gtk.StringList.new(modelList);
             
             let currentDef = settings.get_string('default-layout');
             let idx = modelList.indexOf(currentDef);
             rowDefaultLayout.selected = (idx !== -1) ? idx : 0;
 
-            let createNewRow = new Adw.EntryRow({ title: t(settings, 'Create New Blank Layout'), text: '' });
+            let createNewRow = new Adw.EntryRow({ title: _('Create New Blank Layout'), text: '' });
             let createBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
             createBtn.add_css_class('suggested-action');
             
@@ -285,11 +285,11 @@ export default function buildTilingPage(settings, window) {
                 let lSlot = rawLayouts[name].hotkeySlot || 1;
                 
                 let expander = new Adw.ExpanderRow({ 
-                    title: `${t(settings, 'Layout')}: ${name}`, 
-                    subtitle: `${lZoneKeys.length} ${t(settings, 'zones saved')}` 
+                    title: `${_('Layout')}: ${name}`, 
+                    subtitle: `${lZoneKeys.length} ${_('zones saved')}` 
                 });
 
-                let renameRow = new Adw.EntryRow({ title: t(settings, 'Layout Name'), text: name });
+                let renameRow = new Adw.EntryRow({ title: _('Layout Name'), text: name });
                 let handleRename = () => {
                     let newName = renameRow.get_text().trim();
                     if (!newName || newName === name) return;
@@ -309,10 +309,10 @@ export default function buildTilingPage(settings, window) {
                 let dupBtn = new Gtk.Button({ icon_name: 'edit-copy-symbolic', valign: Gtk.Align.CENTER });
                 dupBtn.connect('clicked', () => {
                     let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
-                    let copyName = `${name} ${t(settings, '(Copy)')}`;
+                    let copyName = `${name} ${_('(Copy)')}`;
                     let count = 1;
                     while (fresh[copyName]) {
-                        copyName = `${name} ${t(settings, '(Copy)')} ${count}`;
+                        copyName = `${name} ${_('(Copy)')} ${count}`;
                         count++;
                     }
                     fresh[copyName] = JSON.parse(JSON.stringify(fresh[name]));
@@ -352,13 +352,13 @@ export default function buildTilingPage(settings, window) {
                 expander.add_row(wrap(renameRow));
 
                 let hotkeyRow = new Adw.ActionRow({ 
-                    title: t(settings, 'Activation Hotkey'), 
-                    subtitle: t(settings, 'Click to capture keybinding') 
+                    title: _('Activation Hotkey'), 
+                    subtitle: _('Click to capture keybinding') 
                 });
                 hotkeyRow.add_suffix(new ShortcutButton(settings, `layout-hotkey-${lSlot}`));
                 expander.add_row(wrap(hotkeyRow));
 
-                let colorRow = new Adw.ActionRow({ title: t(settings, 'Layout Zone Color') });
+                let colorRow = new Adw.ActionRow({ title: _('Layout Zone Color') });
                 let colorDialog = new Gtk.ColorDialog();
                 let colorBtn = new Gtk.ColorDialogButton({ dialog: colorDialog, valign: Gtk.Align.CENTER });
                 let rgbaObj = new Gdk.RGBA();
@@ -377,11 +377,11 @@ export default function buildTilingPage(settings, window) {
                 expander.add_row(wrap(colorRow));
 
                 if (lZoneKeys.length === 0) {
-                    let emptyZ = new Adw.ActionRow({ title: t(settings, 'No drop zones'), subtitle: t(settings, 'Open Zone Designer to create some.') });
+                    let emptyZ = new Adw.ActionRow({ title: _('No drop zones'), subtitle: _('Open Zone Designer to create some.') });
                     expander.add_row(wrap(emptyZ));
                 } else {
                     for (let zName of lZoneKeys) {
-                        let zRow = new Adw.EntryRow({ title: t(settings, 'Zone'), text: zName });
+                        let zRow = new Adw.EntryRow({ title: _('Zone'), text: zName });
                         
                         let handleZoneRename = () => {
                             let newName = zRow.get_text().trim();
@@ -423,13 +423,25 @@ export default function buildTilingPage(settings, window) {
     };
 
     refreshLayoutsAndZones();
-    settings.connect('changed::named-layouts', refreshLayoutsAndZones);
-    settings.connect('changed::custom-sections', refreshLayoutsAndZones);
+
+    let namedId = settings.connect('changed::named-layouts', refreshLayoutsAndZones);
+    let customId = settings.connect('changed::custom-sections', refreshLayoutsAndZones);
+    
+    window.connect('destroy', () => {
+        if (namedId) {
+            settings.disconnect(namedId);
+            namedId = 0;
+        }
+        if (customId) {
+            settings.disconnect(customId);
+            customId = 0;
+        }
+    });
 
     rowDefaultLayout.connect('notify::selected', () => {
         if (isUpdatingLayouts) return;
         let selectedItem = rowDefaultLayout.model.get_string(rowDefaultLayout.selected);
-        if (selectedItem === t(settings, 'None')) {
+        if (selectedItem === _('None')) {
             settings.set_string('default-layout', '');
         } else {
             settings.set_string('default-layout', selectedItem);
@@ -437,13 +449,13 @@ export default function buildTilingPage(settings, window) {
     });
 
     const groupAutoTiling = new Adw.PreferencesGroup({ 
-        title: t(settings, 'Alternative: Pure Automatic Tiling'),
-        description: t(settings, 'Dynamically arrange all windows without requiring pre-defined zones. Overrides the zone-based layout logic above.')
+        title: _('Alternative: Pure Automatic Tiling'),
+        description: _('Dynamically arrange all windows without requiring pre-defined zones. Overrides the zone-based layout logic above.')
     });
 
     const rowAutoTilingEnabled = new Adw.ActionRow({ 
-        title: t(settings, 'Enable Pure Automatic Tiling'), 
-        subtitle: t(settings, 'Takes over workspace layout entirely (disables Zone Designer)') 
+        title: _('Enable Pure Automatic Tiling'), 
+        subtitle: _('Takes over workspace layout entirely (disables Zone Designer)') 
     });
     const switchAutoTilingEnabled = new Gtk.Switch({ 
         active: settings.get_boolean('auto-tiling-enabled'), 
@@ -454,9 +466,9 @@ export default function buildTilingPage(settings, window) {
     groupAutoTiling.add(wrap(rowAutoTilingEnabled));
 
     const rowAutoTilingMode = new Adw.ComboRow({
-        title: t(settings, 'Auto-Tiling Algorithm'),
-        subtitle: t(settings, 'The layout strategy for active windows'),
-        model: Gtk.StringList.new([t(settings, 'BSP (Binary Space Partitioning)'), t(settings, 'Cascading'), t(settings, 'Master-Stack (Stable)')])
+        title: _('Auto-Tiling Algorithm'),
+        subtitle: _('The layout strategy for active windows'),
+        model: Gtk.StringList.new([_('BSP (Binary Space Partitioning)'), _('Cascading'), _('Master-Stack (Stable)')])
     });
     let currentMode = settings.get_string('auto-tiling-mode');
     if (currentMode === 'cascade') rowAutoTilingMode.selected = 1;
@@ -472,7 +484,7 @@ export default function buildTilingPage(settings, window) {
 
     const gapAdjustment = new Gtk.Adjustment({ lower: 0, upper: 64, step_increment: 2, value: settings.get_int('auto-tiling-gap') });
     const rowGap = new Adw.SpinRow({ 
-        title: t(settings, 'Window Gap (px)'), 
+        title: _('Window Gap (px)'), 
         adjustment: gapAdjustment, 
         digits: 0 
     });

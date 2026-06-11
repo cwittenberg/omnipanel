@@ -17,9 +17,8 @@ const StackOverlayView = GObject.registerClass(
                 vertical: false,
                 style: 'background-color: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; transition-duration: 150ms;',
                 reactive: true,
-                track_hover: true 
+                track_hover: true
             });
-
             this.zone = zone;
             this.monitor = actualMonitor;
             this.stackManager = stackManager;
@@ -30,25 +29,15 @@ const StackOverlayView = GObject.registerClass(
             this.currentIndex = 0;
             this._viableModes = { stack: true, grid: true, columns: true, rows: true };
             
-            this._signalIds = [];
             this._timeouts = new Set();
             this._hideTimeoutId = 0;
             this.keyPressId = 0;
-
             this.btnStyle = 'padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; background-color: transparent; transition-duration: 100ms; margin: 0 2px;';
             this.btnHoverStyle = 'background-color: rgba(255,255,255,0.2);';
             this.btnActiveStyle = 'background-color: rgba(46, 204, 113, 0.25); color: #2ecc71;';
-
             this._buildUI();
             this._bindEvents();
         }
-
-        _connectSignal(obj, sig, cb) {
-            let id = obj.connect(sig, cb);
-            this._signalIds.push({ obj, id });
-            return id;
-        }
-
         _addTimeout(delay, cb) {
             let id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
                 this._timeouts.delete(id);
@@ -57,25 +46,21 @@ const StackOverlayView = GObject.registerClass(
             this._timeouts.add(id);
             return id;
         }
-
         _clearTimeout(id) {
             if (this._timeouts.has(id)) {
                 GLib.source_remove(id);
                 this._timeouts.delete(id);
             }
         }
-
         _buildUI() {
             this.countLabel = new St.Label({
                 text: '2',
                 y_align: Clutter.ActorAlign.CENTER,
                 style: 'color: white; font-weight: bold; margin: 0 8px;'
             });
-
             this.prevBtn = new St.Button({ child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
             this.nextBtn = new St.Button({ child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
             this.toggleMenuBtn = new St.Button({ child: new St.Icon({icon_name: 'view-grid-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
-
             this.modeBox = new St.BoxLayout({ vertical: false, visible: false, reactive: true });
             
             let separator = new St.Widget({ style: 'width: 1px; background-color: rgba(255,255,255,0.2); margin: 0 6px;' });
@@ -83,42 +68,39 @@ const StackOverlayView = GObject.registerClass(
             this.modeColsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-dual-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
             this.modeRowsBtn = new St.Button({ child: new St.Icon({icon_name: 'view-list-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
             this.modeStackBtn = new St.Button({ child: new St.Icon({icon_name: 'window-restore-symbolic', icon_size: 16}), style: this.btnStyle, reactive: true, track_hover: true, can_focus: true });
-
             this.modeBox.add_child(separator);
             this.modeBox.add_child(this.modeGridBtn);
             this.modeBox.add_child(this.modeColsBtn);
             this.modeBox.add_child(this.modeRowsBtn);
             this.modeBox.add_child(this.modeStackBtn);
-
             this.prevBtn.hide();
             this.nextBtn.hide();
             this.toggleMenuBtn.hide();
-
             this.add_child(this.countLabel);
             this.add_child(this.toggleMenuBtn);
             this.add_child(this.modeBox);
             this.add_child(this.prevBtn);
             this.add_child(this.nextBtn);
         }
-
         _bindEvents() {
-            this._connectSignal(this, 'button-press-event', () => Clutter.EVENT_STOP);
-            this._connectSignal(this, 'button-release-event', () => Clutter.EVENT_STOP);
-            this._connectSignal(this.modeBox, 'button-press-event', () => Clutter.EVENT_STOP);
-            this._connectSignal(this.modeBox, 'button-release-event', () => Clutter.EVENT_STOP);
-            this._connectSignal(this, 'notify::hover', this._onHoverChanged.bind(this));
+            this.connectObject('button-press-event', () => Clutter.EVENT_STOP, this);
+            this.connectObject('button-release-event', () => Clutter.EVENT_STOP, this);
+            this.connectObject('notify::hover', this._onHoverChanged.bind(this), this);
             
-            this._connectSignal(this.prevBtn, 'button-press-event', (actor, event) => {
+            this.modeBox.connectObject('button-press-event', () => Clutter.EVENT_STOP, this);
+            this.modeBox.connectObject('button-release-event', () => Clutter.EVENT_STOP, this);
+            
+            this.prevBtn.connectObject('button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { this.doPrev(); return Clutter.EVENT_STOP; }
                 return Clutter.EVENT_PROPAGATE;
-            });
+            }, this);
             
-            this._connectSignal(this.nextBtn, 'button-press-event', (actor, event) => {
+            this.nextBtn.connectObject('button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { this.doNext(); return Clutter.EVENT_STOP; }
                 return Clutter.EVENT_PROPAGATE;
-            });
-
-            this._connectSignal(this.toggleMenuBtn, 'button-press-event', (actor, event) => {
+            }, this);
+            
+            this.toggleMenuBtn.connectObject('button-press-event', (actor, event) => {
                 if (event.get_button() === 1) {
                     this.toggleMenuBtn.hide();
                     this.modeBox.show();
@@ -127,26 +109,23 @@ const StackOverlayView = GObject.registerClass(
                     return Clutter.EVENT_STOP;
                 }
                 return Clutter.EVENT_PROPAGATE;
-            });
-
+            }, this);
+            
             let bindStandardHover = (btn) => {
-                this._connectSignal(btn, 'notify::hover', () => {
+                btn.connectObject('notify::hover', () => {
                     if (btn.reactive) btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle);
-                });
+                }, this);
             };
             
             bindStandardHover(this.prevBtn);
             bindStandardHover(this.nextBtn);
             bindStandardHover(this.toggleMenuBtn);
-
             this._bindModePreviewAndClick(this.modeStackBtn, 'stack');
             this._bindModePreviewAndClick(this.modeColsBtn, 'columns');
             this._bindModePreviewAndClick(this.modeRowsBtn, 'rows');
             this._bindModePreviewAndClick(this.modeGridBtn, 'grid');
-
-            this.connect('destroy', this._cleanup.bind(this));
+            this.connectObject('destroy', this._cleanup.bind(this), this);
         }
-
         _cleanup() {
             if (this.keyPressId) {
                 this.stackManager.manager.mediator.disconnectSignal(global.stage, this.keyPressId);
@@ -156,24 +135,18 @@ const StackOverlayView = GObject.registerClass(
                 GLib.source_remove(id);
             }
             this._timeouts.clear();
-            for (let s of this._signalIds) {
-                try { s.obj.disconnect(s.id); } catch {}
-            }
-            this._signalIds = [];
         }
-
         _bindModePreviewAndClick(btn, modeName) {
-            this._connectSignal(btn, 'notify::hover', () => {
+            btn.connectObject('notify::hover', () => {
                 this.syncModeStyles();
-            });
-
-            this._connectSignal(btn, 'button-press-event', (actor, event) => {
+            }, this);
+            
+            btn.connectObject('button-press-event', (actor, event) => {
                 if (event.get_button() === 1) { 
                     if (!this._viableModes[modeName]) {
                         this.stackManager.manager._log(`[StackManager] Mode ${modeName} clicked but is not currently physically viable.`);
                         return Clutter.EVENT_STOP;
                     }
-
                     this.stackManager.manager._log(`[StackManager] Stack mode explicitly clicked: ${modeName} for zone: ${this.zone}`);
                     
                     let cs = this.stackManager.manager.storage.getCustomSections();
@@ -184,7 +157,6 @@ const StackOverlayView = GObject.registerClass(
                     for (let w of this.windows) {
                         w._omnipanel_last_req = '';
                     }
-
                     this.lastActualMode = modeName;
                     this.syncModeStyles();
                     
@@ -198,35 +170,29 @@ const StackOverlayView = GObject.registerClass(
                     
                     this.stackManager.invalidateSignature(this.zone);
                     this.stackManager.updateOverlays();
-
                     this._addTimeout(200, () => {
                         if (btn) this.syncModeStyles();
                         return GLib.SOURCE_REMOVE;
                     });
-
                     return Clutter.EVENT_STOP;
                 }
                 return Clutter.EVENT_PROPAGATE;
-            });
+            }, this);
         }
-
         doPrev() {
             if (this.windows.length === 0) return;
             this.currentIndex = (this.currentIndex - 1 + this.windows.length) % this.windows.length;
             Main.activateWindow(this.windows[this.currentIndex]);
         }
-
         doNext() {
             if (this.windows.length === 0) return;
             this.currentIndex = (this.currentIndex + 1) % this.windows.length;
             Main.activateWindow(this.windows[this.currentIndex]);
         }
-
         updateViableModes(modes) {
             this._viableModes = modes;
             this.syncModeStyles();
         }
-
         syncModeStyles() {
             let actualMode = this.lastActualMode || 'stack';
             let viable = this._viableModes;
@@ -238,20 +204,17 @@ const StackOverlayView = GObject.registerClass(
                     btn.set_style(this.btnStyle + 'opacity: 0.25; color: #666;');
                     return;
                 }
-
                 if (modeName === actualMode) {
                     btn.set_style(this.btnStyle + this.btnActiveStyle);
                 } else {
                     btn.set_style(btn.hover ? this.btnStyle + this.btnHoverStyle : this.btnStyle);
                 }
             };
-
             applyStyle(this.modeStackBtn, 'stack', viable.stack);
             applyStyle(this.modeColsBtn, 'columns', viable.columns);
             applyStyle(this.modeRowsBtn, 'rows', viable.rows);
             applyStyle(this.modeGridBtn, 'grid', viable.grid);
         }
-
         _onHoverChanged() {
             let isHovered = this.hover;
             
@@ -260,7 +223,6 @@ const StackOverlayView = GObject.registerClass(
                     this._clearTimeout(this._hideTimeoutId);
                     this._hideTimeoutId = 0;
                 }
-
                 if (this.lastActualMode === 'stack') {
                     this.prevBtn.show();
                     this.nextBtn.show();
@@ -271,8 +233,9 @@ const StackOverlayView = GObject.registerClass(
                 
                 this.toggleMenuBtn.hide();
                 this.modeBox.show();
-
                 this.syncModeStyles();
+                this.reposition();
+                
                 this.set_style('background-color: rgba(20, 20, 20, 0.95); border: 1px solid #2ecc71; border-radius: 8px; padding: 4px; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); transition-duration: 150ms;');
                 
                 if (!this.keyPressId) {
@@ -290,13 +253,11 @@ const StackOverlayView = GObject.registerClass(
                         return Clutter.EVENT_PROPAGATE;
                     });
                 }
-
             } else {
                 if (!this._hideTimeoutId) {
                     this._hideTimeoutId = this._addTimeout(250, () => {
                         this._hideTimeoutId = 0;
                         if (this.hover) return GLib.SOURCE_REMOVE;
-
                         this.prevBtn.hide();
                         this.nextBtn.hide();
                         
@@ -309,18 +270,15 @@ const StackOverlayView = GObject.registerClass(
                             this.stackManager.manager.mediator.disconnectSignal(global.stage, this.keyPressId);
                             this.keyPressId = 0;
                         }
-
                         this.reposition();
                         return GLib.SOURCE_REMOVE;
                     });
                 }
             }
-
             if (isHovered) {
                 this.reposition();
             }
         }
-
         reposition() {
             let cs = this.stackManager.manager.storage.getCustomSections();
             let zRect = getSectionRect(this.monitor, this.zone, cs);
@@ -337,7 +295,6 @@ const StackOverlayView = GObject.registerClass(
     }
 );
 
-// --- CONTROLLER LAYER (MVC) ---
 export class StackManager {
     constructor(tilingManager) {
         this.manager = tilingManager;
@@ -346,13 +303,11 @@ export class StackManager {
         this._overlays = new Map();
         this._loopId = 0;
     }
-
     enable() {
         if (this._enabled) return;
         this._enabled = true;
         this._startLoop();
     }
-
     disable() {
         if (!this._enabled) return;
         this._enabled = false;
@@ -364,7 +319,6 @@ export class StackManager {
         
         this.clearOverlays();
     }
-
     clearOverlays() {
         for (let overlay of this._overlays.values()) {
             Main.layoutManager.removeChrome(overlay);
@@ -372,7 +326,6 @@ export class StackManager {
         }
         this._overlays.clear();
     }
-
     _startLoop() {
         this._loopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
             if (!this._enabled) return GLib.SOURCE_REMOVE;
@@ -390,26 +343,21 @@ export class StackManager {
             }
         }
     }
-
     _getStackZoneForWindow(win, customSections) {
         if (!win._omnipanel_zone) {
             return null;
         }
-
         let isStandard = Object.values(Sections).includes(win._omnipanel_zone);
         if (customSections[win._omnipanel_zone] || isStandard) {
             return win._omnipanel_zone;
         }
-
         return null;
     }
-
     updateOverlays() {
         if (!this.settings.get_boolean('enable-stack-indicators')) {
             this.clearOverlays();
             return;
         }
-
         let allWindows = global.display.list_all_windows();
         let activeWs = global.workspace_manager.get_active_workspace();
         
@@ -423,7 +371,6 @@ export class StackManager {
                 let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
                 let isSkipPager = typeof w.is_skip_pager === 'function' ? w.is_skip_pager() : false;
                 if (isSkipTaskbar || isSkipPager) return false;
-
                 let wType = w.get_window_type();
                 if (w.is_override_redirect() || wType !== Meta.WindowType.NORMAL) return false;
                 if (w.get_transient_for() !== null) return false;
@@ -432,15 +379,12 @@ export class StackManager {
                 return ws === activeWs || w.is_on_all_workspaces() || !ws;
             } catch { return false; }
         });
-
         let focusWindow = global.display.get_focus_window();
         let customSections = this.manager.storage.getCustomSections();
         let stacks = {};
-
         for (let win of windows) {
             try {
                 try { win.get_id(); } catch { continue; }
-
                 let stackZone = this._getStackZoneForWindow(win, customSections);
                 
                 if (stackZone) {
@@ -448,15 +392,12 @@ export class StackManager {
                     if (customSections[stackZone] && customSections[stackZone].monitorIndex !== undefined) {
                         mIndex = customSections[stackZone].monitorIndex;
                     }
-
                     let key = stackZone + '|' + mIndex;
-
                     if (!stacks[key]) stacks[key] = { zone: stackZone, monitor: mIndex, windows: [] };
                     stacks[key].windows.push(win);
                 }
             } catch { continue; }
         }
-
         let currentStackKeys = new Set();
         for (let [key, stackData] of Object.entries(stacks)) {
             if (stackData.windows.length > 1) {
@@ -470,7 +411,6 @@ export class StackManager {
                 });
             }
         }
-
         for (let [key, overlay] of this._overlays.entries()) {
             if (!currentStackKeys.has(key)) {
                 if (stacks[key] && stacks[key].windows.length === 1) {
@@ -481,13 +421,11 @@ export class StackManager {
                         applyWindowTransform(topWin, stacks[key].monitor, zRect, false, this.manager._log.bind(this.manager));
                     }
                 }
-
                 Main.layoutManager.removeChrome(overlay);
                 overlay.destroy();
                 this._overlays.delete(key);
             }
         }
-
         for (let key of currentStackKeys) {
             let stackData = stacks[key];
             let zone = stackData.zone;
@@ -498,7 +436,6 @@ export class StackManager {
             let topWindow = [...stackWindows].sort((a, b) => {
                 return windows.indexOf(a) - windows.indexOf(b);
             })[0];
-
             if (!this._overlays.has(key)) {
                 let newOverlay = new StackOverlayView(zone, actualMonitor, this);
                 Main.layoutManager.addChrome(newOverlay);
@@ -513,22 +450,17 @@ export class StackManager {
             let evalMode = pMode;
             if (evalMode === 'horizontal') evalMode = 'rows';
             if (evalMode === 'vertical') evalMode = 'columns';
-
-            // Calculate which layout modes are physically possible given window minimum sizes
             let viableModes = getViableStackModes(stackWindows, zRect);
-
-            // Force override if user's target layout violates the bounds
             let actualMode = evalMode;
             if (!viableModes[actualMode]) {
                 this.manager._log(`[StackManager] Stack layout ${actualMode} is unviable due to bounds. Transforming ENTIRE STACK into on-top (stack) mode until windows are closed.`);
-                actualMode = 'stack'; // Fallback to safe layout
+                actualMode = 'stack';
             }
             
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
             let currentSignature = stackWindows.map(w => {
                 try { return w.get_id(); } catch { return 0; }
             }).join(',') + '|' + zRectStr + '|' + actualMode;
-
             if (overlay.lastSignature !== currentSignature) {
                 overlay.lastSignature = currentSignature;
                 overlay.windows = stackWindows;
@@ -542,10 +474,8 @@ export class StackManager {
                 applyStackLayout(stackWindows, actualMonitor, zRect, actualMode, this.manager._log.bind(this.manager));
             } else {
                 overlay.topWindow = topWindow;
-                // Keep viability synced in case window min sizes change dynamically
                 overlay.updateViableModes(viableModes);
             }
-
             overlay.reposition();
             
             let isActiveStack = focusWindow && stackWindows.includes(focusWindow);

@@ -3,10 +3,10 @@ import Adw from 'gi://Adw?version=1';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk?version=4.0';
 import Gdk from 'gi://Gdk?version=4.0';
-import { t } from './i18n.js';
+import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (row && typeof row.set_subtitle_lines === 'function') {
+    if (row) {
         row.set_subtitle_lines(0);
     }
     return row;
@@ -14,15 +14,15 @@ function wrap(row) {
 
 export default function buildTopBarPage(settings) {
     const pageTopBar = new Adw.PreferencesPage({ 
-        title: t(settings, 'Top bar'), 
+        title: _('Top bar'), 
         icon_name: 'view-dual-symbolic' 
     });
 
-    const groupMovement = new Adw.PreferencesGroup({ title: t(settings, 'Active Toolbar Movement') });
+    const groupMovement = new Adw.PreferencesGroup({ title: _('Active Toolbar Movement') });
 
     const rowEnabled = new Adw.ActionRow({ 
-        title: t(settings, 'Enable Toolbar Movement'), 
-        subtitle: t(settings, 'Dynamically move the real native panel to the active screen') 
+        title: _('Enable Toolbar Movement'), 
+        subtitle: _('Dynamically move the real native panel to the active screen') 
     });
     const switchEnabled = new Gtk.Switch({ 
         active: settings.get_boolean('movement-enabled'), 
@@ -33,9 +33,9 @@ export default function buildTopBarPage(settings) {
     groupMovement.add(wrap(rowEnabled));
 
     const rowSpeed = new Adw.ComboRow({
-        title: t(settings, 'Movement Response Speed'),
-        subtitle: t(settings, 'Balance between snappiness and CPU usage'),
-        model: Gtk.StringList.new([t(settings, 'Fast (100ms)'), t(settings, 'Normal (200ms)'), t(settings, 'Battery Saver (500ms)')])
+        title: _('Movement Response Speed'),
+        subtitle: _('Balance between snappiness and CPU usage'),
+        model: Gtk.StringList.new([_('Fast (100ms)'), _('Normal (200ms)'), _('Battery Saver (500ms)')])
     });
     const currentSpeed = settings.get_int('movement-speed');
     if (currentSpeed <= 100) rowSpeed.selected = 0;
@@ -49,11 +49,11 @@ export default function buildTopBarPage(settings) {
     });
     groupMovement.add(wrap(rowSpeed));
 
-    const groupDesktop = new Adw.PreferencesGroup({ title: t(settings, 'Show Desktop Button') });
+    const groupDesktop = new Adw.PreferencesGroup({ title: _('Show Desktop Button') });
 
     const rowShowDesktop = new Adw.ActionRow({ 
-        title: t(settings, 'Enable Show Desktop Button'), 
-        subtitle: t(settings, 'Adds a button to the top bar to minimize/restore windows on the current monitor') 
+        title: _('Enable Show Desktop Button'), 
+        subtitle: _('Adds a button to the top bar to minimize/restore windows on the current monitor') 
     });
     const switchShowDesktop = new Gtk.Switch({ 
         active: settings.get_boolean('show-desktop-enabled'), 
@@ -63,12 +63,12 @@ export default function buildTopBarPage(settings) {
     rowShowDesktop.add_suffix(switchShowDesktop);
     groupDesktop.add(wrap(rowShowDesktop));
 
-    const groupAnimations = new Adw.PreferencesGroup({ title: t(settings, 'Animation Effects') });
+    const groupAnimations = new Adw.PreferencesGroup({ title: _('Animation Effects') });
 
     const rowAnimStyle = new Adw.ComboRow({
-        title: t(settings, 'Movement Animation Style'),
-        subtitle: t(settings, 'Visual effect when extensions arrive on the new screen'),
-        model: Gtk.StringList.new([t(settings, 'None (Instant)'), t(settings, 'Fade'), t(settings, 'Slide Down'), t(settings, 'Pop')])
+        title: _('Movement Animation Style'),
+        subtitle: _('Visual effect when extensions arrive on the new screen'),
+        model: Gtk.StringList.new([_('None (Instant)'), _('Fade'), _('Slide Down'), _('Pop')])
     });
     const currentAnim = settings.get_string('animation-style');
     if (currentAnim === 'fade') rowAnimStyle.selected = 1;
@@ -88,18 +88,18 @@ export default function buildTopBarPage(settings) {
         lower: 100, upper: 1000, step_increment: 50, value: settings.get_int('animation-duration') 
     });
     const rowDuration = new Adw.SpinRow({ 
-        title: t(settings, 'Animation Duration (ms)'), 
+        title: _('Animation Duration (ms)'), 
         adjustment: durationAdjustment, 
         digits: 0 
     });
     settings.bind('animation-duration', rowDuration, 'value', Gio.SettingsBindFlags.DEFAULT);
     groupAnimations.add(wrap(rowDuration));
 
-    const groupActiveUI = new Adw.PreferencesGroup({ title: t(settings, 'Active Panel Appearance') });
+    const groupActiveUI = new Adw.PreferencesGroup({ title: _('Active Panel Appearance') });
 
     const rowHighlight = new Adw.ActionRow({ 
-        title: t(settings, 'Highlight Active Panel'), 
-        subtitle: t(settings, 'Change the background color of the active monitor\'s top bar') 
+        title: _('Highlight Active Panel'), 
+        subtitle: _('Change the background color of the active monitor\'s top bar') 
     });
     const switchHighlight = new Gtk.Switch({ 
         active: settings.get_boolean('highlight-active'), 
@@ -109,7 +109,7 @@ export default function buildTopBarPage(settings) {
     rowHighlight.add_suffix(switchHighlight);
     groupActiveUI.add(wrap(rowHighlight));
 
-    const rowColor = new Adw.ActionRow({ title: t(settings, 'Active Panel Color') });
+    const rowColor = new Adw.ActionRow({ title: _('Active Panel Color') });
     const colorDialog = new Gtk.ColorDialog();
     const colorBtn = new Gtk.ColorDialogButton({ dialog: colorDialog, valign: Gtk.Align.CENTER });
     
@@ -123,11 +123,11 @@ export default function buildTopBarPage(settings) {
     rowColor.add_suffix(colorBtn);
     groupActiveUI.add(wrap(rowColor));
 
-    const groupInactiveUI = new Adw.PreferencesGroup({ title: t(settings, 'Inactive Panel Appearance') });
+    const groupInactiveUI = new Adw.PreferencesGroup({ title: _('Inactive Panel Appearance') });
 
     const rowTranslucent = new Adw.ActionRow({ 
-        title: t(settings, 'Translucent Inactive Bars'), 
-        subtitle: t(settings, 'Make the top bar fade out on inactive monitors') 
+        title: _('Translucent Inactive Bars'), 
+        subtitle: _('Make the top bar fade out on inactive monitors') 
     });
     const switchTranslucent = new Gtk.Switch({ 
         active: settings.get_boolean('translucent-inactive'), 
@@ -141,7 +141,7 @@ export default function buildTopBarPage(settings) {
         lower: 0.1, upper: 1.0, step_increment: 0.05, value: settings.get_double('inactive-opacity') 
     });
     const rowOpacity = new Adw.SpinRow({ 
-        title: t(settings, 'Inactive Opacity Level'), 
+        title: _('Inactive Opacity Level'), 
         adjustment: opacityAdjustment, 
         digits: 2 
     });
@@ -149,8 +149,8 @@ export default function buildTopBarPage(settings) {
     groupInactiveUI.add(wrap(rowOpacity));
 
     const rowClock = new Adw.ActionRow({ 
-        title: t(settings, 'Show Static Clock Label'), 
-        subtitle: t(settings, 'Shows a non-clickable clock on inactive monitors') 
+        title: _('Show Static Clock Label'), 
+        subtitle: _('Shows a non-clickable clock on inactive monitors') 
     });
     const switchClock = new Gtk.Switch({ 
         active: settings.get_boolean('show-clock'), 
@@ -161,8 +161,8 @@ export default function buildTopBarPage(settings) {
     groupInactiveUI.add(wrap(rowClock));
 
     const rowHideInactive = new Adw.ActionRow({ 
-        title: t(settings, 'Hide toolbars on inactive screens'), 
-        subtitle: t(settings, 'Make inactive top bars completely invisible') 
+        title: _('Hide toolbars on inactive screens'), 
+        subtitle: _('Make inactive top bars completely invisible') 
     });
     const switchHideInactive = new Gtk.Switch({ 
         active: settings.get_boolean('hide-inactive-panels'), 

@@ -134,6 +134,7 @@ export class WindowBootstrapper {
             this.window._omnipanel_is_dead = false;
 
             if (this.window._omnipanel_unmanaged_id === undefined) {
+                // WindowBootstrapper is a plain class, NOT a GObject, so we must use the Mediator here
                 let sigId = this.mediator.connectSignal(this.window, 'unmanaged', () => {
                     this.window._omnipanel_is_dead = true;
                     if (this.timerId) {

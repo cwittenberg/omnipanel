@@ -5,7 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { hexToRgba, getLayoutColors } from './layout_definitions.js';
-import { t } from './i18n.js';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 // --- USER ADJUSTABLE UI VARIABLES ---
 const TOPBAR_HEIGHT = 110; 
@@ -292,7 +292,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this._currentDrawMonitorIndex = -1;
             this._isClosed = false;
             this._pushedModal = false;
-            this._captureId = 0;
             this._cycleBtns = [];
             this._lastRect = null;
             
@@ -312,7 +311,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this.add_child(this._selection);
 
             this._warningLabel = new St.Label({
-                text: t(this._manager.settings, 'Hold and drag to draw and expand zone (Min: 450x400)'),
+                text: _('Hold and drag to draw and expand zone (Min: 450x400)'),
                 style: 'color: #ff7a7a; font-weight: bold; font-size: 14px; background-color: rgba(30,30,30,0.95); padding: 8px 16px; border-radius: 99px; border: 1px solid rgba(255,122,122,0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.5);',
                 visible: false
             });
@@ -326,16 +325,16 @@ export const ZoneDesignerRoot = GObject.registerClass(
               });
             
             this._entry = new St.Entry({
-                  hint_text: t(this._manager.settings, 'Name this Zone...'),
+                  hint_text: _('Name this Zone...'),
                   style: `min-width: 220px; margin-right: 12px; padding: ${ENTRY_PADDING};`,
                   can_focus: true,
                   reactive: true
               });
-            this._entry.connect('destroy', () => { this._entry = null; });
+            this._entry.connectObject('destroy', () => { this._entry = null; }, this);
 
             let cancelBox = new St.BoxLayout({ vertical: false });
             let cancelIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
-            let cancelLabel = new St.Label({ text: t(this._manager.settings, 'Cancel'), y_align: Clutter.ActorAlign.CENTER });
+            let cancelLabel = new St.Label({ text: _('Cancel'), y_align: Clutter.ActorAlign.CENTER });
             cancelBox.add_child(cancelIcon);
             cancelBox.add_child(cancelLabel);
             
@@ -348,14 +347,14 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 can_focus: true
             });
             
-            this._cancelBtn.connect('clicked', () => {
+            this._cancelBtn.connectObject('clicked', () => {
                 this._hidePromptSafe();
                 this.transitionTo(new IdleState());
-            });
+            }, this);
 
             let saveBox = new St.BoxLayout({ vertical: false });
             let saveIcon = new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
-            let saveLabel = new St.Label({ text: t(this._manager.settings, 'Save'), y_align: Clutter.ActorAlign.CENTER });
+            let saveLabel = new St.Label({ text: _('Save'), y_align: Clutter.ActorAlign.CENTER });
             saveBox.add_child(saveIcon);
             saveBox.add_child(saveLabel);
 
@@ -378,8 +377,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     this._refreshZones(); 
                 }
             };
-            this._saveBtn.connect('clicked', saveAction);
-            this._entry.clutter_text.connect('activate', saveAction);
+            this._saveBtn.connectObject('clicked', saveAction, this);
+            this._entry.clutter_text.connectObject('activate', saveAction, this);
             
             this._promptBox.add_child(this._entry);
             this._promptBox.add_child(this._cancelBtn);
@@ -397,37 +396,37 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 toolbar.set_size(m.width, TOPBAR_HEIGHT);
                 
                 let titleLabel = new St.Label({
-                    text: `${t(this._manager.settings, 'Zone Designer Mode')}  |  ${t(this._manager.settings, 'Monitor')} ${i + 1}`,
+                    text: `${_('Zone Designer Mode')}  |  ${_('Monitor')} ${i + 1}`,
                     y_align: Clutter.ActorAlign.CENTER,
                     style: 'font-weight: bold; font-size: 16px; color: white; margin-right: 24px;'
                 });
 
                 let cycleBtn = new St.Button({
-                    label: `${t(this._manager.settings, 'Layout')}: ${manager.activeLayoutName || t(this._manager.settings, 'None')} ${t(this._manager.settings, '(Click to Cycle)')}`,
+                    label: `${_('Layout')}: ${manager.activeLayoutName || _('None')} ${_('(Click to Cycle)')}`,
                     style_class: 'button',
                     style: `margin-right: 24px; padding: ${BUTTON_PADDING};`,
                     y_align: Clutter.ActorAlign.CENTER,
                     reactive: true, track_hover: true, can_focus: true
                 });
 
-                cycleBtn.connect('clicked', () => {
+                cycleBtn.connectObject('clicked', () => {
                     manager.cycleLayouts();
                     this._refreshToolbars();
                     this._refreshZones();
-                });
+                }, this);
                 this._cycleBtns.push(cycleBtn);
 
                 let newLayoutBox = new St.BoxLayout({ vertical: false, style: 'margin-right: 24px;', y_align: Clutter.ActorAlign.CENTER });
                 
                 let newLayoutEntry = new St.Entry({
-                    hint_text: t(this._manager.settings, 'New Layout Name...'),
+                    hint_text: _('New Layout Name...'),
                     style: `min-width: 180px; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                     can_focus: true, reactive: true
                 });
                 newLayoutEntry.add_style_class_name('new-layout-entry');
 
                 let newLayoutBtn = new St.Button({
-                    label: t(this._manager.settings, 'Create'),
+                    label: _('Create'),
                     style_class: 'button',
                     style: `padding: ${BUTTON_PADDING};`,
                     reactive: true, track_hover: true, can_focus: true
@@ -455,8 +454,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     }
                 };
 
-                newLayoutBtn.connect('clicked', handleCreateLayout);
-                newLayoutEntry.clutter_text.connect('activate', handleCreateLayout);
+                newLayoutBtn.connectObject('clicked', handleCreateLayout, this);
+                newLayoutEntry.clutter_text.connectObject('activate', handleCreateLayout, this);
 
                 newLayoutBox.add_child(newLayoutEntry);
                 newLayoutBox.add_child(newLayoutBtn);
@@ -464,14 +463,14 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 let spacer = new St.Widget({ x_expand: true, y_expand: true });
                 
                 let hintLabel = new St.Label({
-                    text: t(this._manager.settings, '  Right-click overlapping zones to send them to the back'),
+                    text: _('  Right-click overlapping zones to send them to the back'),
                     y_align: Clutter.ActorAlign.CENTER,
                     style: 'color: rgba(255,255,255,0.7); font-weight: 500; margin-right: 24px;'
                 });
                 
                 let quitBox = new St.BoxLayout({ vertical: false });
                 let quitIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px; color: white;' });
-                let quitLabel = new St.Label({ text: t(this._manager.settings, 'Quit Designer'), y_align: Clutter.ActorAlign.CENTER, style: 'color: white; font-weight: bold;' });
+                let quitLabel = new St.Label({ text: _('Quit Designer'), y_align: Clutter.ActorAlign.CENTER, style: 'color: white; font-weight: bold;' });
                 quitBox.add_child(quitIcon);
                 quitBox.add_child(quitLabel);
 
@@ -486,15 +485,15 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     track_hover: true
                 });
                 
-                quitBtn.connect('notify::hover', () => {
+                quitBtn.connectObject('notify::hover', () => {
                     if (quitBtn.hover) {
                         quitBtn.set_style(`padding: ${BUTTON_PADDING}; height: ${QUIT_BUTTON_HEIGHT}px; background-color: #F37343; border: 1px solid #E95420; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);`);
                     } else {
                         quitBtn.set_style(`padding: ${BUTTON_PADDING}; height: ${QUIT_BUTTON_HEIGHT}px; background-color: #E95420; border: 1px solid #C84617; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.4);`);
                     }
-                });
+                }, this);
 
-                quitBtn.connect('clicked', () => this.close());
+                quitBtn.connectObject('clicked', () => this.close(), this);
                 
                 toolbar.add_child(titleLabel);
                 toolbar.add_child(cycleBtn);
@@ -506,7 +505,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 this.add_child(toolbar);
             });
 
-            this.connect('button-press-event', (_, event) => {
+            this.connectObject('button-press-event', (_, event) => {
                 let [x, y] = event.get_coords();
                 
                 if (this._promptBox.visible && 
@@ -536,19 +535,19 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 this._selection.show();
                 
                 return Clutter.EVENT_STOP;
-            });
+            }, this);
 
-            this.connect('motion-event', (_, event) => {
+            this.connectObject('motion-event', (_, event) => {
                 if (this._currentState instanceof IdleState || this._currentDrawMonitorIndex === -1) return Clutter.EVENT_PROPAGATE;
                 let [x, y] = event.get_coords();
                 return this._currentState.onMotion(this, x, y);
-            });
+            }, this);
 
-            this.connect('button-release-event', () => {
+            this.connectObject('button-release-event', () => {
                 if (this._currentState instanceof IdleState) return Clutter.EVENT_PROPAGATE;
                 
                 return this._currentState.onRelease(this);
-            });
+            }, this);
 
             this._refreshZones();
         }
@@ -558,9 +557,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
         }
 
         _refreshToolbars() {
-            let name = this._manager.activeLayoutName || t(this._manager.settings, 'None');
+            let name = this._manager.activeLayoutName || _('None');
             for (let btn of this._cycleBtns) {
-                btn.set_label(`${t(this._manager.settings, 'Layout')}: ${name} ${t(this._manager.settings, '(Click to Cycle)')}`);
+                btn.set_label(`${_('Layout')}: ${name} ${_('(Click to Cycle)')}`);
             }
         }
 
@@ -642,7 +641,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     
                     let nameEntry = new St.Entry({
                         text: displayName,
-                        hint_text: isTemp ? t(this._manager.settings, 'Unnamed Zone') : '',
+                        hint_text: isTemp ? _('Unnamed Zone') : '',
                         style: `min-width: 120px; background-color: rgba(0,0,0,0.2); border-radius: 4px; color: white; font-weight: bold; margin-right: 8px; padding: ${ENTRY_PADDING};`,
                         can_focus: true, reactive: true
                     });
@@ -670,7 +669,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         }
                     };
                     
-                    nameEntry.clutter_text.connect('activate', handleZoneRename);
+                    nameEntry.clutter_text.connectObject('activate', handleZoneRename, this);
 
                     let zSaveBtn = new St.Button({
                         child: new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16 }),
@@ -679,15 +678,15 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         reactive: true, can_focus: true, track_hover: true,
                         visible: false
                     });
-                    zSaveBtn.connect('clicked', handleZoneRename);
+                    zSaveBtn.connectObject('clicked', handleZoneRename, this);
 
-                    nameEntry.clutter_text.connect('text-changed', () => {
+                    nameEntry.clutter_text.connectObject('text-changed', () => {
                         if (nameEntry.get_text().trim() !== name) {
                             if (!zSaveBtn.visible) zSaveBtn.show();
                         } else {
                             if (zSaveBtn.visible) zSaveBtn.hide();
                         }
-                    });
+                    }, this);
 
                     let sendToBackBtn = new St.Button({
                         child: new St.Icon({ icon_name: 'go-bottom-symbolic', icon_size: 16 }),
@@ -695,12 +694,12 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         style: `padding: 6px; margin-right: 8px;`,
                         reactive: true, can_focus: true, track_hover: true
                     });
-                    sendToBackBtn.connect('clicked', () => {
+                    sendToBackBtn.connectObject('clicked', () => {
                         if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
                             this._zonesContainer.remove_child(zoneBox);
                             this._zonesContainer.insert_child_at_index(zoneBox, 0); 
                         }
-                    });
+                    }, this);
 
                     let delBtn = new St.Button({
                         child: new St.Icon({ icon_name: 'user-trash-symbolic', icon_size: 16 }),
@@ -708,13 +707,13 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         style: `padding: 6px;`,
                         reactive: true, can_focus: true, track_hover: true
                     });
-                    delBtn.connect('clicked', () => {
+                    delBtn.connectObject('clicked', () => {
                         let zones = this._manager.storage.getCustomSections();
                         delete zones[name];
                         this._manager.storage.setCustomSectionsAndSave(zones);
                         this._zonesModified = true;
                         this._refreshZones();
-                    });
+                    }, this);
 
                     let resizeHandle = new St.BoxLayout({
                         reactive: true,
@@ -735,7 +734,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     zoneBox.add_child(labelBox);
                     zoneBox.add_child(resizeHandle);
                     
-                    zoneBox.connect('button-press-event', (_, event) => {
+                    zoneBox.connectObject('button-press-event', (_, event) => {
                         let source = event.get_source();
                         let temp = source;
                         let isInteractive = false;
@@ -778,9 +777,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         this._currentDrawMonitorIndex = safeIndex;
                         this.transitionTo(new MoveState(name, x - bxX, y - bxY, safeIndex));
                         return Clutter.EVENT_STOP;
-                    });
+                    }, this);
 
-                    resizeHandle.connect('button-press-event', (_, event) => {
+                    resizeHandle.connectObject('button-press-event', (_, event) => {
                         let button = event.get_button();
 
                         if (button === 1) {
@@ -796,7 +795,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             return Clutter.EVENT_STOP;
                         }
                         return Clutter.EVENT_PROPAGATE;
-                    });
+                    }, this);
 
                     this._zoneWidgets[name] = zoneBox;
                     this._zonesContainer.add_child(zoneBox);
@@ -810,7 +809,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             Main.layoutManager.uiGroup.add_child(this);
             this._pushedModal = Main.pushModal(this);
             
-            this._captureId = global.stage.connect('captured-event', (_, event) => {
+            global.stage.connectObject('captured-event', (_, event) => {
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
                     if (!(this._currentState instanceof IdleState)) {
                         this.transitionTo(new IdleState());
@@ -835,7 +834,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     return Clutter.EVENT_STOP;
                 }
                 return Clutter.EVENT_PROPAGATE;
-            });
+            }, this);
 
             this.grab_key_focus();
         }
@@ -844,10 +843,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
             if (this._isClosed) return;
             this._isClosed = true;
 
-            if (this._captureId) {
-                global.stage.disconnect(this._captureId);
-                this._captureId = 0;
-            }
+            global.stage.disconnectObject(this);
 
             if (this._entry) {
                 try {

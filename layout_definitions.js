@@ -23,53 +23,42 @@ export const Sections = {
 export function isWindowIgnored(window, settings) {
     if (!window || !settings) return false;
     
-    let currentIgnoreList = '';
-    try { currentIgnoreList = (settings.get_strv('ignore-wm-classes') || []).join(','); } catch {}
+    let currentIgnoreList = (settings.get_strv('ignore-wm-classes') || []).join(',');
 
     if (window._omnipanel_ignore_list === currentIgnoreList && window._omnipanel_ignored !== undefined) {
         return window._omnipanel_ignored;
     }
 
     let result = false;
-    try {
-        let wmClass = (window.get_wm_class() || '').toLowerCase();
-        let winTitle = (window.get_title() || '').toLowerCase();
-        
-        if (wmClass.includes('ding') || winTitle.includes('desktop icons')) {
-            result = true;
-        } else {
-            try {
-                let wType = window.get_window_type();
-                if (wType === Meta.WindowType.DESKTOP || wType === Meta.WindowType.DOCK) result = true;
-            } catch {}
+    let wmClass = (window.get_wm_class() || '').toLowerCase();
+    let winTitle = (window.get_title() || '').toLowerCase();
+    
+    if (wmClass.includes('ding') || winTitle.includes('desktop icons')) {
+        result = true;
+    } else {
+        let wType = window.get_window_type();
+        if (wType === Meta.WindowType.DESKTOP || wType === Meta.WindowType.DOCK) result = true;
 
-            if (!result) {
-                let appName = '';
-                try {
-                    let tracker = Shell.WindowTracker.get_default();
-                    let app = tracker.get_window_app(window);
-                    if (app && typeof app.get_name === 'function') {
-                        appName = (app.get_name() || '').toLowerCase();
-                    }
-                } catch {}
-                
-                let ignoreList = settings.get_strv('ignore-wm-classes') || [];
-                
-                result = ignoreList.some(cls => {
-                    let term = cls.trim().toLowerCase();
-                    if (term.length < 2) return false;
-                    return wmClass.includes(term) || winTitle.includes(term) || appName.includes(term);
-                });
+        if (!result) {
+            let appName = '';
+            let tracker = Shell.WindowTracker.get_default();
+            let app = tracker.get_window_app(window);
+            if (app) {
+                appName = (app.get_name() || '').toLowerCase();
             }
+            
+            let ignoreList = settings.get_strv('ignore-wm-classes') || [];
+            
+            result = ignoreList.some(cls => {
+                let term = cls.trim().toLowerCase();
+                if (term.length < 2) return false;
+                return wmClass.includes(term) || winTitle.includes(term) || appName.includes(term);
+            });
         }
-    } catch {
-        result = false;
     }
 
-    try {
-        window._omnipanel_ignore_list = currentIgnoreList;
-        window._omnipanel_ignored = result;
-    } catch {}
+    window._omnipanel_ignore_list = currentIgnoreList;
+    window._omnipanel_ignored = result;
 
     return result;
 }
@@ -77,12 +66,9 @@ export function isWindowIgnored(window, settings) {
 export function isWindowValid(window) {
     if (!window) return false;
     if (window._omnipanel_is_dead === true) return false;
-    try {
-        if (typeof window.is_disposed === 'function' && window.is_disposed()) return false;
-        let actor = window.get_compositor_private();
-        if (!actor) return false;
-        if (typeof actor.is_destroyed === 'function' && actor.is_destroyed()) return false;
-    } catch { return false; }
+    if (window.is_disposed && window.is_disposed()) return false;
+    let actor = window.get_compositor_private();
+    if (!actor || (actor.is_destroyed && actor.is_destroyed())) return false;
     return true;
 }
 

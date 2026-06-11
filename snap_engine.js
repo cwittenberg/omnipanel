@@ -17,6 +17,36 @@ export class SnapEngine {
         this._activeDragZones = [];
         this._dragLoopId = 0;
         this._currentSnapZone = null;
+        this._actionTimerIds = new Set();
+    }
+
+    _addTimer(delay, callback) {
+        let id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            this._actionTimerIds.delete(id);
+            callback();
+            return GLib.SOURCE_REMOVE;
+        });
+        this._actionTimerIds.add(id);
+        return id;
+    }
+
+    _clearTimer(id) {
+        if (this._actionTimerIds.has(id)) {
+            GLib.source_remove(id);
+            this._actionTimerIds.delete(id);
+        }
+    }
+
+    _clearAllTimers() {
+        for (let id of this._actionTimerIds) {
+            GLib.source_remove(id);
+        }
+        this._actionTimerIds.clear();
+
+        if (this._dragLoopId) {
+            GLib.source_remove(this._dragLoopId);
+            this._dragLoopId = 0;
+        }
     }
 
     _startBreathing(widget) {
@@ -148,6 +178,9 @@ export class SnapEngine {
             });
         }
 
+        if (this._dragLoopId) {
+            GLib.source_remove(this._dragLoopId);
+        }
         this._dragLoopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
             try {
                 this.updateDrag();
@@ -224,10 +257,8 @@ export class SnapEngine {
                 
                 this.manager._log(`[Snap] Dropped window onto zone [${zone.name}]`);
 
-                // COMPOSITOR DELAY:
-                // Elevated to 250ms to ensure clients (especially GNOME Files) 
-                // fully yield their grab locks to Mutter before we push programmatic resizes.
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                if (this._grabTransformTimer) this._clearTimer(this._grabTransformTimer);
+                this._grabTransformTimer = this._addTimer(250, () => {
                     try {
                         let customSections = this.manager.storage.getCustomSections();
                         let updatedRect = getSectionRect(zone.monitorIndex, zone.name, customSections) || zone.rect;
@@ -245,14 +276,13 @@ export class SnapEngine {
                     } catch (e) {
                         this.manager._log(`[Snap Error] Transform execution failed: ${e}`);
                     }
-                    return GLib.SOURCE_REMOVE;
                 });
 
             } catch {}
             
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            if (this._grabSaveTimer) this._clearTimer(this._grabSaveTimer);
+            this._grabSaveTimer = this._addTimer(500, () => {
                 this.manager.storage.saveCurrentLayoutStates();
-                return GLib.SOURCE_REMOVE;
             });
 
         } else {
@@ -287,9 +317,9 @@ export class SnapEngine {
                 applyWindowTransform(window, mIndex, zRect, false, this.manager._log.bind(this.manager));
                 if (this.manager.stackManager) this.manager.stackManager.invalidateSignature();
                 
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                if (this._slotSaveTimer) this._clearTimer(this._slotSaveTimer);
+                this._slotSaveTimer = this._addTimer(500, () => {
                     this.manager.storage.saveCurrentLayoutStates();
-                    return GLib.SOURCE_REMOVE;
                 });
             }
         }
@@ -354,18 +384,15 @@ export class SnapEngine {
             applyWindowTransform(window, bestMonitorIndex, bestZone, false, this.manager._log.bind(this.manager));
             if (this.manager.stackManager) this.manager.stackManager.invalidateSignature();
             
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            if (this._dirSaveTimer) this._clearTimer(this._dirSaveTimer);
+            this._dirSaveTimer = this._addTimer(500, () => {
                 this.manager.storage.saveCurrentLayoutStates();
-                return GLib.SOURCE_REMOVE;
             });
         }
     }
 
     disable() {
-        if (this._dragLoopId) {
-            GLib.source_remove(this._dragLoopId);
-            this._dragLoopId = 0;
-        }
+        this._clearAllTimers();
 
         for (let zone of this._activeDragZones) {
             this._stopBreathing(zone.widget);

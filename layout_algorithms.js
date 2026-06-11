@@ -8,14 +8,20 @@ export function getWindowMinSize(win) {
     if (win._omnipanel_min_h) minH = Math.max(minH, win._omnipanel_min_h);
 
     try {
-        if (typeof win.get_min_size === 'function') {
-            let minSize = win.get_min_size();
-            if (Array.isArray(minSize) && minSize.length >= 2) {
-                if (minSize[0] > 0) minW = Math.max(minW, minSize[0]);
-                if (minSize[1] > 0) minH = Math.max(minH, minSize[1]);
+        if (typeof win.get_size_hints === 'function') {
+            let hints = win.get_size_hints();
+            if (hints) {
+                if (hints.min_width > 0) minW = Math.max(minW, hints.min_width);
+                if (hints.min_height > 0) minH = Math.max(minH, hints.min_height);
             }
+        } else if (win.min_width !== undefined && win.min_height !== undefined) {
+            minW = Math.max(minW, win.min_width);
+            minH = Math.max(minH, win.min_height);
         }
-    } catch {}
+    } catch (e) {
+        // Fallback safely to tracked min bounds if hints are unreadable
+    }
+    
     return { w: minW, h: minH };
 }
 
@@ -181,7 +187,7 @@ export function applyCascade(windows, x, y, w, h, monitorIndex, logger) {
         let rect = fitWithinZone(windows[i], cx, cy, tw, th, zRect);
         applyWindowTransform(windows[i], monitorIndex, rect, false, logger, zRect);
         
-        try { windows[i].raise(); } catch {}
+        windows[i].raise();
     }
 }
 

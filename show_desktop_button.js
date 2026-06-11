@@ -4,12 +4,12 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
-import { t } from './i18n.js';
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export const ShowDesktopButton = GObject.registerClass(
     class ShowDesktopButton extends PanelMenu.Button {
         _init(settings) {
-            super._init(0.0, t(settings, 'Show Desktop'), false);
+            super._init(0.0, _('Show Desktop'), false);
             this.settings = settings;
             this._minimizedMap = new Map();
 
@@ -19,12 +19,12 @@ export const ShowDesktopButton = GObject.registerClass(
             });
             this.add_child(icon);
 
-            this.connect('button-release-event', () => {
+            this.connectObject('button-release-event', () => {
                 this._onClicked();
                 return Clutter.EVENT_STOP;
-            });
+            }, this);
             
-            this._settingsChangedId = this.settings.connect('changed::show-desktop-enabled', this._syncVisibility.bind(this));
+            this.settings.connectObject('changed::show-desktop-enabled', this._syncVisibility.bind(this), this);
             this._syncVisibility();
         }
 
@@ -62,17 +62,16 @@ export const ShowDesktopButton = GObject.registerClass(
                 if (toMinimize.length > 0) {
                     this._minimizedMap.set(monitorIndex, toMinimize);
                     for (let win of toMinimize) {
-                        win.minimize();
+                        try {
+                            win.minimize();
+                        } catch { }
                     }
                 }
             }
         }
 
         destroy() {
-            if (this._settingsChangedId) {
-                this.settings.disconnect(this._settingsChangedId);
-                this._settingsChangedId = 0;
-            }
+            this.settings.disconnectObject(this);
             this._minimizedMap.clear();
             super.destroy();
         }

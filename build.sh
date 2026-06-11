@@ -32,9 +32,9 @@ echo "[4/5] Packaging extension..."
 # The pack command points to the extension folder from the parent directory
 gnome-extensions pack "$EXT_NAME" \
     --extra-source=schemas/ \
+    --extra-source=locale/ \
     --extra-source=logo.png \
     --extra-source=defaults.js \
-    --extra-source=i18n.js \
     --extra-source=layout_definitions.js \
     --extra-source=layout_indicator.js \
     --extra-source=layout_storage.js \

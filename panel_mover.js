@@ -39,7 +39,7 @@ const SecondaryPanel = GObject.registerClass(
             this.add_child(this._rightBox);
 
             // Catch the click to pass dragging to maximized windows
-            this.connect('button-press-event', this._onButtonPress.bind(this));
+            this.connectObject('button-press-event', this._onButtonPress.bind(this), this);
         }
 
         _onButtonPress(actor, event) {
@@ -88,11 +88,13 @@ export default class PanelMover {
         this._settings = settings;
         this._enabled = false;
         this._panels = [];
-        this._monitorsChangedId = 0;
         this._movementLoopId = 0;
         this._activeMonitor = -1;
         this._lastTargetPanel = null;
+        
+        // Signal tracking for standard class
         this._settingsChangedId = 0;
+        this._monitorsChangedId = 0;
         this._grabOpEndId = 0;
     }
 
@@ -101,8 +103,9 @@ export default class PanelMover {
         this._enabled = true;
 
         this._createPanels();
-        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', this._createPanels.bind(this));
         
+        // PanelMover is a plain class, NOT a GObject, so we must use traditional connect()
+        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', this._createPanels.bind(this));
         this._settingsChangedId = this._settings.connect('changed', this._onSettingsChanged.bind(this));
         
         // Listen for the end of a window drag operation
@@ -120,14 +123,14 @@ export default class PanelMover {
             this._monitorsChangedId = 0;
         }
 
-        if (this._settingsChangedId) {
-            this._settings.disconnect(this._settingsChangedId);
-            this._settingsChangedId = 0;
-        }
-
         if (this._grabOpEndId) {
             global.display.disconnect(this._grabOpEndId);
             this._grabOpEndId = 0;
+        }
+        
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = 0;
         }
         
         this._stopMovementEngine();
