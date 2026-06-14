@@ -14,6 +14,20 @@ const ENTRY_PADDING = '4px';
 const QUIT_BUTTON_HEIGHT = 55; 
 // ------------------------------------
 
+const LOG_PREFIX = '[OmniPanel ZoneDesigner]';
+
+function _errorToString(error) {
+    if (error instanceof Error && error.message) {
+        return error.message;
+    }
+
+    return String(error);
+}
+
+function _logNonFatal(error, message) {
+    console.warn(`${LOG_PREFIX} ${message}: ${_errorToString(error)}`);
+}
+
 // --- STATE PATTERN DEFINITIONS ---
 class DesignerState {
     onMotion() { return Clutter.EVENT_PROPAGATE; }
@@ -436,7 +450,12 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     let name = newLayoutEntry.get_text().trim();
                     if (name) {
                         let allLayouts = {};
-                        try { allLayouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}'); } catch { }
+                        try {
+                            allLayouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}');
+                        } catch (error) {
+                            _logNonFatal(error, 'Failed to parse named-layouts setting; using an empty layout map');
+                            allLayouts = {};
+                        }
                         
                         if (!allLayouts[name]) {
                             let usedSlots = Object.values(allLayouts).map(l => l.hotkeySlot).filter(s => s);
@@ -567,7 +586,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
             if (this._entry) {
                 try {
                     this._entry.clutter_text.set_cursor_visible(false);
-                } catch {}
+                } catch (error) {
+                    _logNonFatal(error, 'Failed to hide entry cursor before hiding prompt');
+                }
             }
             
             global.stage.set_key_focus(this);
@@ -848,13 +869,19 @@ export const ZoneDesignerRoot = GObject.registerClass(
             if (this._entry) {
                 try {
                     this._entry.clutter_text.set_cursor_visible(false);
-                } catch {}
+                } catch (error) {
+                    _logNonFatal(error, 'Failed to hide entry cursor before closing designer');
+                }
             }
 
             global.stage.set_key_focus(null);
 
             if (this._pushedModal) {
-                try { Main.popModal(this); } catch { }
+                try {
+                    Main.popModal(this._pushedModal);
+                } catch (error) {
+                    _logNonFatal(error, 'Failed to pop designer modal grab');
+                }
                 this._pushedModal = false;
             }
             
@@ -870,7 +897,9 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     this._lastRect = null;
                     
                     this.destroy();
-                } catch {}
+                } catch (error) {
+                    _logNonFatal(error, 'Failed to remove or destroy designer overlay during close');
+                }
 
                 this._manager.onDesignerClosed(didModify);
                 return GLib.SOURCE_REMOVE;
