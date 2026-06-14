@@ -2,6 +2,7 @@
 
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
@@ -36,7 +37,7 @@ export const QuickTilerOverlay = GObject.registerClass(
             }
 
             let [px, py] = global.get_pointer();
-            let pointerRect = new Meta.Rectangle({ x: Math.round(px), y: Math.round(py), width: 1, height: 1 });
+            let pointerRect = new Mtk.Rectangle({ x: Math.round(px), y: Math.round(py), width: 1, height: 1 });
             this._monitorIndex = global.display.get_monitor_index_for_rect(pointerRect);
             this._monitor = Main.layoutManager.monitors[this._monitorIndex];
             
@@ -166,7 +167,10 @@ export const QuickTilerOverlay = GObject.registerClass(
             }, this);
 
             Main.layoutManager.uiGroup.add_child(this);
-            this._pushedModal = Main.pushModal(this);
+            this._modalGrab = Main.pushModal(this);
+            this.connectObject('destroy', () => {
+                this._modalGrab = null;
+            }, this);
 
             this._captureId = this.manager.mediator.connectSignal(global.stage, 'captured-event', (_, event) => {
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
@@ -341,6 +345,31 @@ export const QuickTilerOverlay = GObject.registerClass(
             });
         }
 
+        _hasModalGrab(grab) {
+            if (!grab) {
+                return false;
+            }
+
+            if (!Main.modalActorFocusStack) {
+                return true;
+            }
+
+            return Main.modalActorFocusStack.some(record => record.grab === grab);
+        }
+
+        _popModal() {
+            let grab = this._modalGrab;
+            if (!grab) {
+                return;
+            }
+
+            this._modalGrab = null;
+
+            if (this._hasModalGrab(grab)) {
+                Main.popModal(grab);
+            }
+        }
+
         close() {
             if (this._isClosed) return;
             this._isClosed = true;
@@ -350,29 +379,21 @@ export const QuickTilerOverlay = GObject.registerClass(
                 this._captureId = 0;
             }
 
-            try {
-                if (this._entry && this._entry.clutter_text) {
-                    this._entry.clutter_text.set_cursor_visible(false);
-                }
-            } catch {}
+            if (this._entry && this._entry.clutter_text) {
+                this._entry.clutter_text.set_cursor_visible(false);
+            }
             
             global.stage.set_key_focus(null);
-
-            if (this._pushedModal) {
-                try { Main.popModal(this); } catch {}
-                this._pushedModal = false;
-            }
+            this._popModal();
             
             if (this.manager && this.manager._quickTiler === this) {
                 this.manager._quickTiler = null;
             }
 
-            try {
-                if (this.get_parent && this.get_parent()) {
-                    Main.layoutManager.uiGroup.remove_child(this);
-                }
-                this.destroy();
-            } catch {}
+            if (this.get_parent && this.get_parent()) {
+                Main.layoutManager.uiGroup.remove_child(this);
+            }
+            this.destroy();
         }
     }
 );
