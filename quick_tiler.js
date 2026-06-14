@@ -317,7 +317,7 @@ export const QuickTilerOverlay = GObject.registerClass(
 
                 this._targetWindow._omnipanel_zone = name;
                 this._targetWindow._omnipanel_monitor = this._monitorIndex;
-
+                
             } else {
                 delete this._targetWindow._omnipanel_zone;
                 delete this._targetWindow._omnipanel_monitor;
@@ -350,14 +350,16 @@ export const QuickTilerOverlay = GObject.registerClass(
                 this._captureId = 0;
             }
 
-            if (this._entry && this._entry.clutter_text) {
-                this._entry.clutter_text.set_cursor_visible(false);
-            }
+            try {
+                if (this._entry && this._entry.clutter_text) {
+                    this._entry.clutter_text.set_cursor_visible(false);
+                }
+            } catch {}
             
             global.stage.set_key_focus(null);
 
             if (this._pushedModal) {
-                Main.popModal(this);
+                try { Main.popModal(this); } catch {}
                 this._pushedModal = false;
             }
             
@@ -365,10 +367,12 @@ export const QuickTilerOverlay = GObject.registerClass(
                 this.manager._quickTiler = null;
             }
 
-            if (this.get_parent && this.get_parent()) {
-                Main.layoutManager.uiGroup.remove_child(this);
-            }
-            this.destroy();
+            try {
+                if (this.get_parent && this.get_parent()) {
+                    Main.layoutManager.uiGroup.remove_child(this);
+                }
+                this.destroy();
+            } catch {}
         }
     }
 );
