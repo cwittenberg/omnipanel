@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: none\n"
 "Language: ar\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=ASCII\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: layout_indicator.js:13
@@ -151,7 +151,7 @@ msgid ""
 "Open the OmniPanel system tray menu and toggle \"Zone Designer Mode\". Click "
 "and drag your mouse on any monitor to draw a rectangular zone, name it, and "
 "hit Save."
-msgstr "افتح قائمة علبة النظام OmniPanel وقم بتبديل \"وضع مصمم المنطقة\". انقر واسحب الماوس على أي شاشة لرسم منطقة مستطيلة، وقم بتسميتها، ثم اضغط على حفظ."
+msgstr "افتح قائمة علبة النظام OmniPanel وقم بتبديل \\"وضع مصمم المنطقة\\". انقر واسحب الماوس على أي شاشة لرسم منطقة مستطيلة، وقم بتسميتها، ثم اضغط على حفظ."
 
 #: prefs_guide_about.js:110
 msgid "Auto-Restore and Fuzzy Matching"
@@ -176,7 +176,7 @@ msgid ""
 "Name a zone \"Terminals\" and apps like Alacritty snap there automatically. "
 "Drag a window into a different zone, and OmniPanel learns your preference "
 "permanently."
-msgstr "قم بتسمية منطقة \"المحطات الطرفية\" وسيتم تثبيت التطبيقات مثل Alacritty هناك تلقائيًا. اسحب نافذة إلى منطقة مختلفة، وسيتعرف OmniPanel على تفضيلاتك بشكل دائم."
+msgstr "قم بتسمية منطقة \\"المحطات الطرفية\\" وسيتم تثبيت التطبيقات مثل Alacritty هناك تلقائيًا. اسحب نافذة إلى منطقة مختلفة، وسيتعرف OmniPanel على تفضيلاتك بشكل دائم."
 
 #: prefs_guide_about.js:125
 msgid "Quick Desktop Access"
@@ -186,7 +186,7 @@ msgstr "الوصول السريع لسطح المكتب"
 msgid ""
 "Use the \"Show Desktop\" button in the top bar to instantly minimize and "
 "restore windows on your current monitor."
-msgstr "استخدم الزر \"إظهار سطح المكتب\" في الشريط العلوي لتصغير النوافذ واستعادتها على الفور على شاشتك الحالية."
+msgstr "استخدم الزر \\"إظهار سطح المكتب\\" في الشريط العلوي لتصغير النوافذ واستعادتها على الفور على شاشتك الحالية."
 
 #: prefs_guide_about.js:131 prefs_tiling.js:127
 msgid "Ignored Applications"
@@ -196,7 +196,7 @@ msgstr "التطبيقات التي تم تجاهلها"
 msgid ""
 "Define a comma-separated list of app names (like \"steam\" or \"gimp\") in "
 "the layout settings to keep OmniPanel from ever managing them."
-msgstr "حدد قائمة مفصولة بفواصل بأسماء التطبيقات (مثل \"steam\" أو \"gimp\") في إعدادات التخطيط لمنع OmniPanel من إدارتها على الإطلاق."
+msgstr "حدد قائمة مفصولة بفواصل بأسماء التطبيقات (مثل \\"steam\\" أو \\"gimp\\") في إعدادات التخطيط لمنع OmniPanel من إدارتها على الإطلاق."
 
 #: prefs_guide_about.js:137
 msgid "Show the GNOME Top Bar on All Monitors"

@@ -1,4 +1,5 @@
 // omnipanel/layout_definitions.js
+
 import Meta from 'gi://Meta';
 import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
@@ -24,7 +25,6 @@ export function isWindowIgnored(window, settings) {
     if (!window || !settings) return false;
     
     let currentIgnoreList = (settings.get_strv('ignore-wm-classes') || []).join(',');
-
     if (window._omnipanel_ignore_list === currentIgnoreList && window._omnipanel_ignored !== undefined) {
         return window._omnipanel_ignored;
     }
@@ -59,7 +59,6 @@ export function isWindowIgnored(window, settings) {
 
     window._omnipanel_ignore_list = currentIgnoreList;
     window._omnipanel_ignored = result;
-
     return result;
 }
 
@@ -67,6 +66,7 @@ export function isWindowValid(window) {
     if (!window) return false;
     if (window._omnipanel_is_dead === true) return false;
     if (window.is_disposed && window.is_disposed()) return false;
+
     let actor = window.get_compositor_private();
     if (!actor || (actor.is_destroyed && actor.is_destroyed())) return false;
     return true;
@@ -89,6 +89,7 @@ export function hexToRgba(hex, alpha) {
     } else if (hex && hex.startsWith('rgb')) {
         return hex; 
     }
+
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
@@ -96,7 +97,12 @@ export function getLayoutColors(manager) {
     let base = 'rgba(46, 204, 113, 1.0)';
     if (manager && manager.activeLayoutName) {
         let layouts = {};
-        try { layouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}'); } catch {}
+        try { 
+            layouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}'); 
+        } catch (e) {
+            console.error("OmniPanel JSON Parse Error:", e);
+        }
+        
         if (layouts[manager.activeLayoutName] && layouts[manager.activeLayoutName].color) {
             base = layouts[manager.activeLayoutName].color;
         }
@@ -118,6 +124,7 @@ export function calculateTitleSimilarity(t1, t2) {
     if (!t1 || !t2) return 0;
     let w1 = t1.toLowerCase().split(/[\s\-_|/]+/);
     let w2 = t2.toLowerCase().split(/[\s\-_|/]+/);
+
     let score = 0;
     for (let w of w1) {
         if (w.length > 2 && w2.includes(w)) score++;
@@ -149,6 +156,7 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
         let termZone = zoneNames.find(zn => zn.toLowerCase().includes('term') || zn.toLowerCase().includes('cli') || zn.toLowerCase().includes('console'));
         if (termZone) return { zone: termZone, isExplicit: true };
     }
+
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         for (let dict of appDictionary) {
@@ -159,6 +167,7 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
             }
         }
     }
+
     if (categories) {
         for (let c of fdCategoryMap) {
             if (categories.includes(c.cat)) {
@@ -171,12 +180,14 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
             }
         }
     }
+
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         if (z.length > 2 && (wmClass.includes(z) || z.includes(wmClass))) {
             return { zone: zone, isExplicit: false };
         }
     }
+
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         if (z.length > 3 && windowTitle.includes(z)) {
@@ -185,12 +196,14 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
             }
         }
     }
+
     return null;
 }
 
 export function getSectionRect(monitorIndex, section, customSections = {}) {
     let mCount = Main.layoutManager.monitors.length;
     if (mCount === 0) return null;
+
     let rect = new Mtk.Rectangle();
     
     if (customSections[section] && customSections[section].rw !== undefined) {
@@ -201,6 +214,7 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
         
         if (!monitor) return null;
+
         let panelHeight = Main.panel.height;
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
@@ -214,11 +228,13 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         rect.y = workAreaY + Math.round(workAreaHeight * cry);
         rect.width = Math.max(50, Math.round(monitor.width * crw));
         rect.height = Math.max(50, Math.round(workAreaHeight * crh));
+
     } else {
         let safeMonitorIndex = Math.max(0, Math.min(monitorIndex, mCount - 1));
         let monitor = Main.layoutManager.monitors[safeMonitorIndex];
         
         if (!monitor) return null;
+
         let panelHeight = Main.panel.height;
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
@@ -300,17 +316,20 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
                 return null;
         }
     }
+
     if (rect && rect.width > 0 && rect.height > 0) {
         rect.width = Math.max(50, rect.width);
         rect.height = Math.max(50, rect.height);
         return rect;
     }
+
     return null;
 }
 
 export function identifySection(windowRect, monitorIndex, customSections = {}) {
     let bestMatch = null;
     let minDifference = Infinity;
+
     let allSections = [...Object.values(Sections), ...Object.keys(customSections)];
     
     for (const section of allSections) {
@@ -327,5 +346,6 @@ export function identifySection(windowRect, monitorIndex, customSections = {}) {
             bestMatch = section;
         }
     }
+
     return bestMatch;
 }

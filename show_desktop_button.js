@@ -1,4 +1,5 @@
 // omnipanel/show_desktop_button.js
+
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -50,11 +51,9 @@ export const ShowDesktopButton = GObject.registerClass(
 
             if (savedState.length > 0 && allCurrentlyMinimized) {
                 for (let win of savedState) {
-                    try {
-                        if (win && win.get_compositor_private() && !win.get_compositor_private().is_destroyed()) {
-                            win.unminimize();
-                        }
-                    } catch { }
+                    if (win && win.get_compositor_private() && !win.get_compositor_private().is_destroyed()) {
+                        win.unminimize();
+                    }
                 }
                 this._minimizedMap.delete(monitorIndex);
             } else {
@@ -62,9 +61,7 @@ export const ShowDesktopButton = GObject.registerClass(
                 if (toMinimize.length > 0) {
                     this._minimizedMap.set(monitorIndex, toMinimize);
                     for (let win of toMinimize) {
-                        try {
-                            win.minimize();
-                        } catch { }
+                        win.minimize();
                     }
                 }
             }

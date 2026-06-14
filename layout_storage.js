@@ -12,8 +12,12 @@ export class LayoutStorage {
     }
 
     getCustomSections() {
-        try { return JSON.parse(this.settings.get_string('custom-sections') || '{}'); } 
-        catch { return {}; }
+        try { 
+            return JSON.parse(this.settings.get_string('custom-sections') || '{}'); 
+        } catch (e) { 
+            this.manager._log(`JSON Parse Error in custom-sections: ${e}`);
+            return {}; 
+        }
     }
     
     setCustomSectionsAndSave(zones) {
@@ -21,7 +25,11 @@ export class LayoutStorage {
         
         if (this.manager.activeLayoutName) {
             let allLayouts = {};
-            try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+            try { 
+                allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); 
+            } catch (e) {
+                this.manager._log(`JSON Parse Error in named-layouts: ${e}`);
+            }
             if (allLayouts[this.manager.activeLayoutName]) {
                 allLayouts[this.manager.activeLayoutName].zones = zones;
                 this.settings.set_string('named-layouts', JSON.stringify(allLayouts));
@@ -35,33 +43,31 @@ export class LayoutStorage {
         let layoutState = {};
         
         for (let window of windows) {
-            try {
-                if (!window || !window.get_display()) continue;
-                if (window.is_override_redirect()) continue;
-                if (window.get_transient_for() !== null) continue;
-                let wType = window.get_window_type();
-                if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
-                if (isWindowIgnored(window, this.settings)) continue;
-                
-                let monitorIndex = window.get_monitor();
-                let section = null;
-                
-                if (window._omnipanel_zone && customSections[window._omnipanel_zone]) {
-                    section = window._omnipanel_zone;
-                } else {
-                    let rect = window.get_frame_rect();
-                    section = identifySection(rect, monitorIndex, customSections);
-                }
-                
-                let wmClass = window.get_wm_class();
-                if (!wmClass) continue;
-                if (!layoutState[wmClass]) layoutState[wmClass] = [];
-                
-                let title = window.get_title() || '';
-                if (section) {
-                    layoutState[wmClass].push({ title: title, monitor: monitorIndex, section: section });
-                }
-            } catch { }
+            if (!window || !window.get_display()) continue;
+            if (typeof window.is_override_redirect === 'function' && window.is_override_redirect()) continue;
+            if (typeof window.get_transient_for === 'function' && window.get_transient_for() !== null) continue;
+            let wType = typeof window.get_window_type === 'function' ? window.get_window_type() : Meta.WindowType.NORMAL;
+            if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
+            if (isWindowIgnored(window, this.settings)) continue;
+            
+            let monitorIndex = typeof window.get_monitor === 'function' ? window.get_monitor() : 0;
+            let section = null;
+            
+            if (window._omnipanel_zone && customSections[window._omnipanel_zone]) {
+                section = window._omnipanel_zone;
+            } else if (typeof window.get_frame_rect === 'function') {
+                let rect = window.get_frame_rect();
+                section = identifySection(rect, monitorIndex, customSections);
+            }
+            
+            let wmClass = typeof window.get_wm_class === 'function' ? window.get_wm_class() : null;
+            if (!wmClass) continue;
+            if (!layoutState[wmClass]) layoutState[wmClass] = [];
+            
+            let title = typeof window.get_title === 'function' ? window.get_title() || '' : '';
+            if (section) {
+                layoutState[wmClass].push({ title: title, monitor: monitorIndex, section: section });
+            }
         }
         return layoutState;
     }
@@ -93,7 +99,11 @@ export class LayoutStorage {
         if (this.settings.get_boolean('auto-restore-layouts')) {
             let signatures = this.manager.getMonitorSignature();
             let allLayouts = {};
-            try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
+            try { 
+                allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); 
+            } catch (e) {
+                this.manager._log(`JSON Parse Error in saved-tiling-layouts: ${e}`);
+            }
             let existingWindows = allLayouts[signatures.exact] ? (allLayouts[signatures.exact].windows || {}) : {};
             let mergedWindows = { ...existingWindows, ...state };
             allLayouts[signatures.exact] = { windows: mergedWindows, zones: zones };
@@ -102,7 +112,11 @@ export class LayoutStorage {
 
         if (this.manager.activeLayoutName) {
             let namedLayouts = {};
-            try { namedLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+            try { 
+                namedLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); 
+            } catch (e) {
+                this.manager._log(`JSON Parse Error in named-layouts: ${e}`);
+            }
             
             if (namedLayouts[this.manager.activeLayoutName]) {
                 let target = namedLayouts[this.manager.activeLayoutName];
@@ -126,7 +140,11 @@ export class LayoutStorage {
         let state = this.getCurrentLayoutState();
         let zones = this.getCustomSections();
         let allLayouts = {};
-        try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
+        try { 
+            allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); 
+        } catch (e) {
+            this.manager._log(`JSON Parse Error in named-layouts: ${e}`);
+        }
         
         let existingWindows = allLayouts[name] ? (allLayouts[name].windows || {}) : {};
         let mergedWindows = { ...existingWindows, ...state };
@@ -195,7 +213,12 @@ export class LayoutStorage {
     restoreNamedLayout(name) {
         if (!name) return;
         let namedLayouts = {};
-        try { namedLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { return; }
+        try { 
+            namedLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); 
+        } catch (e) {
+            this.manager._log(`JSON Parse Error in named-layouts: ${e}`);
+            return; 
+        }
         
         let layout = namedLayouts[name];
         if (layout) {
@@ -227,107 +250,105 @@ export class LayoutStorage {
         }
 
         for (let window of windows) {
-            try {
-                if (!window || !window.get_display() || window.is_override_redirect()) continue;
-                if (window.get_transient_for() !== null) continue;
-                let wType = window.get_window_type();
-                if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
-                if (isWindowIgnored(window, this.settings)) continue;
+            if (!window || !window.get_display() || (typeof window.is_override_redirect === 'function' && window.is_override_redirect())) continue;
+            if (typeof window.get_transient_for === 'function' && window.get_transient_for() !== null) continue;
+            let wType = typeof window.get_window_type === 'function' ? window.get_window_type() : Meta.WindowType.NORMAL;
+            if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
+            if (isWindowIgnored(window, this.settings)) continue;
 
-                let wmClass = window.get_wm_class();
-                if (!wmClass) continue;
+            let wmClass = typeof window.get_wm_class === 'function' ? window.get_wm_class() : null;
+            if (!wmClass) continue;
 
-                let hadZone = !!window._omnipanel_zone;
-                let isPlaced = false;
-                let matchedLayout = null;
+            let hadZone = !!window._omnipanel_zone;
+            let isPlaced = false;
+            let matchedLayout = null;
 
-                if (rememberAffinity) {
-                    if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
-                        let list = availableLayouts[wmClass];
-                        let winTitle = window.get_title() || '';
-                        
-                        let bestIdx = 0;
-                        let bestScore = -1;
-
-                        for (let i = 0; i < list.length; i++) {
-                            let score = calculateTitleSimilarity(winTitle, list[i].title);
-                            if (score > bestScore) {
-                                bestScore = score;
-                                bestIdx = i;
-                            }
-                        }
-
-                        matchedLayout = list[bestIdx];
-                        list.splice(bestIdx, 1);
-                        fallbackLayouts[wmClass] = matchedLayout;
-                    } else if (fallbackLayouts[wmClass]) {
-                        matchedLayout = fallbackLayouts[wmClass];
-                        this.manager._log(`[LayoutStorage] Rescuing extra window [${wmClass}] using fallback layout.`);
-                    }
-                }
-
-                if (matchedLayout) {
-                    let finalMonitor = matchedLayout.monitor;
-                    if (matchedLayout.section && customSections[matchedLayout.section] && customSections[matchedLayout.section].monitorIndex !== undefined) {
-                        finalMonitor = customSections[matchedLayout.section].monitorIndex;
-                    }
-
-                    let targetRect = null;
-                    if (matchedLayout.section) {
-                        targetRect = getSectionRect(finalMonitor, matchedLayout.section, customSections);
-                    }
+            if (rememberAffinity) {
+                if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
+                    let list = availableLayouts[wmClass];
+                    let winTitle = typeof window.get_title === 'function' ? window.get_title() || '' : '';
                     
-                    if (targetRect) {
-                        isPlaced = true;
-                        window._omnipanel_zone = matchedLayout.section;
-                        window._omnipanel_monitor = finalMonitor;
-                        
-                        applyWindowTransform(window, finalMonitor, targetRect, matchedLayout.section === 'maximized', this.manager._log.bind(this.manager));
-                        
-                        if (this.manager.stackManager && matchedLayout.section) {
-                            this.manager.stackManager.invalidateSignature(matchedLayout.section);
+                    let bestIdx = 0;
+                    let bestScore = -1;
+
+                    for (let i = 0; i < list.length; i++) {
+                        let score = calculateTitleSimilarity(winTitle, list[i].title);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestIdx = i;
                         }
                     }
+
+                    matchedLayout = list[bestIdx];
+                    list.splice(bestIdx, 1);
+                    fallbackLayouts[wmClass] = matchedLayout;
+                } else if (fallbackLayouts[wmClass]) {
+                    matchedLayout = fallbackLayouts[wmClass];
+                    this.manager._log(`[LayoutStorage] Rescuing extra window [${wmClass}] using fallback layout.`);
+                }
+            }
+
+            if (matchedLayout) {
+                let finalMonitor = matchedLayout.monitor;
+                if (matchedLayout.section && customSections[matchedLayout.section] && customSections[matchedLayout.section].monitorIndex !== undefined) {
+                    finalMonitor = customSections[matchedLayout.section].monitorIndex;
                 }
 
-                if (!isPlaced && hadZone) {
-                    this.manager._log(`[LayoutStorage] Window [${wmClass}] abandoned by layout switch. Executing Safe Ejection.`);
+                let targetRect = null;
+                if (matchedLayout.section) {
+                    targetRect = getSectionRect(finalMonitor, matchedLayout.section, customSections);
+                }
+                
+                if (targetRect) {
+                    isPlaced = true;
+                    window._omnipanel_zone = matchedLayout.section;
+                    window._omnipanel_monitor = finalMonitor;
                     
-                    delete window._omnipanel_zone;
-                    delete window._omnipanel_monitor;
+                    applyWindowTransform(window, finalMonitor, targetRect, matchedLayout.section === 'maximized', this.manager._log.bind(this.manager));
                     
-                    let mIdx = window.get_monitor() || 0;
-                    let mRect = Main.layoutManager.monitors[mIdx];
-                    
-                    if (mRect) {
-                        let safeW = 800;
-                        let safeH = 600;
-
-                        try {
-                            if (typeof window.get_min_size === 'function') {
-                                let min = window.get_min_size();
-                                if (min && min.length === 2) {
-                                    safeW = Math.max(safeW, min[0]);
-                                    safeH = Math.max(safeH, min[1]);
-                                }
-                            }
-                        } catch {}
-
-                        let safeX = mRect.x + Math.floor((mRect.width - safeW) / 2);
-                        let safeY = mRect.y + Math.floor((mRect.height - safeH) / 2);
-                        
-                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-                            try {
-                                if (isWindowValid(window)) {
-                                    if (window.get_maximized() > 0) window.unmaximize(Meta.MaximizeFlags.BOTH);
-                                    window.move_resize_frame(false, safeX, safeY, safeW, safeH);
-                                }
-                            } catch {}
-                            return GLib.SOURCE_REMOVE;
-                        });
+                    if (this.manager.stackManager && matchedLayout.section) {
+                        this.manager.stackManager.invalidateSignature(matchedLayout.section);
                     }
                 }
-            } catch {}
+            }
+
+            if (!isPlaced && hadZone) {
+                this.manager._log(`[LayoutStorage] Window [${wmClass}] abandoned by layout switch. Executing Safe Ejection.`);
+                
+                delete window._omnipanel_zone;
+                delete window._omnipanel_monitor;
+                
+                let mIdx = typeof window.get_monitor === 'function' ? window.get_monitor() || 0 : 0;
+                let mRect = Main.layoutManager.monitors[mIdx];
+                
+                if (mRect) {
+                    let safeW = 800;
+                    let safeH = 600;
+
+                    if (typeof window.get_min_size === 'function') {
+                        let min = window.get_min_size();
+                        if (min && min.length === 2) {
+                            safeW = Math.max(safeW, min[0]);
+                            safeH = Math.max(safeH, min[1]);
+                        }
+                    }
+
+                    let safeX = mRect.x + Math.floor((mRect.width - safeW) / 2);
+                    let safeY = mRect.y + Math.floor((mRect.height - safeH) / 2);
+                    
+                    if (window._omnipanel_eject_timer) {
+                        this.manager.mediator.clearTimer(window._omnipanel_eject_timer);
+                    }
+                    window._omnipanel_eject_timer = this.manager.mediator.addTimer(50, () => {
+                        window._omnipanel_eject_timer = 0;
+                        if (isWindowValid(window)) {
+                            if (window.get_maximized() > 0) window.unmaximize(Meta.MaximizeFlags.BOTH);
+                            window.move_resize_frame(false, safeX, safeY, safeW, safeH);
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
+            }
         }
     }
 
@@ -336,7 +357,11 @@ export class LayoutStorage {
 
         let signatures = this.manager.getMonitorSignature();
         let allLayouts = {};
-        try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
+        try { 
+            allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); 
+        } catch (e) {
+            this.manager._log(`JSON Parse Error in saved-tiling-layouts: ${e}`);
+        }
 
         let savedData = allLayouts[signatures.exact];
 

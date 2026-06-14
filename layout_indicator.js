@@ -89,7 +89,11 @@ export const LayoutIndicator = GObject.registerClass(
 
                 let layoutsStr = this.settings.get_string('named-layouts');
                 let layouts = {};
-                try { layouts = JSON.parse(layoutsStr); } catch { }
+                try { 
+                    layouts = JSON.parse(layoutsStr); 
+                } catch (e) {
+                    console.error("OmniPanel: Failed to parse named-layouts:", e);
+                }
                 
                 let keys = Object.keys(layouts);
                 if (keys.length === 1 && (!this._tilingManager.activeLayoutName || !layouts[this._tilingManager.activeLayoutName])) {
@@ -138,7 +142,9 @@ export const LayoutIndicator = GObject.registerClass(
                             Gio.AppInfoCreateFlags.NONE
                         );
                         app.launch([], null);
-                    } catch { }
+                    } catch (e) {
+                        console.error("OmniPanel: Failed to launch preferences:", e);
+                    }
                 }
             }, this);
             this.menu.addMenuItem(prefsItem);

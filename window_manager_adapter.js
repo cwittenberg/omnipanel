@@ -37,12 +37,8 @@ export function clearPendingTransforms() {
 export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null, zoneRect = null) {
     if (!window) return;
     
-    let winTitle = 'unknown';
-    let winId = 'unknown';
-    try { 
-        winTitle = window.get_title() || 'unknown'; 
-        winId = window.get_id ? window.get_id() : Math.random().toString();
-    } catch {}
+    let winTitle = (typeof window.get_title === 'function') ? (window.get_title() || 'unknown') : 'unknown'; 
+    let winId = (typeof window.get_id === 'function') ? window.get_id() : Math.random().toString();
 
     if (window._omnipanel_is_dead) return;
 

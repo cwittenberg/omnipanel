@@ -1,7 +1,7 @@
 // omnipanel/prefs_components.js
-import Adw from 'gi://Adw?version=1';
-import Gtk from 'gi://Gtk?version=4.0';
-import Gdk from 'gi://Gdk?version=4.0';
+import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
+import Gdk from 'gi://Gdk';
 import GObject from 'gi://GObject';
 import { DEFAULT_APP_DICTIONARY, DEFAULT_CATEGORY_MAP } from './defaults.js';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -224,13 +224,15 @@ const DictionaryConfigWindow = GObject.registerClass(
 
             try {
                 this._appData = (appDictStr && appDictStr.trim() !== '') ? JSON.parse(appDictStr) : JSON.parse(JSON.stringify(DEFAULT_APP_DICTIONARY));
-            } catch {
+            } catch (e) {
+                console.error("OmniPanel: Failed to parse app dictionary:", e);
                 this._appData = JSON.parse(JSON.stringify(DEFAULT_APP_DICTIONARY));
             }
 
             try {
                 this._catData = (catMapStr && catMapStr.trim() !== '') ? JSON.parse(catMapStr) : JSON.parse(JSON.stringify(DEFAULT_CATEGORY_MAP));
-            } catch {
+            } catch (e) {
+                console.error("OmniPanel: Failed to parse category map:", e);
                 this._catData = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_MAP));
             }
 
@@ -299,12 +301,8 @@ const DictionaryConfigWindow = GObject.registerClass(
         }
 
         _save() {
-            try {
-                this.settings.set_string('app-dictionary', JSON.stringify(this._appData));
-                this.settings.set_string('category-map', JSON.stringify(this._catData));
-            } catch (e) {
-                console.error("OmniPanel: Failed to serialize routing rules during save:", e);
-            }
+            this.settings.set_string('app-dictionary', JSON.stringify(this._appData));
+            this.settings.set_string('category-map', JSON.stringify(this._catData));
             this.close();
         }
 

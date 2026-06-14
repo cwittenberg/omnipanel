@@ -1,4 +1,4 @@
-# Arabic translations for PACKAGE package.
+# Portuguese translations for PACKAGE package.
 # Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # Automatically generated, 2026.
@@ -11,122 +11,123 @@ msgstr ""
 "PO-Revision-Date: 2026-06-14 13:19+0200\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
-"Language: ar\n"
+"Language: pt_BR\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: layout_indicator.js:13
 msgid "OmniPanel Command Center"
-msgstr "مركز قيادة OmniPanel"
+msgstr "Centro de Comando OmniPanel"
 
 #: layout_indicator.js:53
 msgid "Multi-Monitor Top Panel"
-msgstr "لوحة علوية متعددة الشاشات"
+msgstr "Painel superior para vários monitores"
 
 #: layout_indicator.js:62
 msgid "Window Management"
-msgstr "إدارة النوافذ"
+msgstr "Gerenciamento de janelas"
 
 #: layout_indicator.js:72 prefs_tiling.js:39 zone_designer.js:399
 msgid "Zone Designer Mode"
-msgstr "وضع مصمم المنطقة"
+msgstr "Modo Designer de Zona"
 
 #: layout_indicator.js:84
 msgid "Quick Tiler Grid"
-msgstr "شبكة بلاط سريعة"
+msgstr "Grade de Ladrilho Rápido"
 
 #: layout_indicator.js:133
 msgid "Settings"
-msgstr "إعدادات"
+msgstr "Configurações"
 
 #: prefs_components.js:33
 msgid "Press keys... (Esc to cancel, Backspace to clear)"
-msgstr "اضغط على المفاتيح... (Esc للإلغاء، Backspace للمسح)"
+msgstr "Pressione as teclas... (Esc para cancelar, Backspace para limpar)"
 
 #: prefs_components.js:49
 msgid "Disabled"
-msgstr "عاجز"
+msgstr "Desabilitado"
 
 #: prefs_components.js:87 prefs_components.js:97
 msgid "New Rule"
-msgstr "قاعدة جديدة"
+msgstr "Nova regra"
 
 #: prefs_components.js:92 prefs_components.js:138
 msgid "Target Zones (comma separated)"
-msgstr "المناطق المستهدفة (مفصولة بفواصل)"
+msgstr "Zonas-alvo (separadas por vírgula)"
 
 #: prefs_components.js:101
 msgid "App Keywords (comma separated)"
-msgstr "الكلمات الرئيسية للتطبيق (مفصولة بفواصل)"
+msgstr "Palavras-chave do aplicativo (separadas por vírgula)"
 
 #: prefs_components.js:108
 msgid "Remove this routing rule"
-msgstr "قم بإزالة قاعدة التوجيه هذه"
+msgstr "Remover esta regra de roteamento"
 
 #: prefs_components.js:124 prefs_components.js:134
 msgid "New Category"
-msgstr "فئة جديدة"
+msgstr "Nova categoria"
 
 #: prefs_components.js:129
 msgid "GNOME Desktop Category"
-msgstr "فئة سطح مكتب جنوم"
+msgstr "Categoria de área de trabalho GNOME"
 
 #: prefs_components.js:145
 msgid "Remove this category rule"
-msgstr "قم بإزالة قاعدة الفئة هذه"
+msgstr "Remover esta regra de categoria"
 
 #: prefs_components.js:162
 msgid "Smart Placement Routing Rules"
-msgstr "قواعد توجيه المواضع الذكية"
+msgstr "Regras de roteamento de posicionamento inteligente"
 
 #: prefs_components.js:175
 msgid "Save & Close"
-msgstr "حفظ وإغلاق"
+msgstr "Salvar e fechar"
 
 #: prefs_components.js:179
 msgid "Reset to Defaults"
-msgstr "إعادة التعيين إلى الإعدادات الافتراضية"
+msgstr "Redefinir para os padrões"
 
 #: prefs_components.js:190
 msgid "Application Keyword Routing"
-msgstr "توجيه الكلمات الرئيسية للتطبيق"
+msgstr "Roteamento de palavras-chave do aplicativo"
 
 #: prefs_components.js:191
 msgid ""
 "Route applications to specific drop zones if their window title or "
 "application name matches a keyword."
-msgstr "قم بتوجيه التطبيقات إلى مناطق إفلات محددة إذا كان عنوان النافذة أو اسم التطبيق الخاص بها يتطابق مع كلمة أساسية."
+msgstr "Direcione aplicativos para zonas específicas se o título da janela ou o nome do aplicativo corresponder a uma palavra-chave."
 
 #: prefs_components.js:195
 msgid "App Keywords"
-msgstr "الكلمات الرئيسية للتطبيق"
+msgstr "Palavras-chave do aplicativo"
 
 #: prefs_components.js:200
 msgid "Category Routing"
-msgstr "توجيه الفئة"
+msgstr "Roteamento de categoria"
 
 #: prefs_components.js:201
 msgid ""
 "Route applications to specific drop zones based on their underlying GNOME "
 "desktop metadata category."
-msgstr "قم بتوجيه التطبيقات إلى مناطق إسقاط محددة بناءً على فئة البيانات التعريفية لسطح مكتب جنوم الأساسية."
+msgstr "Roteie aplicativos para zonas de descarte específicas com base na categoria subjacente de metadados da área de trabalho GNOME."
 
 #: prefs_components.js:205
 msgid "Categories"
-msgstr "فئات"
+msgstr "Categorias"
 
 #: prefs_components.js:260
 msgid "Add New App Routing Rule"
-msgstr "إضافة قاعدة توجيه التطبيق الجديدة"
+msgstr "Adicionar nova regra de roteamento de aplicativos"
 
 #: prefs_components.js:290
 msgid "Add New Category Routing Rule"
-msgstr "إضافة قاعدة توجيه فئة جديدة"
+msgstr "Adicionar nova regra de roteamento de categoria"
 
 #: prefs_guide_about.js:54
 msgid "Guide"
-msgstr "مرشد"
+msgstr "Guia"
 
 #: prefs_guide_about.js:84 prefs_guide_about.js:176
 msgid "OmniPanel"
@@ -136,770 +137,770 @@ msgstr ""
 msgid ""
 "Multi-monitor productivity with configurable layouts for windows and a GNOME "
 "Top Bar that seamlessly follows your focus."
-msgstr "إنتاجية شاشات متعددة مع تخطيطات قابلة للتكوين للنوافذ وشريط GNOME العلوي الذي يتبع تركيزك بسلاسة."
+msgstr "Produtividade de vários monitores com layouts configuráveis ​​para janelas e uma barra superior do GNOME que segue perfeitamente o seu foco."
 
 #: prefs_guide_about.js:101
 msgid "Window Layouts & The Zone Designer"
-msgstr "تخطيطات النوافذ ومصمم المنطقة"
+msgstr "Layouts de janelas e o designer de zona"
 
 #: prefs_guide_about.js:104
 msgid "Draw Your Workspace"
-msgstr "ارسم مساحة العمل الخاصة بك"
+msgstr "Desenhe seu espaço de trabalho"
 
 #: prefs_guide_about.js:105
 msgid ""
 "Open the OmniPanel system tray menu and toggle \"Zone Designer Mode\". Click "
 "and drag your mouse on any monitor to draw a rectangular zone, name it, and "
 "hit Save."
-msgstr "افتح قائمة علبة النظام OmniPanel وقم بتبديل \"وضع مصمم المنطقة\". انقر واسحب الماوس على أي شاشة لرسم منطقة مستطيلة، وقم بتسميتها، ثم اضغط على حفظ."
+msgstr "Abra o menu da bandeja do sistema OmniPanel e alterne o \"Modo Zone Designer\". Clique e arraste o mouse em qualquer monitor para desenhar uma zona retangular, nomeie-a e clique em Salvar."
 
 #: prefs_guide_about.js:110
 msgid "Auto-Restore and Fuzzy Matching"
-msgstr "الاستعادة التلقائية والمطابقة الغامضة"
+msgstr "Restauração automática e correspondência difusa"
 
 #: prefs_guide_about.js:111
 msgid ""
 "Layouts are automatically saved based on your current monitor setup. Unplug "
 "and replug your screens, and your customized layouts return instantly."
-msgstr "يتم حفظ التخطيطات تلقائيًا بناءً على إعداد الشاشة الحالي لديك. افصل شاشاتك وأعد توصيلها، وستعود تخطيطاتك المخصصة على الفور."
+msgstr "Os layouts são salvos automaticamente com base na configuração atual do monitor. Desconecte e reconecte suas telas e seus layouts personalizados retornarão instantaneamente."
 
 #: prefs_guide_about.js:116
 msgid "Smart Placement & Exclusions"
-msgstr "المواضع والاستثناءات الذكية"
+msgstr "Posicionamento inteligente e exclusões"
 
 #: prefs_guide_about.js:119
 msgid "Auto-Routing and Affinity"
-msgstr "التوجيه التلقائي والتقارب"
+msgstr "Roteamento automático e afinidade"
 
 #: prefs_guide_about.js:120
 msgid ""
 "Name a zone \"Terminals\" and apps like Alacritty snap there automatically. "
 "Drag a window into a different zone, and OmniPanel learns your preference "
 "permanently."
-msgstr "قم بتسمية منطقة \"المحطات الطرفية\" وسيتم تثبيت التطبيقات مثل Alacritty هناك تلقائيًا. اسحب نافذة إلى منطقة مختلفة، وسيتعرف OmniPanel على تفضيلاتك بشكل دائم."
+msgstr "Nomeie uma zona como \"Terminais\" e aplicativos como o Alacritty se encaixam nela automaticamente. Arraste uma janela para uma zona diferente e o OmniPanel aprenderá sua preferência permanentemente."
 
 #: prefs_guide_about.js:125
 msgid "Quick Desktop Access"
-msgstr "الوصول السريع لسطح المكتب"
+msgstr "Acesso rápido à área de trabalho"
 
 #: prefs_guide_about.js:126
 msgid ""
 "Use the \"Show Desktop\" button in the top bar to instantly minimize and "
 "restore windows on your current monitor."
-msgstr "استخدم الزر \"إظهار سطح المكتب\" في الشريط العلوي لتصغير النوافذ واستعادتها على الفور على شاشتك الحالية."
+msgstr "Use o botão \"Mostrar área de trabalho\" na barra superior para minimizar e restaurar instantaneamente as janelas do seu monitor atual."
 
 #: prefs_guide_about.js:131 prefs_tiling.js:127
 msgid "Ignored Applications"
-msgstr "التطبيقات التي تم تجاهلها"
+msgstr "Aplicativos ignorados"
 
 #: prefs_guide_about.js:132
 msgid ""
 "Define a comma-separated list of app names (like \"steam\" or \"gimp\") in "
 "the layout settings to keep OmniPanel from ever managing them."
-msgstr "حدد قائمة مفصولة بفواصل بأسماء التطبيقات (مثل \"steam\" أو \"gimp\") في إعدادات التخطيط لمنع OmniPanel من إدارتها على الإطلاق."
+msgstr "Defina uma lista de nomes de aplicativos separados por vírgula (como \\"steam\\" ou \\"gimp\\") nas configurações de layout para evitar que o OmniPanel os gerencie."
 
 #: prefs_guide_about.js:137
 msgid "Show the GNOME Top Bar on All Monitors"
-msgstr "إظهار شريط جنوم العلوي على جميع الشاشات"
+msgstr "Mostrar a barra superior do GNOME em todos os monitores"
 
 #: prefs_guide_about.js:138
 msgid ""
 "OmniPanel teleports the active Top Bar to the monitor where your focus is. "
 "See your current time, system tray, and app indicators no matter which "
 "screen you are on."
-msgstr "يقوم OmniPanel بنقل الشريط العلوي النشط إلى الشاشة حيث يكون تركيزك. شاهد الوقت الحالي وعلبة النظام ومؤشرات التطبيق بغض النظر عن الشاشة التي تستخدمها."
+msgstr "OmniPanel teletransporta a barra superior ativa para o monitor onde está seu foco. Veja a hora atual, a bandeja do sistema e os indicadores de aplicativos, independentemente da tela em que você estiver."
 
 #: prefs_guide_about.js:143
 msgid "Active and Inactive Appearance"
-msgstr "المظهر النشط وغير النشط"
+msgstr "Aparência ativa e inativa"
 
 #: prefs_guide_about.js:144
 msgid ""
 "Highlight the active Top Bar with a custom color, or make inactive panels "
 "translucent and distraction-free."
-msgstr "قم بتمييز الشريط العلوي النشط بلون مخصص، أو اجعل اللوحات غير النشطة شفافة وخالية من التشتيت."
+msgstr "Destaque a barra superior ativa com uma cor personalizada ou torne os painéis inativos translúcidos e sem distrações."
 
 #: prefs_guide_about.js:149
 msgid "Hotkeys, Snapping & Stacks"
-msgstr "مفاتيح الاختصار والالتقاط والأكوام"
+msgstr "Teclas de atalho, encaixe e pilhas"
 
 #: prefs_guide_about.js:152
 msgid "Window Stacks"
-msgstr "أكوام النافذة"
+msgstr "Pilhas de janelas"
 
 #: prefs_guide_about.js:153
 msgid ""
 "When multiple windows share the exact same zone, a Stack Indicator appears. "
 "Hover over it to quickly cycle apps or seamlessly expand them into Stack, "
 "Column, Row, or Grid views."
-msgstr "عندما تشترك عدة نوافذ في نفس المنطقة بالضبط، يظهر مؤشر المكدس. قم بالتمرير فوقه للتنقل السريع بين التطبيقات أو توسيعها بسلاسة إلى طرق عرض المكدس أو العمود أو الصف أو الشبكة."
+msgstr "Quando várias janelas compartilham exatamente a mesma zona, um indicador de pilha aparece. Passe o mouse sobre ele para alternar rapidamente os aplicativos ou expandi-los perfeitamente para visualizações de pilha, coluna, linha ou grade."
 
 #: prefs_guide_about.js:158
 msgid "Directional Snapping and Cycling"
-msgstr "التقاط الاتجاه وركوب الدراجات"
+msgstr "Snap direcional e ciclismo"
 
 #: prefs_guide_about.js:159
 msgid ""
 "Press Alt + Arrows to intuitively snap the active window into a neighboring "
 "Drop Zone. Bind a hotkey to instantly loop through your saved Layouts."
-msgstr "اضغط على Alt + Arrows لجذب النافذة النشطة إلى منطقة إسقاط مجاورة. قم بربط مفتاح التشغيل السريع للتنقل على الفور عبر التخطيطات المحفوظة."
+msgstr "Pressione Alt + Setas para encaixar intuitivamente a janela ativa em uma zona de lançamento vizinha. Vincule uma tecla de atalho para percorrer instantaneamente os layouts salvos."
 
 #: prefs_guide_about.js:169
 msgid "About"
-msgstr "عن"
+msgstr "Sobre"
 
 #: prefs_guide_about.js:173
 msgid "Extension Information"
-msgstr "معلومات الامتداد"
+msgstr "Informações de extensão"
 
 #: prefs_guide_about.js:177
 msgid "True multi-monitor capabilities for GNOME Shell."
-msgstr "إمكانات حقيقية للشاشات المتعددة لـ GNOME Shell."
+msgstr "Verdadeiros recursos de vários monitores para GNOME Shell."
 
 #: prefs_guide_about.js:197
 msgid "Local / Development"
-msgstr "المحلية / التنمية"
+msgstr "Local / Desenvolvimento"
 
 #: prefs_guide_about.js:198
 msgid "Version"
-msgstr "إصدار"
+msgstr "Versão"
 
 #: prefs_guide_about.js:199
 msgid "Author"
-msgstr "مؤلف"
+msgstr "Autor"
 
 #: prefs_guide_about.js:205
 msgid "Advanced"
-msgstr "متقدم"
+msgstr "Avançado"
 
 #: prefs_guide_about.js:208
 msgid "Enable Debug Logging"
-msgstr "تمكين تسجيل التصحيح"
+msgstr "Habilitar registro de depuração"
 
 #: prefs_guide_about.js:209
 msgid "Outputs verbose troubleshooting logs to journalctl"
-msgstr "إخراج سجلات استكشاف الأخطاء وإصلاحها المطولة إلى Journalctl"
+msgstr "Gera logs detalhados de solução de problemas para o journalctl"
 
 #: prefs_guide_about.js:232
 msgid "Buy me a coffee"
-msgstr "اشتري لي قهوة"
+msgstr "Compre-me um café"
 
 #: prefs_guide_about.js:238
 msgid "Report a Bug"
-msgstr "الإبلاغ عن خطأ"
+msgstr "Reportar um bug"
 
 #: prefs_guide_about.js:243
 msgid "Request a Feature"
-msgstr "طلب ميزة"
+msgstr "Solicite um recurso"
 
 #: prefs_hotkeys.js:30
 msgid "Hotkeys"
-msgstr "مفاتيح الاختصار"
+msgstr "Teclas de atalho"
 
 #: prefs_hotkeys.js:35
 msgid "Directional Snapping"
-msgstr "الالتقاط الاتجاهي"
+msgstr "Encaixe direcional"
 
 #: prefs_hotkeys.js:36
 msgid "Quickly snap the currently focused window into adjacent Drop Zones."
-msgstr "قم بجذب النافذة التي تم التركيز عليها حاليًا بسرعة إلى مناطق الإسقاط المجاورة."
+msgstr "Encaixe rapidamente a janela atualmente em foco em zonas de lançamento adjacentes."
 
 #: prefs_hotkeys.js:38
 msgid "Snap Left"
-msgstr "التقط اليسار"
+msgstr "Snap à esquerda"
 
 #: prefs_hotkeys.js:38
 msgid "Move window to the nearest zone on the left."
-msgstr "انقل النافذة إلى أقرب منطقة على اليسار."
+msgstr "Mova a janela para a zona mais próxima à esquerda."
 
 #: prefs_hotkeys.js:38
 msgid "Alt + Left"
-msgstr "البديل + اليسار"
+msgstr "Alt + Esquerda"
 
 #: prefs_hotkeys.js:39
 msgid "Snap Right"
-msgstr "التقط لليمين"
+msgstr "Encaixar à direita"
 
 #: prefs_hotkeys.js:39
 msgid "Move window to the nearest zone on the right."
-msgstr "انقل النافذة إلى أقرب منطقة على اليمين."
+msgstr "Mova a janela para a zona mais próxima à direita."
 
 #: prefs_hotkeys.js:39
 msgid "Alt + Right"
-msgstr "البديل + اليمين"
+msgstr "Alt + Direita"
 
 #: prefs_hotkeys.js:40
 msgid "Snap Up"
-msgstr "التقط"
+msgstr "Agarrar"
 
 #: prefs_hotkeys.js:40
 msgid "Move window to the nearest zone above."
-msgstr "انقل النافذة إلى أقرب منطقة أعلاه."
+msgstr "Mova a janela para a zona mais próxima acima."
 
 #: prefs_hotkeys.js:40
 msgid "Alt + Up"
-msgstr "البديل + أعلى"
+msgstr "Alt + Cima"
 
 #: prefs_hotkeys.js:41
 msgid "Snap Down"
-msgstr "التقط للأسفل"
+msgstr ""
 
 #: prefs_hotkeys.js:41
 msgid "Move window to the nearest zone below."
-msgstr "انقل النافذة إلى أقرب منطقة أدناه."
+msgstr "Mova a janela para a zona mais próxima abaixo."
 
 #: prefs_hotkeys.js:41
 msgid "Alt + Down"
-msgstr "البديل + أسفل"
+msgstr "Alt + Baixo"
 
 #: prefs_hotkeys.js:45
 msgid "Drag & Drop Override"
-msgstr "تجاوز السحب والإفلات"
+msgstr "Substituição de arrastar e soltar"
 
 #: prefs_hotkeys.js:46
 msgid "Bypass OmniPanel's layout engine for manual window placement."
-msgstr "تجاوز محرك تخطيط OmniPanel لوضع النوافذ يدويًا."
+msgstr "Ignore o mecanismo de layout do OmniPanel para posicionamento manual de janelas."
 
 #: prefs_hotkeys.js:49
 msgid "Temporarily Disable Snapping"
-msgstr "تعطيل الالتقاط مؤقتًا"
+msgstr "Desativar temporariamente o ajuste"
 
 #: prefs_hotkeys.js:50
 msgid ""
 "Hold this modifier while dragging a window to hide Drop Zones and allow free-"
 "floating placement. Releasing the window drops its zone affinity."
-msgstr "استمر في الضغط على هذا المُعدِّل أثناء سحب النافذة لإخفاء مناطق الإسقاط والسماح بالموضع الحر. يؤدي تحرير النافذة إلى إسقاط تقارب المنطقة الخاصة بها."
+msgstr "Segure este modificador enquanto arrasta uma janela para ocultar as zonas de lançamento e permitir o posicionamento flutuante. Liberar a janela diminui sua afinidade de zona."
 
 #: prefs_hotkeys.js:51
 msgid "Hold Alt (or Alt Gr)"
-msgstr "اضغط باستمرار على Alt (أو Alt Gr)"
+msgstr "Segure Alt (ou Alt Gr)"
 
 #: prefs_hotkeys.js:56
 msgid "Layout Management"
-msgstr "إدارة التخطيط"
+msgstr "Gerenciamento de Layout"
 
 #: prefs_hotkeys.js:57
 msgid "These shortcuts can be customized in the Layouts tab."
-msgstr "يمكن تخصيص هذه الاختصارات في علامة التبويب \"التخطيطات\"."
+msgstr "Esses atalhos podem ser personalizados na guia Layouts."
 
 #: prefs_hotkeys.js:60
 msgid "Cycle Layouts"
-msgstr "تخطيطات الدورة"
+msgstr "Layouts de ciclo"
 
 #: prefs_hotkeys.js:61
 msgid "Instantly switch between your saved layouts."
-msgstr "قم بالتبديل على الفور بين تخطيطاتك المحفوظة."
+msgstr "Alterne instantaneamente entre os layouts salvos."
 
 #: prefs_hotkeys.js:62
 msgid "Configurable (Default: Alt + -)"
-msgstr "قابل للتكوين (الافتراضي: Alt + -)"
+msgstr "Configurável (padrão: Alt + -)"
 
 #: prefs_hotkeys.js:65
 msgid "Activate Specific Layout"
-msgstr "تنشيط التخطيط المحدد"
+msgstr "Ativar layout específico"
 
 #: prefs_hotkeys.js:66
 msgid "Apply a specific saved layout using its assigned slot number."
-msgstr "قم بتطبيق تخطيط محفوظ محدد باستخدام رقم الفتحة المخصص له."
+msgstr "Aplique um layout salvo específico usando o número do slot atribuído."
 
 #: prefs_hotkeys.js:67
 msgid "Configurable"
-msgstr "شكلي"
+msgstr "Configurável"
 
 #: prefs_hotkeys.js:72
 msgid "Stack Navigation"
-msgstr "التنقل المكدس"
+msgstr "Navegação na pilha"
 
 #: prefs_hotkeys.js:73
 msgid ""
 "Interact with the Stack Indicator overlay when multiple windows share a zone."
-msgstr "تفاعل مع تراكب Stack Indicator عندما تشترك عدة نوافذ في منطقة ما."
+msgstr "Interaja com a sobreposição do indicador de pilha quando várias janelas compartilham uma zona."
 
 #: prefs_hotkeys.js:76
 msgid "Cycle Stacked Windows"
-msgstr "دورة النوافذ المكدسة"
+msgstr "Ciclo de janelas empilhadas"
 
 #: prefs_hotkeys.js:77
 msgid ""
 "While hovering over a Stack Indicator, use the arrow keys to quickly page "
 "through the stacked windows."
-msgstr "أثناء التمرير فوق مؤشر Stack Indicator، استخدم مفاتيح الأسهم للتصفح بسرعة عبر النوافذ المكدسة."
+msgstr "Ao passar o mouse sobre um indicador de pilha, use as teclas de seta para percorrer rapidamente as janelas empilhadas."
 
 #: prefs_hotkeys.js:78
 msgid "Left / Right Arrows"
-msgstr "أسهم لليسار / لليمين"
+msgstr "Setas Esquerda/Direita"
 
 #: prefs_hotkeys.js:83
 msgid "Quick Tiler (Grid Spawning)"
-msgstr "بلاط سريع (وضع الشبكة)"
+msgstr "Ladrilhador rápido (geração de grade)"
 
 #: prefs_hotkeys.js:84
 msgid ""
 "Instantly resize the focused window using an interactive grid overlay. "
 "Configure this hotkey in the Layouts tab."
-msgstr "قم بتغيير حجم النافذة المركزة على الفور باستخدام تراكب الشبكة التفاعلية. قم بتكوين مفتاح التشغيل السريع هذا في علامة التبويب \"التخطيطات\"."
+msgstr "Redimensione instantaneamente a janela em foco usando uma sobreposição de grade interativa. Configure esta tecla de atalho na aba Layouts."
 
 #: prefs_hotkeys.js:87
 msgid "Open Quick Tiler"
-msgstr "افتح Quick Tiler"
+msgstr "Abra o Ladrilhador Rápido"
 
 #: prefs_hotkeys.js:88
 msgid ""
 "Press to spawn a centered 8x8 grid on the active monitor, then click and "
 "drag across cells to reshape the active window."
-msgstr "اضغط لإنشاء شبكة مركزية مقاس 8x8 على الشاشة النشطة، ثم انقر واسحب عبر الخلايا لإعادة تشكيل النافذة النشطة."
+msgstr "Pressione para gerar uma grade 8x8 centralizada no monitor ativo e, a seguir, clique e arraste pelas células para remodelar a janela ativa."
 
 #: prefs_hotkeys.js:89
 msgid "Configurable (Default: Super + G)"
-msgstr "قابل للتكوين (الافتراضي: Super + G)"
+msgstr "Configurável (Padrão: Super + G)"
 
 #: prefs_tiling.js:18
 msgid "Layouts"
-msgstr "التخطيطات"
+msgstr ""
 
 #: prefs_tiling.js:25
 msgid "Enable Window Management"
-msgstr "تمكين إدارة النوافذ"
+msgstr "Habilitar gerenciamento de janelas"
 
 #: prefs_tiling.js:26
 msgid "Master switch for all OmniPanel tiling, snapping, and layout features"
-msgstr "مفتاح رئيسي لجميع ميزات التبليط والالتقاط والتخطيط في OmniPanel"
+msgstr "Chave mestre para todos os recursos de disposição lado a lado, encaixe e layout do OmniPanel"
 
 #: prefs_tiling.js:36
 msgid "Zone-Based Tiling"
-msgstr "التبليط على أساس المنطقة"
+msgstr "Ladrilho baseado em zona"
 
 #: prefs_tiling.js:40
 msgid "Draw and configure drop zones visually across your screens"
-msgstr "ارسم مناطق الإسقاط وقم بتكوينها بشكل مرئي عبر شاشاتك"
+msgstr "Desenhe e configure zonas de lançamento visualmente em suas telas"
 
 #: prefs_tiling.js:51
 msgid "Auto-Restore Layouts"
-msgstr "الاستعادة التلقائية للتخطيطات"
+msgstr "Layouts de restauração automática"
 
 #: prefs_tiling.js:52
 msgid "Remember window positions based on monitor setups"
-msgstr "تذكر مواضع النوافذ بناءً على إعدادات الشاشة"
+msgstr "Lembre-se das posições das janelas com base nas configurações do monitor"
 
 #: prefs_tiling.js:63
 msgid "Fuzzy Monitor Matching"
-msgstr "مطابقة الشاشة الغامضة"
+msgstr "Correspondência difusa de monitores"
 
 #: prefs_tiling.js:64
 msgid "Restore layouts if monitor count matches despite resolution changes"
-msgstr "قم باستعادة التخطيطات إذا كان عدد أجهزة العرض متطابقًا على الرغم من تغييرات الدقة"
+msgstr "Restaurar layouts se a contagem de monitores corresponder apesar das alterações na resolução"
 
 #: prefs_tiling.js:74
 msgid "Automation & Defaults"
-msgstr "الأتمتة والافتراضيات"
+msgstr "Automação e padrões"
 
 #: prefs_tiling.js:77
 msgid "Fuzzy Auto-Placement"
-msgstr "وضع تلقائي غامض"
+msgstr "Posicionamento automático difuso"
 
 #: prefs_tiling.js:78
 msgid ""
 "Automatically assign new unrecognized windows to zones matching their name "
 "or category"
-msgstr "قم بتعيين النوافذ الجديدة غير المعروفة تلقائيًا للمناطق المطابقة لاسمها أو فئتها"
+msgstr "Atribua automaticamente novas janelas não reconhecidas a zonas que correspondam ao seu nome ou categoria"
 
 #: prefs_tiling.js:89
 msgid "Remember App Affinity"
-msgstr "تذكر تقارب التطبيق"
+msgstr "Lembre-se da afinidade de aplicativos"
 
 #: prefs_tiling.js:90
 msgid "Restore apps to their last known zone upon relaunch"
-msgstr "استعادة التطبيقات إلى آخر منطقة معروفة لها عند إعادة التشغيل"
+msgstr "Restaure os aplicativos para sua última zona conhecida ao reiniciar"
 
 #: prefs_tiling.js:101
 msgid "Configure Auto-Placement Rules"
-msgstr "تكوين قواعد التنسيب التلقائي"
+msgstr "Configurar regras de posicionamento automático"
 
 #: prefs_tiling.js:102
 msgid "Easily manage app keywords and categories for layout routing"
-msgstr "يمكنك إدارة الكلمات الرئيسية والفئات الخاصة بالتطبيق بسهولة لتوجيه التخطيط"
+msgstr "Gerencie facilmente palavras-chave e categorias de aplicativos para roteamento de layout"
 
 #: prefs_tiling.js:105
 msgid "Configure"
-msgstr "تكوين"
+msgstr "Configurar"
 
 #: prefs_tiling.js:116
 msgid "Default Startup Layout"
-msgstr "تخطيط بدء التشغيل الافتراضي"
+msgstr "Layout de inicialização padrão"
 
 #: prefs_tiling.js:117
 msgid "Layout applied automatically when extension loads"
-msgstr "يتم تطبيق التخطيط تلقائيًا عند تحميل الامتداد"
+msgstr "Layout aplicado automaticamente quando a extensão é carregada"
 
 #: prefs_tiling.js:122
 msgid "Window Exclusions"
-msgstr "استثناءات النافذة"
+msgstr "Exclusões de janela"
 
 #: prefs_tiling.js:123
 msgid ""
 "Provide a comma-separated list of application names (e.g. gimp, steam) to "
 "completely exclude them from being snapped or managed by OmniPanel."
-msgstr "قم بتوفير قائمة مفصولة بفواصل بأسماء التطبيقات (مثل gimp وsteam) لاستبعادها تمامًا من التقاطها أو إدارتها بواسطة OmniPanel."
+msgstr "Forneça uma lista separada por vírgulas de nomes de aplicativos (por exemplo, gimp, steam) para excluí-los completamente de serem capturados ou gerenciados pelo OmniPanel."
 
 #: prefs_tiling.js:139
 msgid "Stack Indicators"
-msgstr "مؤشرات المكدس"
+msgstr "Indicadores de pilha"
 
 #: prefs_tiling.js:142
 msgid "Zone Stack Indicators"
-msgstr "مؤشرات مكدس المنطقة"
+msgstr "Indicadores de pilha de zona"
 
 #: prefs_tiling.js:143
 msgid ""
 "Show a fast-switching overlay when multiple windows share the same drop zone"
-msgstr "إظهار تراكب سريع التبديل عندما تشترك عدة نوافذ في نفس منطقة الإفلات"
+msgstr "Mostrar uma sobreposição de troca rápida quando várias janelas compartilham a mesma zona de lançamento"
 
 #: prefs_tiling.js:154
 msgid "Stack Indicator Position"
-msgstr "موقف مؤشر المكدس"
+msgstr "Posição do indicador de pilha"
 
 #: prefs_tiling.js:155
 msgid "Corner of the window to draw the overlay"
-msgstr "زاوية النافذة لرسم التراكب"
+msgstr "Canto da janela para desenhar a sobreposição"
 
 #: prefs_tiling.js:156
 msgid "Bottom Left"
-msgstr "أسفل اليسار"
+msgstr "Inferior Esquerdo"
 
 #: prefs_tiling.js:156
 msgid "Bottom Right"
-msgstr "أسفل اليمين"
+msgstr "Canto inferior direito"
 
 #: prefs_tiling.js:167
 msgid "Default Stack Layout"
-msgstr "تخطيط المكدس الافتراضي"
+msgstr "Layout de pilha padrão"
 
 #: prefs_tiling.js:168
 msgid "Initial view behavior when multiple windows enter a zone"
-msgstr "سلوك العرض الأولي عند دخول عدة نوافذ إلى منطقة ما"
+msgstr "Comportamento de visualização inicial quando várias janelas entram em uma zona"
 
 #: prefs_tiling.js:169
 msgid "Stack (On Top)"
-msgstr "كومة (في الأعلى)"
+msgstr "Pilha (no topo)"
 
 #: prefs_tiling.js:169
 msgid "Columns (Side by Side)"
-msgstr "الأعمدة (جنبًا إلى جنب)"
+msgstr "Colunas (lado a lado)"
 
 #: prefs_tiling.js:169
 msgid "Rows (Vertical List)"
-msgstr "الصفوف (قائمة عمودية)"
+msgstr "Linhas (lista vertical)"
 
 #: prefs_tiling.js:169
 msgid "Grid (Tiled)"
-msgstr "الشبكة (مبلطة)"
+msgstr "Grade (lado a lado)"
 
 #: prefs_tiling.js:185
 msgid "Keyboard Shortcuts"
-msgstr "اختصارات لوحة المفاتيح"
+msgstr "Atalhos de teclado"
 
 #: prefs_tiling.js:188
 msgid "Cycle Layouts Shortcut"
-msgstr "اختصار تخطيطات الدورة"
+msgstr "Atalho de layouts de ciclo"
 
 #: prefs_tiling.js:189 prefs_tiling.js:358
 msgid "Click to capture keybinding"
-msgstr "انقر لالتقاط ربط المفاتيح"
+msgstr "Clique para capturar o atalho de teclado"
 
 #: prefs_tiling.js:195
 msgid "Quick Tiler Grid Shortcut"
-msgstr "اختصار شبكة البلاط السريع"
+msgstr "Atalho de grade de ladrilho rápido"
 
 #: prefs_tiling.js:196
 msgid "Click to capture keybinding (Default: <Super>g)"
-msgstr "انقر لالتقاط ربط المفاتيح (الافتراضي: <Super>g)"
+msgstr "Clique para capturar o atalho de teclado (padrão: <Super>g)"
 
 #: prefs_tiling.js:202
 msgid "Saved Layouts & Drop Zones"
-msgstr "التخطيطات المحفوظة ومناطق الإسقاط"
+msgstr "Layouts salvos e zonas de lançamento"
 
 #: prefs_tiling.js:203
 msgid "Click a layout to expand and manage its associated drop zones."
-msgstr "انقر فوق أحد التخطيطات لتوسيع مناطق الإفلات المرتبطة بها وإدارتها."
+msgstr "Clique em um layout para expandir e gerenciar suas zonas para soltar associadas."
 
 #: prefs_tiling.js:247 prefs_tiling.js:448 zone_designer.js:405
 #: zone_designer.js:560
 msgid "None"
-msgstr "لا أحد"
+msgstr "Nenhum"
 
 #: prefs_tiling.js:254
 msgid "Create New Blank Layout"
-msgstr "إنشاء تخطيط فارغ جديد"
+msgstr "Criar novo layout em branco"
 
 #: prefs_tiling.js:288 zone_designer.js:405 zone_designer.js:562
 msgid "Layout"
-msgstr "تَخطِيط"
+msgstr "Disposição"
 
 #: prefs_tiling.js:289
 msgid "zones saved"
-msgstr "المناطق المحفوظة"
+msgstr "zonas salvas"
 
 #: prefs_tiling.js:292
 msgid "Layout Name"
-msgstr "اسم التخطيط"
+msgstr "Nome do layout"
 
 #: prefs_tiling.js:312 prefs_tiling.js:315
 msgid "(Copy)"
-msgstr "(ينسخ)"
+msgstr "(Cópia)"
 
 #: prefs_tiling.js:357
 msgid "Activation Hotkey"
-msgstr "مفتاح التشغيل السريع"
+msgstr "Tecla de atalho de ativação"
 
 #: prefs_tiling.js:363
 msgid "Layout Zone Color"
-msgstr "لون منطقة التخطيط"
+msgstr "Cor da zona de layout"
 
 #: prefs_tiling.js:383
 msgid "No drop zones"
-msgstr "لا مناطق الهبوط"
+msgstr "Sem zonas de lançamento"
 
 #: prefs_tiling.js:383
 msgid "Open Zone Designer to create some."
-msgstr "افتح مصمم المنطقة لإنشاء بعض."
+msgstr "Abra o Zone Designer para criar alguns."
 
 #: prefs_tiling.js:387
 msgid "Zone"
-msgstr "منطقة"
+msgstr "Zona"
 
 #: prefs_tiling.js:456
 msgid "Alternative: Pure Automatic Tiling"
-msgstr "البديل: تبليط أوتوماتيكي خالص"
+msgstr "Alternativa: Ladrilho Automático Puro"
 
 #: prefs_tiling.js:457
 msgid ""
 "Dynamically arrange all windows without requiring pre-defined zones. "
 "Overrides the zone-based layout logic above."
-msgstr "قم بترتيب جميع النوافذ ديناميكيًا دون الحاجة إلى مناطق محددة مسبقًا. يتجاوز منطق التخطيط المعتمد على المنطقة أعلاه."
+msgstr "Organize dinamicamente todas as janelas sem exigir zonas predefinidas. Substitui a lógica de layout baseada em zona acima."
 
 #: prefs_tiling.js:461
 msgid "Enable Pure Automatic Tiling"
-msgstr "تمكين التبليط التلقائي النقي"
+msgstr "Habilitar ladrilho automático puro"
 
 #: prefs_tiling.js:462
 msgid "Takes over workspace layout entirely (disables Zone Designer)"
-msgstr "يتولى تخطيط مساحة العمل بالكامل (تعطيل Zone Designer)"
+msgstr "Assume totalmente o layout do espaço de trabalho (desativa o Zone Designer)"
 
 #: prefs_tiling.js:473
 msgid "Auto-Tiling Algorithm"
-msgstr "خوارزمية التبليط التلقائي"
+msgstr "Algoritmo de ladrilho automático"
 
 #: prefs_tiling.js:474
 msgid "The layout strategy for active windows"
-msgstr "استراتيجية التخطيط للنوافذ النشطة"
+msgstr "A estratégia de layout para janelas ativas"
 
 #: prefs_tiling.js:475
 msgid "BSP (Binary Space Partitioning)"
-msgstr "BSP (تقسيم الفضاء الثنائي)"
+msgstr "BSP (particionamento de espaço binário)"
 
 #: prefs_tiling.js:475
 msgid "Cascading"
-msgstr "المتتالية"
+msgstr "Cascata"
 
 #: prefs_tiling.js:475
 msgid "Master-Stack (Stable)"
-msgstr "Master-Stack (مستقر)"
+msgstr "Pilha Mestre (Estável)"
 
 #: prefs_tiling.js:491
 msgid "Window Gap (px)"
-msgstr "فجوة النافذة (بكسل)"
+msgstr "Espaço na janela (px)"
 
 #: prefs_topbar.js:17
 msgid "Top bar"
-msgstr "الشريط العلوي"
+msgstr "Barra superior"
 
 #: prefs_topbar.js:21
 msgid "Active Toolbar Movement"
-msgstr "حركة شريط الأدوات النشطة"
+msgstr "Movimento ativo da barra de ferramentas"
 
 #: prefs_topbar.js:24
 msgid "Enable Toolbar Movement"
-msgstr "تمكين حركة شريط الأدوات"
+msgstr "Ativar movimento da barra de ferramentas"
 
 #: prefs_topbar.js:25
 msgid "Dynamically move the real native panel to the active screen"
-msgstr "انقل اللوحة الأصلية الحقيقية ديناميكيًا إلى الشاشة النشطة"
+msgstr "Mova dinamicamente o painel nativo real para a tela ativa"
 
 #: prefs_topbar.js:36
 msgid "Movement Response Speed"
-msgstr "سرعة استجابة الحركة"
+msgstr "Velocidade de resposta ao movimento"
 
 #: prefs_topbar.js:37
 msgid "Balance between snappiness and CPU usage"
-msgstr "التوازن بين السرعة واستخدام وحدة المعالجة المركزية"
+msgstr "Equilíbrio entre agilidade e uso da CPU"
 
 #: prefs_topbar.js:38
 msgid "Fast (100ms)"
-msgstr "سريع (100 مللي ثانية)"
+msgstr "Rápido (100ms)"
 
 #: prefs_topbar.js:38
 msgid "Normal (200ms)"
-msgstr "عادي (200 مللي ثانية)"
+msgstr ""
 
 #: prefs_topbar.js:38
 msgid "Battery Saver (500ms)"
-msgstr "توفير البطارية (500 مللي ثانية)"
+msgstr "Economia de bateria (500ms)"
 
 #: prefs_topbar.js:52
 msgid "Show Desktop Button"
-msgstr "إظهار زر سطح المكتب"
+msgstr "Mostrar botão da área de trabalho"
 
 #: prefs_topbar.js:55
 msgid "Enable Show Desktop Button"
-msgstr "تمكين إظهار زر سطح المكتب"
+msgstr "Ativar botão Mostrar área de trabalho"
 
 #: prefs_topbar.js:56
 msgid ""
 "Adds a button to the top bar to minimize/restore windows on the current "
 "monitor"
-msgstr "إضافة زر إلى الشريط العلوي لتصغير/استعادة النوافذ على الشاشة الحالية"
+msgstr "Adiciona um botão à barra superior para minimizar/restaurar janelas no monitor atual"
 
 #: prefs_topbar.js:66
 msgid "Animation Effects"
-msgstr "تأثيرات الرسوم المتحركة"
+msgstr "Efeitos de animação"
 
 #: prefs_topbar.js:69
 msgid "Movement Animation Style"
-msgstr "أسلوب الرسوم المتحركة الحركة"
+msgstr "Estilo de animação de movimento"
 
 #: prefs_topbar.js:70
 msgid "Visual effect when extensions arrive on the new screen"
-msgstr "تأثير مرئي عند وصول الامتدادات إلى الشاشة الجديدة"
+msgstr "Efeito visual quando extensões chegam na nova tela"
 
 #: prefs_topbar.js:71
 msgid "None (Instant)"
-msgstr "لا شيء (فوري)"
+msgstr "Nenhum (instantâneo)"
 
 #: prefs_topbar.js:71
 msgid "Fade"
-msgstr "يختفي"
+msgstr "Desaparecer"
 
 #: prefs_topbar.js:71
 msgid "Slide Down"
-msgstr "تنزلق للأسفل"
+msgstr "Deslize para baixo"
 
 #: prefs_topbar.js:71
 msgid "Pop"
-msgstr "البوب"
+msgstr ""
 
 #: prefs_topbar.js:91
 msgid "Animation Duration (ms)"
-msgstr "مدة الرسوم المتحركة (مللي ثانية)"
+msgstr "Duração da animação (ms)"
 
 #: prefs_topbar.js:98
 msgid "Active Panel Appearance"
-msgstr "مظهر اللوحة النشطة"
+msgstr "Aparência do painel ativo"
 
 #: prefs_topbar.js:101
 msgid "Highlight Active Panel"
-msgstr "قم بتمييز اللوحة النشطة"
+msgstr "Destacar Painel Ativo"
 
 #: prefs_topbar.js:102
 msgid "Change the background color of the active monitor's top bar"
-msgstr "قم بتغيير لون خلفية الشريط العلوي للشاشة النشطة"
+msgstr "Altere a cor de fundo da barra superior do monitor ativo"
 
 #: prefs_topbar.js:112
 msgid "Active Panel Color"
-msgstr "لون اللوحة النشط"
+msgstr "Cor do painel ativo"
 
 #: prefs_topbar.js:126
 msgid "Inactive Panel Appearance"
-msgstr "مظهر اللوحة غير النشطة"
+msgstr "Aparência do painel inativo"
 
 #: prefs_topbar.js:129
 msgid "Translucent Inactive Bars"
-msgstr "أشرطة غير نشطة شفافة"
+msgstr "Barras Inativas Translúcidas"
 
 #: prefs_topbar.js:130
 msgid "Make the top bar fade out on inactive monitors"
-msgstr "اجعل الشريط العلوي يتلاشى على الشاشات غير النشطة"
+msgstr "Faça a barra superior desaparecer em monitores inativos"
 
 #: prefs_topbar.js:144
 msgid "Inactive Opacity Level"
-msgstr "مستوى التعتيم غير النشط"
+msgstr "Nível de opacidade inativo"
 
 #: prefs_topbar.js:152
 msgid "Show Static Clock Label"
-msgstr "إظهار تسمية الساعة الثابتة"
+msgstr "Mostrar etiqueta do relógio estático"
 
 #: prefs_topbar.js:153
 msgid "Shows a non-clickable clock on inactive monitors"
-msgstr "يعرض ساعة غير قابلة للنقر على الشاشات غير النشطة"
+msgstr "Mostra um relógio não clicável em monitores inativos"
 
 #: prefs_topbar.js:164
 msgid "Hide toolbars on inactive screens"
-msgstr "إخفاء أشرطة الأدوات على الشاشات غير النشطة"
+msgstr "Ocultar barras de ferramentas em telas inativas"
 
 #: prefs_topbar.js:165
 msgid "Make inactive top bars completely invisible"
-msgstr "اجعل الأشرطة العلوية غير النشطة غير مرئية تمامًا"
+msgstr "Torne as barras superiores inativas completamente invisíveis"
 
 #: quick_tiler.js:103
 msgid "Name this Zone (or leave blank to just resize)..."
-msgstr "قم بتسمية هذه المنطقة (أو اتركها فارغة لتغيير حجمها فقط)..."
+msgstr "Dê um nome a esta zona (ou deixe em branco para apenas redimensionar)..."
 
 #: quick_tiler.js:110
 msgid "Apply"
-msgstr "يتقدم"
+msgstr "Aplicar"
 
 #: show_desktop_button.js:13
 msgid "Show Desktop"
-msgstr "إظهار سطح المكتب"
+msgstr "Mostrar área de trabalho"
 
 #: tiling_manager.js:292 zone_designer.js:337
 msgid "Cancel"
-msgstr "يلغي"
+msgstr "Cancelar"
 
 #: tiling_manager.js:293 zone_designer.js:357
 msgid "Save"
-msgstr "يحفظ"
+msgstr "Salvar"
 
 #: tiling_manager.js:357
 msgid "Enter a name for the current layout:"
-msgstr "أدخل اسمًا للتخطيط الحالي:"
+msgstr "Insira um nome para o layout atual:"
 
 #: tiling_manager.js:366
 msgid "No active layout. Name this layout first:"
-msgstr "لا يوجد تخطيط نشط. قم بتسمية هذا التخطيط أولاً:"
+msgstr "Nenhum layout ativo. Nomeie este layout primeiro:"
 
 #: zone_designer.js:314
 msgid "Hold and drag to draw and expand zone (Min: 450x400)"
-msgstr "اضغط مع الاستمرار واسحب لرسم المنطقة وتوسيعها (الحد الأدنى: 450 × 400)"
+msgstr "Segure e arraste para desenhar e expandir a zona (Min: 450x400)"
 
 #: zone_designer.js:328
 msgid "Name this Zone..."
-msgstr "تسمية هذه المنطقة..."
+msgstr "Dê um nome a esta zona..."
 
 #: zone_designer.js:399
 msgid "Monitor"
-msgstr "شاشة"
+msgstr ""
 
 #: zone_designer.js:405 zone_designer.js:562
 msgid "(Click to Cycle)"
-msgstr "(انقر للدورة)"
+msgstr "(Clique para pedalar)"
 
 #: zone_designer.js:422
 msgid "New Layout Name..."
-msgstr "اسم التخطيط الجديد..."
+msgstr "Novo nome do layout..."
 
 #: zone_designer.js:429
 msgid "Create"
-msgstr "يخلق"
+msgstr "Criar"
 
 #: zone_designer.js:466
 msgid "  Right-click overlapping zones to send them to the back"
-msgstr "انقر بزر الماوس الأيمن فوق المناطق المتداخلة لإرسالها إلى الخلف"
+msgstr "Clique com o botão direito nas zonas sobrepostas para enviá-las para trás"
 
 #: zone_designer.js:473
 msgid "Quit Designer"
-msgstr "قم بإنهاء المصمم"
+msgstr "Sair do Designer"
 
 #: zone_designer.js:644
 msgid "Unnamed Zone"
-msgstr "منطقة غير محددة"
+msgstr "Zona sem nome"
 

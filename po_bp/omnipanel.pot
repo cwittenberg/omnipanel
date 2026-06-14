@@ -1,43 +1,44 @@
-# Kazakh translations for PACKAGE package.
-# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# Automatically generated, 2026.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-10 21:28+0200\n"
-"PO-Revision-Date: 2026-06-10 21:28+0200\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
-"Language: kk\n"
+"POT-Creation-Date: 2026-06-14 13:19+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ASCII\n"
+"Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: layout_indicator.js:13
 msgid "OmniPanel Command Center"
 msgstr ""
 
-#: layout_indicator.js:52
+#: layout_indicator.js:53
 msgid "Multi-Monitor Top Panel"
 msgstr ""
 
-#: layout_indicator.js:61
+#: layout_indicator.js:62
 msgid "Window Management"
 msgstr ""
 
-#: layout_indicator.js:71 prefs_tiling.js:39 zone_designer.js:400
+#: layout_indicator.js:72 prefs_tiling.js:39 zone_designer.js:399
 msgid "Zone Designer Mode"
 msgstr ""
 
-#: layout_indicator.js:83
+#: layout_indicator.js:84
 msgid "Quick Tiler Grid"
 msgstr ""
 
-#: layout_indicator.js:130
-msgid "OmniPanel Settings"
+#: layout_indicator.js:133
+msgid "Settings"
 msgstr ""
 
 #: prefs_components.js:33
@@ -116,344 +117,340 @@ msgstr ""
 msgid "Categories"
 msgstr ""
 
-#: prefs_components.js:258
+#: prefs_components.js:260
 msgid "Add New App Routing Rule"
 msgstr ""
 
-#: prefs_components.js:288
+#: prefs_components.js:290
 msgid "Add New Category Routing Rule"
 msgstr ""
 
-#: prefs_guide_about.js:57
+#: prefs_guide_about.js:54
 msgid "Guide"
 msgstr ""
 
-#: prefs_guide_about.js:91 prefs_guide_about.js:187
+#: prefs_guide_about.js:84 prefs_guide_about.js:176
 msgid "OmniPanel"
 msgstr ""
 
-#: prefs_guide_about.js:97
+#: prefs_guide_about.js:90
 msgid ""
 "Multi-monitor productivity with configurable layouts for windows and a GNOME "
 "Top Bar that seamlessly follows your focus."
 msgstr ""
 
-#: prefs_guide_about.js:109
+#: prefs_guide_about.js:101
 msgid "Window Layouts & The Zone Designer"
 msgstr ""
 
-#: prefs_guide_about.js:112
+#: prefs_guide_about.js:104
 msgid "Draw Your Workspace"
 msgstr ""
 
-#: prefs_guide_about.js:113
+#: prefs_guide_about.js:105
 msgid ""
 "Open the OmniPanel system tray menu and toggle \"Zone Designer Mode\". Click "
 "and drag your mouse on any monitor to draw a rectangular zone, name it, and "
 "hit Save."
 msgstr ""
 
-#: prefs_guide_about.js:118
+#: prefs_guide_about.js:110
 msgid "Auto-Restore and Fuzzy Matching"
 msgstr ""
 
-#: prefs_guide_about.js:119
+#: prefs_guide_about.js:111
 msgid ""
 "Layouts are automatically saved based on your current monitor setup. Unplug "
 "and replug your screens, and your customized layouts return instantly."
 msgstr ""
 
-#: prefs_guide_about.js:125
+#: prefs_guide_about.js:116
 msgid "Smart Placement & Exclusions"
 msgstr ""
 
-#: prefs_guide_about.js:128
+#: prefs_guide_about.js:119
 msgid "Auto-Routing and Affinity"
 msgstr ""
 
-#: prefs_guide_about.js:129
+#: prefs_guide_about.js:120
 msgid ""
 "Name a zone \"Terminals\" and apps like Alacritty snap there automatically. "
 "Drag a window into a different zone, and OmniPanel learns your preference "
 "permanently."
 msgstr ""
 
-#: prefs_guide_about.js:134
+#: prefs_guide_about.js:125
 msgid "Quick Desktop Access"
 msgstr ""
 
-#: prefs_guide_about.js:135
+#: prefs_guide_about.js:126
 msgid ""
 "Use the \"Show Desktop\" button in the top bar to instantly minimize and "
 "restore windows on your current monitor."
 msgstr ""
 
-#: prefs_guide_about.js:140 prefs_tiling.js:127
+#: prefs_guide_about.js:131 prefs_tiling.js:127
 msgid "Ignored Applications"
 msgstr ""
 
-#: prefs_guide_about.js:141
+#: prefs_guide_about.js:132
 msgid ""
 "Define a comma-separated list of app names (like \"steam\" or \"gimp\") in "
 "the layout settings to keep OmniPanel from ever managing them."
 msgstr ""
 
-#: prefs_guide_about.js:146
+#: prefs_guide_about.js:137
 msgid "Show the GNOME Top Bar on All Monitors"
 msgstr ""
 
-#: prefs_guide_about.js:147
+#: prefs_guide_about.js:138
 msgid ""
 "OmniPanel teleports the active Top Bar to the monitor where your focus is. "
 "See your current time, system tray, and app indicators no matter which "
 "screen you are on."
 msgstr ""
 
-#: prefs_guide_about.js:152
+#: prefs_guide_about.js:143
 msgid "Active and Inactive Appearance"
 msgstr ""
 
-#: prefs_guide_about.js:153
+#: prefs_guide_about.js:144
 msgid ""
 "Highlight the active Top Bar with a custom color, or make inactive panels "
 "translucent and distraction-free."
 msgstr ""
 
-#: prefs_guide_about.js:159
+#: prefs_guide_about.js:149
 msgid "Hotkeys, Snapping & Stacks"
 msgstr ""
 
-#: prefs_guide_about.js:162
+#: prefs_guide_about.js:152
 msgid "Window Stacks"
 msgstr ""
 
-#: prefs_guide_about.js:163
+#: prefs_guide_about.js:153
 msgid ""
 "When multiple windows share the exact same zone, a Stack Indicator appears. "
 "Hover over it to quickly cycle apps or seamlessly expand them into Stack, "
 "Column, Row, or Grid views."
 msgstr ""
 
-#: prefs_guide_about.js:168
+#: prefs_guide_about.js:158
 msgid "Directional Snapping and Cycling"
 msgstr ""
 
-#: prefs_guide_about.js:169
+#: prefs_guide_about.js:159
 msgid ""
 "Press Alt + Arrows to intuitively snap the active window into a neighboring "
 "Drop Zone. Bind a hotkey to instantly loop through your saved Layouts."
 msgstr ""
 
-#: prefs_guide_about.js:179
+#: prefs_guide_about.js:169
 msgid "About"
 msgstr ""
 
-#: prefs_guide_about.js:184
+#: prefs_guide_about.js:173
 msgid "Extension Information"
 msgstr ""
 
-#: prefs_guide_about.js:188
+#: prefs_guide_about.js:177
 msgid "True multi-monitor capabilities for GNOME Shell."
 msgstr ""
 
-#: prefs_guide_about.js:210
+#: prefs_guide_about.js:197
 msgid "Local / Development"
 msgstr ""
 
-#: prefs_guide_about.js:211
+#: prefs_guide_about.js:198
 msgid "Version"
 msgstr ""
 
-#: prefs_guide_about.js:212
+#: prefs_guide_about.js:199
 msgid "Author"
 msgstr ""
 
-#: prefs_guide_about.js:212
-msgid "Christian Wittenberg"
-msgstr ""
-
-#: prefs_guide_about.js:219
+#: prefs_guide_about.js:205
 msgid "Advanced"
 msgstr ""
 
-#: prefs_guide_about.js:222
+#: prefs_guide_about.js:208
 msgid "Enable Debug Logging"
 msgstr ""
 
-#: prefs_guide_about.js:223
+#: prefs_guide_about.js:209
 msgid "Outputs verbose troubleshooting logs to journalctl"
 msgstr ""
 
-#: prefs_guide_about.js:247
+#: prefs_guide_about.js:232
 msgid "Buy me a coffee"
 msgstr ""
 
-#: prefs_guide_about.js:253
+#: prefs_guide_about.js:238
 msgid "Report a Bug"
 msgstr ""
 
-#: prefs_guide_about.js:258
+#: prefs_guide_about.js:243
 msgid "Request a Feature"
 msgstr ""
 
-#: prefs_hotkeys.js:32
+#: prefs_hotkeys.js:30
 msgid "Hotkeys"
 msgstr ""
 
-#: prefs_hotkeys.js:37
+#: prefs_hotkeys.js:35
 msgid "Directional Snapping"
 msgstr ""
 
-#: prefs_hotkeys.js:38
+#: prefs_hotkeys.js:36
 msgid "Quickly snap the currently focused window into adjacent Drop Zones."
 msgstr ""
 
-#: prefs_hotkeys.js:40
+#: prefs_hotkeys.js:38
 msgid "Snap Left"
 msgstr ""
 
-#: prefs_hotkeys.js:40
+#: prefs_hotkeys.js:38
 msgid "Move window to the nearest zone on the left."
 msgstr ""
 
-#: prefs_hotkeys.js:40
+#: prefs_hotkeys.js:38
 msgid "Alt + Left"
 msgstr ""
 
-#: prefs_hotkeys.js:41
+#: prefs_hotkeys.js:39
 msgid "Snap Right"
 msgstr ""
 
-#: prefs_hotkeys.js:41
+#: prefs_hotkeys.js:39
 msgid "Move window to the nearest zone on the right."
 msgstr ""
 
-#: prefs_hotkeys.js:41
+#: prefs_hotkeys.js:39
 msgid "Alt + Right"
 msgstr ""
 
-#: prefs_hotkeys.js:42
+#: prefs_hotkeys.js:40
 msgid "Snap Up"
 msgstr ""
 
-#: prefs_hotkeys.js:42
+#: prefs_hotkeys.js:40
 msgid "Move window to the nearest zone above."
 msgstr ""
 
-#: prefs_hotkeys.js:42
+#: prefs_hotkeys.js:40
 msgid "Alt + Up"
 msgstr ""
 
-#: prefs_hotkeys.js:43
+#: prefs_hotkeys.js:41
 msgid "Snap Down"
 msgstr ""
 
-#: prefs_hotkeys.js:43
+#: prefs_hotkeys.js:41
 msgid "Move window to the nearest zone below."
 msgstr ""
 
-#: prefs_hotkeys.js:43
+#: prefs_hotkeys.js:41
 msgid "Alt + Down"
 msgstr ""
 
-#: prefs_hotkeys.js:47
+#: prefs_hotkeys.js:45
 msgid "Drag & Drop Override"
 msgstr ""
 
-#: prefs_hotkeys.js:48
+#: prefs_hotkeys.js:46
 msgid "Bypass OmniPanel's layout engine for manual window placement."
 msgstr ""
 
-#: prefs_hotkeys.js:51
+#: prefs_hotkeys.js:49
 msgid "Temporarily Disable Snapping"
 msgstr ""
 
-#: prefs_hotkeys.js:52
+#: prefs_hotkeys.js:50
 msgid ""
 "Hold this modifier while dragging a window to hide Drop Zones and allow free-"
 "floating placement. Releasing the window drops its zone affinity."
 msgstr ""
 
-#: prefs_hotkeys.js:53
+#: prefs_hotkeys.js:51
 msgid "Hold Alt (or Alt Gr)"
 msgstr ""
 
-#: prefs_hotkeys.js:58
+#: prefs_hotkeys.js:56
 msgid "Layout Management"
 msgstr ""
 
-#: prefs_hotkeys.js:59
+#: prefs_hotkeys.js:57
 msgid "These shortcuts can be customized in the Layouts tab."
 msgstr ""
 
-#: prefs_hotkeys.js:62
+#: prefs_hotkeys.js:60
 msgid "Cycle Layouts"
 msgstr ""
 
-#: prefs_hotkeys.js:63
+#: prefs_hotkeys.js:61
 msgid "Instantly switch between your saved layouts."
 msgstr ""
 
-#: prefs_hotkeys.js:64
+#: prefs_hotkeys.js:62
 msgid "Configurable (Default: Alt + -)"
 msgstr ""
 
-#: prefs_hotkeys.js:67
+#: prefs_hotkeys.js:65
 msgid "Activate Specific Layout"
 msgstr ""
 
-#: prefs_hotkeys.js:68
+#: prefs_hotkeys.js:66
 msgid "Apply a specific saved layout using its assigned slot number."
 msgstr ""
 
-#: prefs_hotkeys.js:69
+#: prefs_hotkeys.js:67
 msgid "Configurable"
 msgstr ""
 
-#: prefs_hotkeys.js:74
+#: prefs_hotkeys.js:72
 msgid "Stack Navigation"
 msgstr ""
 
-#: prefs_hotkeys.js:75
+#: prefs_hotkeys.js:73
 msgid ""
 "Interact with the Stack Indicator overlay when multiple windows share a zone."
 msgstr ""
 
-#: prefs_hotkeys.js:78
+#: prefs_hotkeys.js:76
 msgid "Cycle Stacked Windows"
 msgstr ""
 
-#: prefs_hotkeys.js:79
+#: prefs_hotkeys.js:77
 msgid ""
 "While hovering over a Stack Indicator, use the arrow keys to quickly page "
 "through the stacked windows."
 msgstr ""
 
-#: prefs_hotkeys.js:80
+#: prefs_hotkeys.js:78
 msgid "Left / Right Arrows"
 msgstr ""
 
-#: prefs_hotkeys.js:85
+#: prefs_hotkeys.js:83
 msgid "Quick Tiler (Grid Spawning)"
 msgstr ""
 
-#: prefs_hotkeys.js:86
+#: prefs_hotkeys.js:84
 msgid ""
 "Instantly resize the focused window using an interactive grid overlay. "
 "Configure this hotkey in the Layouts tab."
 msgstr ""
 
-#: prefs_hotkeys.js:89
+#: prefs_hotkeys.js:87
 msgid "Open Quick Tiler"
 msgstr ""
 
-#: prefs_hotkeys.js:90
+#: prefs_hotkeys.js:88
 msgid ""
 "Press to spawn a centered 8x8 grid on the active monitor, then click and "
 "drag across cells to reshape the active window."
 msgstr ""
 
-#: prefs_hotkeys.js:91
+#: prefs_hotkeys.js:89
 msgid "Configurable (Default: Super + G)"
 msgstr ""
 
@@ -606,7 +603,7 @@ msgstr ""
 msgid "Cycle Layouts Shortcut"
 msgstr ""
 
-#: prefs_tiling.js:189 prefs_tiling.js:356
+#: prefs_tiling.js:189 prefs_tiling.js:358
 msgid "Click to capture keybinding"
 msgstr ""
 
@@ -626,8 +623,8 @@ msgstr ""
 msgid "Click a layout to expand and manage its associated drop zones."
 msgstr ""
 
-#: prefs_tiling.js:247 prefs_tiling.js:432 zone_designer.js:406
-#: zone_designer.js:561
+#: prefs_tiling.js:247 prefs_tiling.js:448 zone_designer.js:405
+#: zone_designer.js:560
 msgid "None"
 msgstr ""
 
@@ -635,7 +632,7 @@ msgstr ""
 msgid "Create New Blank Layout"
 msgstr ""
 
-#: prefs_tiling.js:288 zone_designer.js:406 zone_designer.js:563
+#: prefs_tiling.js:288 zone_designer.js:405 zone_designer.js:562
 msgid "Layout"
 msgstr ""
 
@@ -651,65 +648,65 @@ msgstr ""
 msgid "(Copy)"
 msgstr ""
 
-#: prefs_tiling.js:355
+#: prefs_tiling.js:357
 msgid "Activation Hotkey"
 msgstr ""
 
-#: prefs_tiling.js:361
+#: prefs_tiling.js:363
 msgid "Layout Zone Color"
 msgstr ""
 
-#: prefs_tiling.js:380
+#: prefs_tiling.js:383
 msgid "No drop zones"
 msgstr ""
 
-#: prefs_tiling.js:380
+#: prefs_tiling.js:383
 msgid "Open Zone Designer to create some."
 msgstr ""
 
-#: prefs_tiling.js:384
+#: prefs_tiling.js:387
 msgid "Zone"
 msgstr ""
 
-#: prefs_tiling.js:440
+#: prefs_tiling.js:456
 msgid "Alternative: Pure Automatic Tiling"
 msgstr ""
 
-#: prefs_tiling.js:441
+#: prefs_tiling.js:457
 msgid ""
 "Dynamically arrange all windows without requiring pre-defined zones. "
 "Overrides the zone-based layout logic above."
 msgstr ""
 
-#: prefs_tiling.js:445
+#: prefs_tiling.js:461
 msgid "Enable Pure Automatic Tiling"
 msgstr ""
 
-#: prefs_tiling.js:446
+#: prefs_tiling.js:462
 msgid "Takes over workspace layout entirely (disables Zone Designer)"
 msgstr ""
 
-#: prefs_tiling.js:457
+#: prefs_tiling.js:473
 msgid "Auto-Tiling Algorithm"
 msgstr ""
 
-#: prefs_tiling.js:458
+#: prefs_tiling.js:474
 msgid "The layout strategy for active windows"
 msgstr ""
 
-#: prefs_tiling.js:459
+#: prefs_tiling.js:475
 msgid "BSP (Binary Space Partitioning)"
 msgstr ""
 
-#: prefs_tiling.js:459
+#: prefs_tiling.js:475
 msgid "Cascading"
 msgstr ""
 
-#: prefs_tiling.js:459
+#: prefs_tiling.js:475
 msgid "Master-Stack (Stable)"
 msgstr ""
 
-#: prefs_tiling.js:475
+#: prefs_tiling.js:491
 msgid "Window Gap (px)"
 msgstr ""
 
@@ -843,66 +840,66 @@ msgstr ""
 msgid "Make inactive top bars completely invisible"
 msgstr ""
 
-#: quick_tiler.js:100
+#: quick_tiler.js:103
 msgid "Name this Zone (or leave blank to just resize)..."
 msgstr ""
 
-#: quick_tiler.js:107
+#: quick_tiler.js:110
 msgid "Apply"
 msgstr ""
 
-#: show_desktop_button.js:12
+#: show_desktop_button.js:13
 msgid "Show Desktop"
 msgstr ""
 
-#: tiling_manager.js:267 zone_designer.js:338
+#: tiling_manager.js:292 zone_designer.js:337
 msgid "Cancel"
 msgstr ""
 
-#: tiling_manager.js:268 zone_designer.js:358
+#: tiling_manager.js:293 zone_designer.js:357
 msgid "Save"
 msgstr ""
 
-#: tiling_manager.js:333
+#: tiling_manager.js:357
 msgid "Enter a name for the current layout:"
 msgstr ""
 
-#: tiling_manager.js:342
+#: tiling_manager.js:366
 msgid "No active layout. Name this layout first:"
 msgstr ""
 
-#: zone_designer.js:315
+#: zone_designer.js:314
 msgid "Hold and drag to draw and expand zone (Min: 450x400)"
 msgstr ""
 
-#: zone_designer.js:329
+#: zone_designer.js:328
 msgid "Name this Zone..."
 msgstr ""
 
-#: zone_designer.js:400
+#: zone_designer.js:399
 msgid "Monitor"
 msgstr ""
 
-#: zone_designer.js:406 zone_designer.js:563
+#: zone_designer.js:405 zone_designer.js:562
 msgid "(Click to Cycle)"
 msgstr ""
 
-#: zone_designer.js:423
+#: zone_designer.js:422
 msgid "New Layout Name..."
 msgstr ""
 
-#: zone_designer.js:430
+#: zone_designer.js:429
 msgid "Create"
 msgstr ""
 
-#: zone_designer.js:467
+#: zone_designer.js:466
 msgid "  Right-click overlapping zones to send them to the back"
 msgstr ""
 
-#: zone_designer.js:474
+#: zone_designer.js:473
 msgid "Quit Designer"
 msgstr ""
 
-#: zone_designer.js:645
+#: zone_designer.js:644
 msgid "Unnamed Zone"
 msgstr ""

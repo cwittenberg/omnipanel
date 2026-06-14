@@ -1,4 +1,5 @@
 // omnipanel/layout_algorithms.js
+
 import { applyWindowTransform } from './window_manager_adapter.js';
 
 export function getWindowMinSize(win) {
@@ -7,19 +8,15 @@ export function getWindowMinSize(win) {
     if (win._omnipanel_min_w) minW = Math.max(minW, win._omnipanel_min_w);
     if (win._omnipanel_min_h) minH = Math.max(minH, win._omnipanel_min_h);
 
-    try {
-        if (typeof win.get_size_hints === 'function') {
-            let hints = win.get_size_hints();
-            if (hints) {
-                if (hints.min_width > 0) minW = Math.max(minW, hints.min_width);
-                if (hints.min_height > 0) minH = Math.max(minH, hints.min_height);
-            }
-        } else if (win.min_width !== undefined && win.min_height !== undefined) {
-            minW = Math.max(minW, win.min_width);
-            minH = Math.max(minH, win.min_height);
+    if (typeof win.get_size_hints === 'function') {
+        let hints = win.get_size_hints();
+        if (hints) {
+            if (hints.min_width > 0) minW = Math.max(minW, hints.min_width);
+            if (hints.min_height > 0) minH = Math.max(minH, hints.min_height);
         }
-    } catch (e) {
-        // Fallback safely to tracked min bounds if hints are unreadable
+    } else if (win.min_width !== undefined && win.min_height !== undefined) {
+        minW = Math.max(minW, win.min_width);
+        minH = Math.max(minH, win.min_height);
     }
     
     return { w: minW, h: minH };
@@ -35,7 +32,6 @@ export function getViableStackModes(windows, zRect) {
 
     let maxMinW = 50;
     let maxMinH = 50;
-
     for (let w of validWindows) {
         let size = getWindowMinSize(w);
         if (size.w > maxMinW) maxMinW = size.w;
@@ -61,6 +57,7 @@ function fitWithinZone(win, reqX, reqY, reqW, reqH, zRect) {
     
     let safeW = Math.max(minSize.w, reqW);
     let safeH = Math.max(minSize.h, reqH);
+
     let safeX = reqX;
     let safeY = reqY;
     
@@ -141,7 +138,6 @@ export function applyStackLayout(windows, actualMonitor, zRect, mode, logger) {
         }
         
         let finalRect = fitWithinZone(win, rx, ry, rw, rh, zRect);
-
         applyWindowTransform(win, actualMonitor, finalRect, false, logger, zRect);
     }
 }
@@ -156,6 +152,7 @@ export function applyBSP(windows, x, y, w, h, gap, monitorIndex, logger) {
         let reqY = y + gap;
         let reqW = w - 2 * gap;
         let reqH = h - 2 * gap;
+
         let rect = fitWithinZone(windows[0], reqX, reqY, reqW, reqH, zRect);
         applyWindowTransform(windows[0], monitorIndex, rect, false, logger, zRect);
         return;
@@ -163,6 +160,7 @@ export function applyBSP(windows, x, y, w, h, gap, monitorIndex, logger) {
 
     let splitVertical = w > h;
     let mid = Math.ceil(windows.length / 2);
+
     if (splitVertical) {
         let w1 = w / 2;
         applyBSP(windows.slice(0, mid), x, y, w1, h, gap, monitorIndex, logger);
@@ -201,6 +199,7 @@ export function applyMasterStack(windows, x, y, w, h, gap, monitorIndex, logger)
         let reqY = y + gap;
         let reqW = w - 2 * gap;
         let reqH = h - 2 * gap;
+
         let rect = fitWithinZone(windows[0], reqX, reqY, reqW, reqH, zRect);
         applyWindowTransform(windows[0], monitorIndex, rect, false, logger, zRect);
         return;

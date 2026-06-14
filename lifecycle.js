@@ -20,12 +20,14 @@ export class LifecycleMediator {
     }
 
     disconnectSignal(obj, id) {
-        try { obj.disconnect(id); } catch {}
+        if (obj && id) {
+            obj.disconnect(id);
+        }
         this._signals = this._signals.filter(s => s.id !== id);
     }
 
     bindShortcut(name, settings, handler) {
-        try { Main.wm.removeKeybinding(name); } catch {}
+        Main.wm.removeKeybinding(name);
         Main.wm.addKeybinding(name, settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT, Shell.ActionMode.NORMAL, handler);
         this._bindings.push(name);
     }
@@ -69,12 +71,12 @@ export class LifecycleMediator {
 
     destroy() {
         for (let {obj, id} of this._signals) {
-            try { obj.disconnect(id); } catch {}
+            if (obj && id) obj.disconnect(id);
         }
         this._signals = [];
 
         for (let name of this._bindings) {
-            try { Main.wm.removeKeybinding(name); } catch {}
+            Main.wm.removeKeybinding(name);
         }
         this._bindings = [];
 
@@ -93,14 +95,13 @@ export class WindowBootstrapper {
         this.logger = logger;
         this.placementCallback = placementCallback;
         this.tilingManager = tilingManager;
+        this.onDestroy = null;
         
-        this.winId = 'unknown';
-        try { this.winId = window.get_id ? window.get_id() : 'unknown'; } catch {}
+        this.winId = (window && typeof window.get_id === 'function') ? window.get_id() : 'unknown';
         
         this.attempts = 0;
         this.maxAttempts = 15;
         
-        // Ensure we explicitly track all timers/signals for strict cleanup
         this.timerId = 0;
         this.titleTimerId = 0;
         this.rescueTimerId = 0;
@@ -111,7 +112,7 @@ export class WindowBootstrapper {
         this._bootstrap();
     }
 
-    _cleanup() {
+    cleanup() {
         if (this.timerId) {
             this.mediator.clearTimer(this.timerId);
             this.timerId = 0;
@@ -132,19 +133,25 @@ export class WindowBootstrapper {
             this.mediator.disconnectSignal(this.window, this.window._omnipanel_unmanaged_id);
             this.window._omnipanel_unmanaged_id = undefined;
         }
-        // Free window reference to ensure garbage collection
+        
+        if (this.onDestroy) {
+            this.onDestroy();
+        }
+        
         this.window = null;
     }
 
     _bootstrap() {
-        let title = 'unknown', wmClass = 'unknown';
-        try { title = this.window.get_title() || 'unknown'; wmClass = this.window.get_wm_class() || 'unknown'; } catch {}
+        if (!this.window) return;
+        
+        let title = (typeof this.window.get_title === 'function') ? (this.window.get_title() || 'unknown') : 'unknown';
+        let wmClass = (typeof this.window.get_wm_class === 'function') ? (this.window.get_wm_class() || 'unknown') : 'unknown';
 
         this.logger(`[${this.winId}] ------------------------------------------------`);
         this.logger(`[${this.winId}] 🪲 EXTREME DEBUG: NEW WINDOW DETECTED`);
         this.logger(`[${this.winId}] 🪲 APP: ${wmClass} | TITLE: ${title}`);
 
-        try {
+        if (typeof this.window.get_frame_rect === 'function') {
             let rect = this.window.get_frame_rect();
             this.logger(`[${this.winId}] 🪲 INITIAL COMPOSITOR SPAWN GEOMETRY: X:${rect.x} Y:${rect.y} W:${rect.width} H:${rect.height}`);
             if (rect.width < 100 || rect.height < 100) {
@@ -161,121 +168,113 @@ export class WindowBootstrapper {
                     return GLib.SOURCE_REMOVE;
                 });
             }
-        } catch {}
+        }
 
-        try {
-            this.window._omnipanel_is_dead = false;
+        this.window._omnipanel_is_dead = false;
 
-            if (this.window._omnipanel_unmanaged_id === undefined) {
-                let sigId = this.mediator.connectSignal(this.window, 'unmanaged', () => {
-                    if (this.window) this.window._omnipanel_is_dead = true;
-                    if (this.tilingManager) this.tilingManager.queueAutoTiling(); 
-                    
-                    this._cleanup(); // Trigger full strict cleanup
-                });
-                this.window._omnipanel_unmanaged_id = sigId;
-            }
+        if (this.window._omnipanel_unmanaged_id === undefined) {
+            let sigId = this.mediator.connectSignal(this.window, 'unmanaged', () => {
+                if (this.window) this.window._omnipanel_is_dead = true;
+                if (this.tilingManager) this.tilingManager.queueAutoTiling(); 
+                
+                this.cleanup(); 
+            });
+            this.window._omnipanel_unmanaged_id = sigId;
+        }
 
-            let isSkipTaskbar = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
-            let isSkipPager = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
+        let isSkipTaskbar = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
+        let isSkipPager = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
 
-            let wType = this.window.get_window_type();
-            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
-            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
+        let wType = typeof this.window.get_window_type === 'function' ? this.window.get_window_type() : Meta.WindowType.NORMAL;
+        let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
+        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
 
-            if (this.window.is_override_redirect() || (!isDialog && (isSkipTaskbar || isSkipPager))) {
-                this.logger(`[${this.winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
-                return;
-            }
+        let isOverride = typeof this.window.is_override_redirect === 'function' ? this.window.is_override_redirect() : false;
 
-            if (role === 'browser-tab') {
-                this.logger(`[${this.winId}] Ignoring browser tab.`);
-                return;
-            }
+        if (isOverride || (!isDialog && (isSkipTaskbar || isSkipPager))) {
+            this.logger(`[${this.winId}] Ignoring override-redirect or skip-taskbar (browser tab) window.`);
+            return;
+        }
 
-            if (wType !== Meta.WindowType.NORMAL && !isDialog) {
-                this.logger(`[${this.winId}] Window is not NORMAL or DIALOG. Aborting entirely.`);
-                return;
-            }
-        } catch {}
+        if (role === 'browser-tab') {
+            this.logger(`[${this.winId}] Ignoring browser tab.`);
+            return;
+        }
+
+        if (wType !== Meta.WindowType.NORMAL && !isDialog) {
+            this.logger(`[${this.winId}] Window is not NORMAL or DIALOG. Aborting entirely.`);
+            return;
+        }
 
         this.logger(`[${this.winId}] >> Starting rapid DBus metadata polling (50ms intervals)...`);
         
         this.timerId = this.mediator.addTimer(50, this._pollMetadata.bind(this));
         
-        try {
-            // Add dynamic title observation for late-updating windows (like VS Code terminals)
-            // Seems to be no other (more elegant) solution than to keep this listener active during the entire grace period, and remove it explicitly after 2000ms
-            let initialTitle = this.window.get_title() || '';
-            this.titleChangeSig = this.mediator.connectSignal(this.window, 'notify::title', () => {
-                if (!this.window || !isWindowValid(this.window)) return;
-                let newTitle = this.window.get_title() || '';
-                if (newTitle && newTitle !== initialTitle) {
-                    this.logger(`[${this.winId}] 🪲 TITLE CHANGED during grace period: '${initialTitle}' -> '${newTitle}'`);
-                    initialTitle = newTitle;
-                    if (this.placed) {
-                        this.logger(`[${this.winId}] Re-evaluating placement due to late title update.`);
-                        this.placementCallback(this.window, this.window.get_wm_class() || '', newTitle, this.winId);
-                    }
+        let initialTitle = (typeof this.window.get_title === 'function') ? (this.window.get_title() || '') : '';
+        this.titleChangeSig = this.mediator.connectSignal(this.window, 'notify::title', () => {
+            if (!this.window || !isWindowValid(this.window)) return;
+            let newTitle = (typeof this.window.get_title === 'function') ? (this.window.get_title() || '') : '';
+            if (newTitle && newTitle !== initialTitle) {
+                this.logger(`[${this.winId}] 🪲 TITLE CHANGED during grace period: '${initialTitle}' -> '${newTitle}'`);
+                initialTitle = newTitle;
+                if (this.placed) {
+                    this.logger(`[${this.winId}] Re-evaluating placement due to late title update.`);
+                    this.placementCallback(this.window, this.window.get_wm_class() || '', newTitle, this.winId);
                 }
-            });
+            }
+        });
 
-            // Remove the title listener explicitly after 2000ms
-            this.titleTimerId = this.mediator.addTimer(2000, () => {
-                this.titleTimerId = 0;
-                if (this.titleChangeSig && this.window) {
-                    this.mediator.disconnectSignal(this.window, this.titleChangeSig);
-                    this.titleChangeSig = 0;
-                }
-                return GLib.SOURCE_REMOVE;
-            });
-        } catch {}
+        this.titleTimerId = this.mediator.addTimer(2000, () => {
+            this.titleTimerId = 0;
+            if (this.titleChangeSig && this.window) {
+                this.mediator.disconnectSignal(this.window, this.titleChangeSig);
+                this.titleChangeSig = 0;
+            }
+            this.cleanup();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _pollMetadata() {
         if (!this.window || this.window._omnipanel_is_dead || !isWindowValid(this.window)) {
             this.timerId = 0;
             this.logger(`[${this.winId}] Window died or actor destroyed before yield completed. Safely aborted.`);
-            this._cleanup();
+            this.cleanup();
             return GLib.SOURCE_REMOVE;
         }
 
-        try {
-            let isSkipTaskbarNow = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
-            let isSkipPagerNow = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
+        let isSkipTaskbarNow = typeof this.window.is_skip_taskbar === 'function' ? this.window.is_skip_taskbar() : false;
+        let isSkipPagerNow = typeof this.window.is_skip_pager === 'function' ? this.window.is_skip_pager() : false;
 
-            let wType = this.window.get_window_type();
-            let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
-            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
+        let wType = typeof this.window.get_window_type === 'function' ? this.window.get_window_type() : Meta.WindowType.NORMAL;
+        let role = typeof this.window.get_role === 'function' ? this.window.get_role() : '';
+        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
 
-            if (!isDialog && (isSkipTaskbarNow || isSkipPagerNow)) {
-                this.logger(`[${this.winId}] Window became skip_taskbar during yield. Aborting.`);
-                this.timerId = 0;
-                return GLib.SOURCE_REMOVE;
-            }
-
-            let finalWmClass = this.window.get_wm_class() || '';
-            
-            if (!finalWmClass && this.attempts < this.maxAttempts) {
-                this.attempts++;
-                return GLib.SOURCE_CONTINUE;
-            }
-
+        if (!isDialog && (isSkipTaskbarNow || isSkipPagerNow)) {
+            this.logger(`[${this.winId}] Window became skip_taskbar during yield. Aborting.`);
             this.timerId = 0;
-
-            if (!finalWmClass) {
-                this.logger(`[${this.winId}] Window has no wm_class after max attempts. Aborting.`);
-                return GLib.SOURCE_REMOVE;
-            }
-            
-            this.logger(`[${this.winId}] Metadata retrieved safely on attempt ${this.attempts + 1}. Moving to execution phase.`);
-            this.placed = true;
-            this.placementCallback(this.window, finalWmClass, this.window.get_title() || '', this.winId);
-            
-        } catch {
-            this.timerId = 0;
-            this.logger(`[${this.winId}] FATAL CATCH in Timer`);
+            return GLib.SOURCE_REMOVE;
         }
+
+        let finalWmClass = typeof this.window.get_wm_class === 'function' ? (this.window.get_wm_class() || '') : '';
+        
+        if (!finalWmClass && this.attempts < this.maxAttempts) {
+            this.attempts++;
+            return GLib.SOURCE_CONTINUE;
+        }
+
+        this.timerId = 0;
+
+        if (!finalWmClass) {
+            this.logger(`[${this.winId}] Window has no wm_class after max attempts. Aborting.`);
+            this.cleanup();
+            return GLib.SOURCE_REMOVE;
+        }
+        
+        this.logger(`[${this.winId}] Metadata retrieved safely on attempt ${this.attempts + 1}. Moving to execution phase.`);
+        this.placed = true;
+        let windowTitle = typeof this.window.get_title === 'function' ? (this.window.get_title() || '') : '';
+        this.placementCallback(this.window, finalWmClass, windowTitle, this.winId);
 
         return GLib.SOURCE_REMOVE;
     }

@@ -182,9 +182,7 @@ export class SnapEngine {
             GLib.source_remove(this._dragLoopId);
         }
         this._dragLoopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-            try {
-                this.updateDrag();
-            } catch { }
+            this.updateDrag();
             return GLib.SOURCE_CONTINUE;
         });
     }
@@ -251,34 +249,27 @@ export class SnapEngine {
             let zone = this._currentSnapZone;
             let targetWindow = this._dragWindow;
 
-            try {
-                targetWindow._omnipanel_zone = zone.name;
-                targetWindow._omnipanel_monitor = zone.monitorIndex;
-                
-                this.manager._log(`[Snap] Dropped window onto zone [${zone.name}]`);
+            targetWindow._omnipanel_zone = zone.name;
+            targetWindow._omnipanel_monitor = zone.monitorIndex;
+            
+            this.manager._log(`[Snap] Dropped window onto zone [${zone.name}]`);
 
-                if (this._grabTransformTimer) this._clearTimer(this._grabTransformTimer);
-                this._grabTransformTimer = this._addTimer(250, () => {
-                    try {
-                        let customSections = this.manager.storage.getCustomSections();
-                        let updatedRect = getSectionRect(zone.monitorIndex, zone.name, customSections) || zone.rect;
+            if (this._grabTransformTimer) this._clearTimer(this._grabTransformTimer);
+            this._grabTransformTimer = this._addTimer(250, () => {
+                let customSections = this.manager.storage.getCustomSections();
+                let updatedRect = getSectionRect(zone.monitorIndex, zone.name, customSections) || zone.rect;
 
-                        if (zone.isMaximize) {
-                            let fullRect = getSectionRect(zone.monitorIndex, 'maximized');
-                            applyWindowTransform(targetWindow, zone.monitorIndex, fullRect, true, this.manager._log.bind(this.manager));
-                        } else {
-                            applyWindowTransform(targetWindow, zone.monitorIndex, updatedRect, false, this.manager._log.bind(this.manager));
-                        }
+                if (zone.isMaximize) {
+                    let fullRect = getSectionRect(zone.monitorIndex, 'maximized');
+                    applyWindowTransform(targetWindow, zone.monitorIndex, fullRect, true, this.manager._log.bind(this.manager));
+                } else {
+                    applyWindowTransform(targetWindow, zone.monitorIndex, updatedRect, false, this.manager._log.bind(this.manager));
+                }
 
-                        if (this.manager.stackManager) {
-                            this.manager.stackManager.invalidateSignature();
-                        }
-                    } catch (e) {
-                        this.manager._log(`[Snap Error] Transform execution failed: ${e}`);
-                    }
-                });
-
-            } catch {}
+                if (this.manager.stackManager) {
+                    this.manager.stackManager.invalidateSignature();
+                }
+            });
             
             if (this._grabSaveTimer) this._clearTimer(this._grabSaveTimer);
             this._grabSaveTimer = this._addTimer(500, () => {
@@ -296,12 +287,13 @@ export class SnapEngine {
 
     snapToZoneSlot(slotId) {
         let window = global.display.get_focus_window();
-        try {
-            if (!window || !window.get_display()) return;
-            let wType = window.get_window_type();
-            if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
-            if (isWindowIgnored(window, this.settings)) return;
-        } catch { return; }
+        
+        if (!window || !window.get_display()) return;
+        if (typeof window.get_window_type !== 'function') return;
+        
+        let wType = window.get_window_type();
+        if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
+        if (isWindowIgnored(window, this.settings)) return;
 
         let customSections = this.manager.storage.getCustomSections();
         let targetZoneName = Object.keys(customSections).find(k => customSections[k].hotkeySlot === slotId);
@@ -329,12 +321,13 @@ export class SnapEngine {
 
     snapDirection(dir) {
         let window = global.display.get_focus_window();
-        try {
-            if (!window || !window.get_display()) return;
-            let wType = window.get_window_type();
-            if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
-            if (isWindowIgnored(window, this.settings)) return;
-        } catch { return; }
+        
+        if (!window || !window.get_display()) return;
+        if (typeof window.get_window_type !== 'function') return;
+        
+        let wType = window.get_window_type();
+        if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
+        if (isWindowIgnored(window, this.settings)) return;
 
         let rect = window.get_frame_rect();
         let cx = rect.x + rect.width / 2;

@@ -115,7 +115,6 @@ export default class PanelMover {
     }
 
     disable() {
-        if (!this._enabled) return;
         this._enabled = false;
 
         if (this._monitorsChangedId) {

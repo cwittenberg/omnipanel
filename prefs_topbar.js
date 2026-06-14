@@ -1,8 +1,8 @@
 // omnipanel/prefs_topbar.js
-import Adw from 'gi://Adw?version=1';
+import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
-import Gtk from 'gi://Gtk?version=4.0';
-import Gdk from 'gi://Gdk?version=4.0';
+import Gtk from 'gi://Gtk';
+import Gdk from 'gi://Gdk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {

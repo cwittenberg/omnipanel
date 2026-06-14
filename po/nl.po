@@ -7,903 +7,900 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-10 21:28+0200\n"
-"PO-Revision-Date: 2026-06-10 21:28+0200\n"
+"POT-Creation-Date: 2026-06-14 13:19+0200\n"
+"PO-Revision-Date: 2026-06-14 13:19+0200\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ASCII\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: layout_indicator.js:13
 msgid "OmniPanel Command Center"
-msgstr ""
+msgstr "OmniPanel-opdrachtcentrum"
 
-#: layout_indicator.js:52
+#: layout_indicator.js:53
 msgid "Multi-Monitor Top Panel"
-msgstr ""
+msgstr "Bovenpaneel voor meerdere monitoren"
 
-#: layout_indicator.js:61
+#: layout_indicator.js:62
 msgid "Window Management"
-msgstr ""
+msgstr "Vensterbeheer"
 
-#: layout_indicator.js:71 prefs_tiling.js:39 zone_designer.js:400
+#: layout_indicator.js:72 prefs_tiling.js:39 zone_designer.js:399
 msgid "Zone Designer Mode"
-msgstr ""
+msgstr "Zoneontwerpermodus"
 
-#: layout_indicator.js:83
+#: layout_indicator.js:84
 msgid "Quick Tiler Grid"
-msgstr ""
+msgstr "Snel tegelzetterraster"
 
-#: layout_indicator.js:130
-msgid "OmniPanel Settings"
-msgstr ""
+#: layout_indicator.js:133
+msgid "Settings"
+msgstr "Instellingen"
 
 #: prefs_components.js:33
 msgid "Press keys... (Esc to cancel, Backspace to clear)"
-msgstr ""
+msgstr "Druk op toetsen... (Esc om te annuleren, Backspace om te wissen)"
 
 #: prefs_components.js:49
 msgid "Disabled"
-msgstr ""
+msgstr "Gehandicapt"
 
 #: prefs_components.js:87 prefs_components.js:97
 msgid "New Rule"
-msgstr ""
+msgstr "Nieuwe regel"
 
 #: prefs_components.js:92 prefs_components.js:138
 msgid "Target Zones (comma separated)"
-msgstr ""
+msgstr "Doelzones (door komma's gescheiden)"
 
 #: prefs_components.js:101
 msgid "App Keywords (comma separated)"
-msgstr ""
+msgstr "App-trefwoorden (door komma's gescheiden)"
 
 #: prefs_components.js:108
 msgid "Remove this routing rule"
-msgstr ""
+msgstr "Verwijder deze routeringsregel"
 
 #: prefs_components.js:124 prefs_components.js:134
 msgid "New Category"
-msgstr ""
+msgstr "Nieuwe categorie"
 
 #: prefs_components.js:129
 msgid "GNOME Desktop Category"
-msgstr ""
+msgstr "GNOME Desktop-categorie"
 
 #: prefs_components.js:145
 msgid "Remove this category rule"
-msgstr ""
+msgstr "Verwijder deze categorieregel"
 
 #: prefs_components.js:162
 msgid "Smart Placement Routing Rules"
-msgstr ""
+msgstr "Regels voor slimme plaatsingsroutering"
 
 #: prefs_components.js:175
 msgid "Save & Close"
-msgstr ""
+msgstr "Opslaan en sluiten"
 
 #: prefs_components.js:179
 msgid "Reset to Defaults"
-msgstr ""
+msgstr "Terugzetten naar standaardwaarden"
 
 #: prefs_components.js:190
 msgid "Application Keyword Routing"
-msgstr ""
+msgstr "Applicatietrefwoordroutering"
 
 #: prefs_components.js:191
 msgid ""
 "Route applications to specific drop zones if their window title or "
 "application name matches a keyword."
-msgstr ""
+msgstr "Leid applicaties naar specifieke dropzones als hun venstertitel of applicatienaam overeenkomt met een trefwoord."
 
 #: prefs_components.js:195
 msgid "App Keywords"
-msgstr ""
+msgstr "App-trefwoorden"
 
 #: prefs_components.js:200
 msgid "Category Routing"
-msgstr ""
+msgstr "Categorieroutering"
 
 #: prefs_components.js:201
 msgid ""
 "Route applications to specific drop zones based on their underlying GNOME "
 "desktop metadata category."
-msgstr ""
+msgstr "Leid applicaties naar specifieke dropzones op basis van hun onderliggende GNOME desktop-metagegevenscategorie."
 
 #: prefs_components.js:205
 msgid "Categories"
-msgstr ""
+msgstr "Categorieën"
 
-#: prefs_components.js:258
+#: prefs_components.js:260
 msgid "Add New App Routing Rule"
-msgstr ""
+msgstr "Voeg een nieuwe app-routeringsregel toe"
 
-#: prefs_components.js:288
+#: prefs_components.js:290
 msgid "Add New Category Routing Rule"
-msgstr ""
+msgstr "Nieuwe categorierouteringsregel toevoegen"
 
-#: prefs_guide_about.js:57
+#: prefs_guide_about.js:54
 msgid "Guide"
-msgstr ""
+msgstr "Gids"
 
-#: prefs_guide_about.js:91 prefs_guide_about.js:187
+#: prefs_guide_about.js:84 prefs_guide_about.js:176
 msgid "OmniPanel"
 msgstr ""
 
-#: prefs_guide_about.js:97
+#: prefs_guide_about.js:90
 msgid ""
 "Multi-monitor productivity with configurable layouts for windows and a GNOME "
 "Top Bar that seamlessly follows your focus."
-msgstr ""
+msgstr "Productiviteit op meerdere monitoren met configureerbare lay-outs voor vensters en een GNOME Top Bar die je volgt."
 
-#: prefs_guide_about.js:109
+#: prefs_guide_about.js:101
 msgid "Window Layouts & The Zone Designer"
-msgstr ""
+msgstr "Raamindelingen en de zoneontwerper"
 
-#: prefs_guide_about.js:112
+#: prefs_guide_about.js:104
 msgid "Draw Your Workspace"
-msgstr ""
+msgstr "Teken werkruimte"
 
-#: prefs_guide_about.js:113
+#: prefs_guide_about.js:105
 msgid ""
 "Open the OmniPanel system tray menu and toggle \"Zone Designer Mode\". Click "
 "and drag your mouse on any monitor to draw a rectangular zone, name it, and "
 "hit Save."
-msgstr ""
+msgstr "Open het OmniPanel-systeemvakmenu en schakel de \"Zone Designer-modus\" in. Klik en sleep met de muis op een willekeurige monitor om een ​​rechthoekige zone te tekenen, geef deze een naam en klik op Opslaan."
 
-#: prefs_guide_about.js:118
+#: prefs_guide_about.js:110
 msgid "Auto-Restore and Fuzzy Matching"
-msgstr ""
+msgstr "Automatisch herstel en Fuzzy Matching"
 
-#: prefs_guide_about.js:119
+#: prefs_guide_about.js:111
 msgid ""
 "Layouts are automatically saved based on your current monitor setup. Unplug "
 "and replug your screens, and your customized layouts return instantly."
-msgstr ""
+msgstr "Lay-outs worden automatisch opgeslagen op basis van uw huidige monitorinstellingen. Koppel schermen los en sluit ze opnieuw aan, en aangepaste lay-outs keren onmiddellijk terug."
 
-#: prefs_guide_about.js:125
+#: prefs_guide_about.js:116
 msgid "Smart Placement & Exclusions"
-msgstr ""
+msgstr "Slimme plaatsing en uitsluitingen"
 
-#: prefs_guide_about.js:128
+#: prefs_guide_about.js:119
 msgid "Auto-Routing and Affinity"
-msgstr ""
+msgstr "Automatische routering en affiniteit"
 
-#: prefs_guide_about.js:129
+#: prefs_guide_about.js:120
 msgid ""
 "Name a zone \"Terminals\" and apps like Alacritty snap there automatically. "
 "Drag a window into a different zone, and OmniPanel learns your preference "
 "permanently."
-msgstr ""
+msgstr "Noem een ​​zone \"Terminals\" en apps zoals Alacritty komen daar automatisch terecht. Sleep een venster naar een andere zone en OmniPanel leert je voorkeuren kennen."
 
-#: prefs_guide_about.js:134
+#: prefs_guide_about.js:125
 msgid "Quick Desktop Access"
-msgstr ""
+msgstr "Snelle bureaubladtoegang"
 
-#: prefs_guide_about.js:135
+#: prefs_guide_about.js:126
 msgid ""
 "Use the \"Show Desktop\" button in the top bar to instantly minimize and "
 "restore windows on your current monitor."
-msgstr ""
+msgstr "Gebruik de knop \"Bureaublad weergeven\" in de bovenste balk om vensters op de huidige monitor onmiddellijk te minimaliseren en te herstellen."
 
-#: prefs_guide_about.js:140 prefs_tiling.js:127
+#: prefs_guide_about.js:131 prefs_tiling.js:127
 msgid "Ignored Applications"
-msgstr ""
+msgstr "Genegeerde applicaties"
 
-#: prefs_guide_about.js:141
+#: prefs_guide_about.js:132
 msgid ""
 "Define a comma-separated list of app names (like \"steam\" or \"gimp\") in "
 "the layout settings to keep OmniPanel from ever managing them."
-msgstr ""
+msgstr "Definieer een door komma's gescheiden lijst met app-namen (zoals \"steam\" of \"gimp\") in de lay-outinstellingen om te voorkomen dat OmniPanel ze ooit beheert."
 
-#: prefs_guide_about.js:146
+#: prefs_guide_about.js:137
 msgid "Show the GNOME Top Bar on All Monitors"
-msgstr ""
+msgstr "Toon de GNOME-bovenbalk op alle monitoren"
 
-#: prefs_guide_about.js:147
+#: prefs_guide_about.js:138
 msgid ""
 "OmniPanel teleports the active Top Bar to the monitor where your focus is. "
 "See your current time, system tray, and app indicators no matter which "
 "screen you are on."
-msgstr ""
+msgstr "OmniPanel teleporteert de actieve Top Bar naar de monitor waar uw focus ligt. Bekijk uw huidige tijd, systeemvak en app-indicatoren, ongeacht op welk scherm u zich bevindt."
 
-#: prefs_guide_about.js:152
+#: prefs_guide_about.js:143
 msgid "Active and Inactive Appearance"
-msgstr ""
+msgstr "Actieve en inactieve verschijning"
 
-#: prefs_guide_about.js:153
+#: prefs_guide_about.js:144
 msgid ""
 "Highlight the active Top Bar with a custom color, or make inactive panels "
 "translucent and distraction-free."
-msgstr ""
+msgstr "Markeer de actieve bovenste balk met een aangepaste kleur, of maak inactieve panelen doorschijnend en zonder afleiding."
 
-#: prefs_guide_about.js:159
+#: prefs_guide_about.js:149
 msgid "Hotkeys, Snapping & Stacks"
-msgstr ""
+msgstr "Sneltoetsen, snappen en stapels"
 
-#: prefs_guide_about.js:162
+#: prefs_guide_about.js:152
 msgid "Window Stacks"
-msgstr ""
+msgstr "Vensterstapels"
 
-#: prefs_guide_about.js:163
+#: prefs_guide_about.js:153
 msgid ""
 "When multiple windows share the exact same zone, a Stack Indicator appears. "
 "Hover over it to quickly cycle apps or seamlessly expand them into Stack, "
 "Column, Row, or Grid views."
-msgstr ""
+msgstr "Wanneer meerdere vensters exact dezelfde zone delen, verschijnt er een stapelindicator. Beweeg erover om snel door apps te bladeren of ze naadloos uit te breiden naar stapel-, kolom-, rij- of rasterweergaven."
 
-#: prefs_guide_about.js:168
+#: prefs_guide_about.js:158
 msgid "Directional Snapping and Cycling"
-msgstr ""
+msgstr "Directioneel snappen en fietsen"
 
-#: prefs_guide_about.js:169
+#: prefs_guide_about.js:159
 msgid ""
 "Press Alt + Arrows to intuitively snap the active window into a neighboring "
 "Drop Zone. Bind a hotkey to instantly loop through your saved Layouts."
-msgstr ""
+msgstr "Druk op Alt + Pijlen om het actieve venster intuïtief in een aangrenzende Drop Zone te plaatsen. Bind een sneltoets om direct door uw opgeslagen lay-outs te bladeren."
 
-#: prefs_guide_about.js:179
+#: prefs_guide_about.js:169
 msgid "About"
-msgstr ""
+msgstr "Over"
 
-#: prefs_guide_about.js:184
+#: prefs_guide_about.js:173
 msgid "Extension Information"
-msgstr ""
+msgstr "Extensie-informatie"
 
-#: prefs_guide_about.js:188
+#: prefs_guide_about.js:177
 msgid "True multi-monitor capabilities for GNOME Shell."
-msgstr ""
+msgstr "Echte multi-monitormogelijkheden voor GNOME Shell."
 
-#: prefs_guide_about.js:210
+#: prefs_guide_about.js:197
 msgid "Local / Development"
-msgstr ""
+msgstr "Lokaal / Ontwikkeling"
 
-#: prefs_guide_about.js:211
+#: prefs_guide_about.js:198
 msgid "Version"
-msgstr ""
+msgstr "Versie"
 
-#: prefs_guide_about.js:212
+#: prefs_guide_about.js:199
 msgid "Author"
-msgstr ""
+msgstr "Auteur"
 
-#: prefs_guide_about.js:212
-msgid "Christian Wittenberg"
-msgstr ""
-
-#: prefs_guide_about.js:219
+#: prefs_guide_about.js:205
 msgid "Advanced"
-msgstr ""
+msgstr "Geavanceerd"
 
-#: prefs_guide_about.js:222
+#: prefs_guide_about.js:208
 msgid "Enable Debug Logging"
-msgstr ""
+msgstr "Schakel logboekregistratie voor foutopsporing in"
 
-#: prefs_guide_about.js:223
+#: prefs_guide_about.js:209
 msgid "Outputs verbose troubleshooting logs to journalctl"
-msgstr ""
+msgstr "Voert uitgebreide probleemoplossingslogboeken uit naar journalctl"
 
-#: prefs_guide_about.js:247
+#: prefs_guide_about.js:232
 msgid "Buy me a coffee"
-msgstr ""
+msgstr "Geef mij een kop koffie"
 
-#: prefs_guide_about.js:253
+#: prefs_guide_about.js:238
 msgid "Report a Bug"
-msgstr ""
+msgstr "Rapporteer bug"
 
-#: prefs_guide_about.js:258
+#: prefs_guide_about.js:243
 msgid "Request a Feature"
-msgstr ""
+msgstr "Idee voor een Feature"
 
-#: prefs_hotkeys.js:32
+#: prefs_hotkeys.js:30
 msgid "Hotkeys"
-msgstr ""
+msgstr "Sneltoetsen"
 
-#: prefs_hotkeys.js:37
+#: prefs_hotkeys.js:35
 msgid "Directional Snapping"
-msgstr ""
+msgstr "Directioneel snappen"
+
+#: prefs_hotkeys.js:36
+msgid "Quickly snap the currently focused window into adjacent Drop Zones."
+msgstr "Plaats het momenteel gefocuste venster snel in aangrenzende dropzones."
 
 #: prefs_hotkeys.js:38
-msgid "Quickly snap the currently focused window into adjacent Drop Zones."
-msgstr ""
-
-#: prefs_hotkeys.js:40
 msgid "Snap Left"
-msgstr ""
+msgstr "Klik links"
 
-#: prefs_hotkeys.js:40
+#: prefs_hotkeys.js:38
 msgid "Move window to the nearest zone on the left."
-msgstr ""
+msgstr "Verplaats het venster naar de dichtstbijzijnde zone aan de linkerkant."
+
+#: prefs_hotkeys.js:38
+msgid "Alt + Left"
+msgstr "Alt + Links"
+
+#: prefs_hotkeys.js:39
+msgid "Snap Right"
+msgstr "Klik rechts"
+
+#: prefs_hotkeys.js:39
+msgid "Move window to the nearest zone on the right."
+msgstr "Verplaats het venster naar de dichtstbijzijnde zone aan de rechterkant."
+
+#: prefs_hotkeys.js:39
+msgid "Alt + Right"
+msgstr "Alt + Rechts"
 
 #: prefs_hotkeys.js:40
-msgid "Alt + Left"
-msgstr ""
-
-#: prefs_hotkeys.js:41
-msgid "Snap Right"
-msgstr ""
-
-#: prefs_hotkeys.js:41
-msgid "Move window to the nearest zone on the right."
-msgstr ""
-
-#: prefs_hotkeys.js:41
-msgid "Alt + Right"
-msgstr ""
-
-#: prefs_hotkeys.js:42
 msgid "Snap Up"
-msgstr ""
+msgstr "Klik op"
 
-#: prefs_hotkeys.js:42
+#: prefs_hotkeys.js:40
 msgid "Move window to the nearest zone above."
-msgstr ""
+msgstr "Verplaats het venster naar de dichtstbijzijnde zone erboven."
 
-#: prefs_hotkeys.js:42
+#: prefs_hotkeys.js:40
 msgid "Alt + Up"
-msgstr ""
+msgstr "Alt + omhoog"
 
-#: prefs_hotkeys.js:43
+#: prefs_hotkeys.js:41
 msgid "Snap Down"
-msgstr ""
+msgstr "Klik naar beneden"
 
-#: prefs_hotkeys.js:43
+#: prefs_hotkeys.js:41
 msgid "Move window to the nearest zone below."
-msgstr ""
+msgstr "Verplaats het venster naar de dichtstbijzijnde zone hieronder."
 
-#: prefs_hotkeys.js:43
+#: prefs_hotkeys.js:41
 msgid "Alt + Down"
-msgstr ""
+msgstr "Alt + Omlaag"
 
-#: prefs_hotkeys.js:47
+#: prefs_hotkeys.js:45
 msgid "Drag & Drop Override"
-msgstr ""
+msgstr "Overschrijven door slepen en neerzetten"
 
-#: prefs_hotkeys.js:48
+#: prefs_hotkeys.js:46
 msgid "Bypass OmniPanel's layout engine for manual window placement."
-msgstr ""
+msgstr "Omzeil de layout-engine van OmniPanel voor handmatige vensterplaatsing."
 
-#: prefs_hotkeys.js:51
+#: prefs_hotkeys.js:49
 msgid "Temporarily Disable Snapping"
-msgstr ""
+msgstr "Schakel snappen tijdelijk uit"
 
-#: prefs_hotkeys.js:52
+#: prefs_hotkeys.js:50
 msgid ""
 "Hold this modifier while dragging a window to hide Drop Zones and allow free-"
 "floating placement. Releasing the window drops its zone affinity."
-msgstr ""
+msgstr "Houd deze modifier ingedrukt terwijl je een venster sleept om Drop Zones te verbergen en vrij zwevende plaatsing mogelijk te maken. Als u het venster vrijgeeft, wordt de zoneaffiniteit ervan verlaagd."
 
-#: prefs_hotkeys.js:53
+#: prefs_hotkeys.js:51
 msgid "Hold Alt (or Alt Gr)"
-msgstr ""
+msgstr "Houd Alt (of Alt Gr) ingedrukt"
 
-#: prefs_hotkeys.js:58
+#: prefs_hotkeys.js:56
 msgid "Layout Management"
-msgstr ""
+msgstr "Lay-outbeheer"
 
-#: prefs_hotkeys.js:59
+#: prefs_hotkeys.js:57
 msgid "These shortcuts can be customized in the Layouts tab."
-msgstr ""
+msgstr "Deze snelkoppelingen kunnen worden aangepast op het tabblad Lay-outs."
+
+#: prefs_hotkeys.js:60
+msgid "Cycle Layouts"
+msgstr "Cyclusindelingen"
+
+#: prefs_hotkeys.js:61
+msgid "Instantly switch between your saved layouts."
+msgstr "Schakel direct tussen uw opgeslagen lay-outs."
 
 #: prefs_hotkeys.js:62
-msgid "Cycle Layouts"
-msgstr ""
-
-#: prefs_hotkeys.js:63
-msgid "Instantly switch between your saved layouts."
-msgstr ""
-
-#: prefs_hotkeys.js:64
 msgid "Configurable (Default: Alt + -)"
-msgstr ""
+msgstr "Configureerbaar (standaard: Alt + -)"
+
+#: prefs_hotkeys.js:65
+msgid "Activate Specific Layout"
+msgstr "Activeer Specifieke lay-out"
+
+#: prefs_hotkeys.js:66
+msgid "Apply a specific saved layout using its assigned slot number."
+msgstr "Pas een specifieke opgeslagen lay-out toe met behulp van het toegewezen slotnummer."
 
 #: prefs_hotkeys.js:67
-msgid "Activate Specific Layout"
-msgstr ""
-
-#: prefs_hotkeys.js:68
-msgid "Apply a specific saved layout using its assigned slot number."
-msgstr ""
-
-#: prefs_hotkeys.js:69
 msgid "Configurable"
-msgstr ""
+msgstr "Configureerbaar"
 
-#: prefs_hotkeys.js:74
+#: prefs_hotkeys.js:72
 msgid "Stack Navigation"
-msgstr ""
+msgstr "Stapelnavigatie"
 
-#: prefs_hotkeys.js:75
+#: prefs_hotkeys.js:73
 msgid ""
 "Interact with the Stack Indicator overlay when multiple windows share a zone."
-msgstr ""
+msgstr "Werk samen met de Stack Indicator-overlay wanneer meerdere vensters een zone delen."
 
-#: prefs_hotkeys.js:78
+#: prefs_hotkeys.js:76
 msgid "Cycle Stacked Windows"
-msgstr ""
+msgstr "Cyclus gestapelde vensters"
 
-#: prefs_hotkeys.js:79
+#: prefs_hotkeys.js:77
 msgid ""
 "While hovering over a Stack Indicator, use the arrow keys to quickly page "
 "through the stacked windows."
-msgstr ""
+msgstr "Terwijl u over een stapelindicator beweegt, gebruikt u de pijltoetsen om snel door de gestapelde vensters te bladeren."
 
-#: prefs_hotkeys.js:80
+#: prefs_hotkeys.js:78
 msgid "Left / Right Arrows"
-msgstr ""
+msgstr "Links/rechts pijlen"
 
-#: prefs_hotkeys.js:85
+#: prefs_hotkeys.js:83
 msgid "Quick Tiler (Grid Spawning)"
-msgstr ""
+msgstr "Snelle tegelzetter (rasterspawning)"
 
-#: prefs_hotkeys.js:86
+#: prefs_hotkeys.js:84
 msgid ""
 "Instantly resize the focused window using an interactive grid overlay. "
 "Configure this hotkey in the Layouts tab."
-msgstr ""
+msgstr "Pas het formaat van het gefocuste venster onmiddellijk aan met behulp van een interactieve rasteroverlay. Configureer deze sneltoets op het tabblad Lay-outs."
 
-#: prefs_hotkeys.js:89
+#: prefs_hotkeys.js:87
 msgid "Open Quick Tiler"
-msgstr ""
+msgstr "Open Snelle tegelzetter"
 
-#: prefs_hotkeys.js:90
+#: prefs_hotkeys.js:88
 msgid ""
 "Press to spawn a centered 8x8 grid on the active monitor, then click and "
 "drag across cells to reshape the active window."
-msgstr ""
+msgstr "Druk op om een ​​gecentreerd 8x8 raster op de actieve monitor te plaatsen, klik en sleep vervolgens over de cellen om het actieve venster opnieuw vorm te geven."
 
-#: prefs_hotkeys.js:91
+#: prefs_hotkeys.js:89
 msgid "Configurable (Default: Super + G)"
-msgstr ""
+msgstr "Configureerbaar (standaard: Super + G)"
 
 #: prefs_tiling.js:18
 msgid "Layouts"
-msgstr ""
+msgstr "Indelingen"
 
 #: prefs_tiling.js:25
 msgid "Enable Window Management"
-msgstr ""
+msgstr "Schakel Vensterbeheer in"
 
 #: prefs_tiling.js:26
 msgid "Master switch for all OmniPanel tiling, snapping, and layout features"
-msgstr ""
+msgstr "Hoofdschakelaar voor alle OmniPanel-tiling-, snapping- en lay-outfuncties"
 
 #: prefs_tiling.js:36
 msgid "Zone-Based Tiling"
-msgstr ""
+msgstr "Zone-gebaseerd betegelen"
 
 #: prefs_tiling.js:40
 msgid "Draw and configure drop zones visually across your screens"
-msgstr ""
+msgstr "Teken en configureer dropzones visueel op uw schermen"
 
 #: prefs_tiling.js:51
 msgid "Auto-Restore Layouts"
-msgstr ""
+msgstr "Lay-outs automatisch herstellen"
 
 #: prefs_tiling.js:52
 msgid "Remember window positions based on monitor setups"
-msgstr ""
+msgstr "Onthoud raamposities op basis van monitorinstellingen"
 
 #: prefs_tiling.js:63
 msgid "Fuzzy Monitor Matching"
-msgstr ""
+msgstr "Fuzzy monitor-matching"
 
 #: prefs_tiling.js:64
 msgid "Restore layouts if monitor count matches despite resolution changes"
-msgstr ""
+msgstr "Herstel lay-outs als het aantal monitoren overeenkomt ondanks resolutiewijzigingen"
 
 #: prefs_tiling.js:74
 msgid "Automation & Defaults"
-msgstr ""
+msgstr "Automatisering en standaardinstellingen"
 
 #: prefs_tiling.js:77
 msgid "Fuzzy Auto-Placement"
-msgstr ""
+msgstr "Vage automatische plaatsing"
 
 #: prefs_tiling.js:78
 msgid ""
 "Automatically assign new unrecognized windows to zones matching their name "
 "or category"
-msgstr ""
+msgstr "Wijs automatisch nieuwe, niet-herkende vensters toe aan zones die overeenkomen met hun naam of categorie"
 
 #: prefs_tiling.js:89
 msgid "Remember App Affinity"
-msgstr ""
+msgstr "Onthoud app-affiniteit"
 
 #: prefs_tiling.js:90
 msgid "Restore apps to their last known zone upon relaunch"
-msgstr ""
+msgstr "Herstel apps naar hun laatst bekende zone bij opnieuw starten"
 
 #: prefs_tiling.js:101
 msgid "Configure Auto-Placement Rules"
-msgstr ""
+msgstr "Configureer regels voor automatische plaatsing"
 
 #: prefs_tiling.js:102
 msgid "Easily manage app keywords and categories for layout routing"
-msgstr ""
+msgstr "Beheer eenvoudig app-trefwoorden en categorieën voor layoutrouting"
 
 #: prefs_tiling.js:105
 msgid "Configure"
-msgstr ""
+msgstr "Configureer"
 
 #: prefs_tiling.js:116
 msgid "Default Startup Layout"
-msgstr ""
+msgstr "Standaard opstartlay-out"
 
 #: prefs_tiling.js:117
 msgid "Layout applied automatically when extension loads"
-msgstr ""
+msgstr "Lay-out wordt automatisch toegepast wanneer de uitbreiding wordt geladen"
 
 #: prefs_tiling.js:122
 msgid "Window Exclusions"
-msgstr ""
+msgstr "Vensteruitsluitingen"
 
 #: prefs_tiling.js:123
 msgid ""
 "Provide a comma-separated list of application names (e.g. gimp, steam) to "
 "completely exclude them from being snapped or managed by OmniPanel."
-msgstr ""
+msgstr "Geef een door komma's gescheiden lijst met applicatienamen op (bijvoorbeeld gimp, steam) om ze volledig uit te sluiten van snapping of beheer door OmniPanel."
 
 #: prefs_tiling.js:139
 msgid "Stack Indicators"
-msgstr ""
+msgstr "Stapelindicatoren"
 
 #: prefs_tiling.js:142
 msgid "Zone Stack Indicators"
-msgstr ""
+msgstr "Zonestapelindicatoren"
 
 #: prefs_tiling.js:143
 msgid ""
 "Show a fast-switching overlay when multiple windows share the same drop zone"
-msgstr ""
+msgstr "Toon een snel wisselende overlay wanneer meerdere vensters dezelfde neerzetzone delen"
 
 #: prefs_tiling.js:154
 msgid "Stack Indicator Position"
-msgstr ""
+msgstr "Positie stapelindicator"
 
 #: prefs_tiling.js:155
 msgid "Corner of the window to draw the overlay"
-msgstr ""
+msgstr "Hoek van het venster om de overlay te tekenen"
 
 #: prefs_tiling.js:156
 msgid "Bottom Left"
-msgstr ""
+msgstr "Linksonder"
 
 #: prefs_tiling.js:156
 msgid "Bottom Right"
-msgstr ""
+msgstr "Rechtsonder"
 
 #: prefs_tiling.js:167
 msgid "Default Stack Layout"
-msgstr ""
+msgstr "Standaard stapelindeling"
 
 #: prefs_tiling.js:168
 msgid "Initial view behavior when multiple windows enter a zone"
-msgstr ""
+msgstr "Initieel weergavegedrag wanneer meerdere vensters een zone binnenkomen"
 
 #: prefs_tiling.js:169
 msgid "Stack (On Top)"
-msgstr ""
+msgstr "Stapel (bovenaan)"
 
 #: prefs_tiling.js:169
 msgid "Columns (Side by Side)"
-msgstr ""
+msgstr "Kolommen (naast elkaar)"
 
 #: prefs_tiling.js:169
 msgid "Rows (Vertical List)"
-msgstr ""
+msgstr "Rijen (verticale lijst)"
 
 #: prefs_tiling.js:169
 msgid "Grid (Tiled)"
-msgstr ""
+msgstr "Raster (betegeld)"
 
 #: prefs_tiling.js:185
 msgid "Keyboard Shortcuts"
-msgstr ""
+msgstr "Sneltoetsen"
 
 #: prefs_tiling.js:188
 msgid "Cycle Layouts Shortcut"
-msgstr ""
+msgstr "Snelkoppeling Cycluslay-outs"
 
-#: prefs_tiling.js:189 prefs_tiling.js:356
+#: prefs_tiling.js:189 prefs_tiling.js:358
 msgid "Click to capture keybinding"
-msgstr ""
+msgstr "Klik om de sneltoets vast te leggen"
 
 #: prefs_tiling.js:195
 msgid "Quick Tiler Grid Shortcut"
-msgstr ""
+msgstr "Snelle tegelzetterrastersnelkoppeling"
 
 #: prefs_tiling.js:196
 msgid "Click to capture keybinding (Default: <Super>g)"
-msgstr ""
+msgstr "Klik om sneltoetsen vast te leggen (standaard: <Super>g)"
 
 #: prefs_tiling.js:202
 msgid "Saved Layouts & Drop Zones"
-msgstr ""
+msgstr "Opgeslagen lay-outs en neerzetzones"
 
 #: prefs_tiling.js:203
 msgid "Click a layout to expand and manage its associated drop zones."
-msgstr ""
+msgstr "Klik op een lay-out om de bijbehorende neerzetzones uit te vouwen en te beheren."
 
-#: prefs_tiling.js:247 prefs_tiling.js:432 zone_designer.js:406
-#: zone_designer.js:561
+#: prefs_tiling.js:247 prefs_tiling.js:448 zone_designer.js:405
+#: zone_designer.js:560
 msgid "None"
-msgstr ""
+msgstr "Geen"
 
 #: prefs_tiling.js:254
 msgid "Create New Blank Layout"
-msgstr ""
+msgstr "Maak een nieuwe lege lay-out"
 
-#: prefs_tiling.js:288 zone_designer.js:406 zone_designer.js:563
+#: prefs_tiling.js:288 zone_designer.js:405 zone_designer.js:562
 msgid "Layout"
-msgstr ""
+msgstr "Indeling"
 
 #: prefs_tiling.js:289
 msgid "zones saved"
-msgstr ""
+msgstr "zones opgeslagen"
 
 #: prefs_tiling.js:292
 msgid "Layout Name"
-msgstr ""
+msgstr "Lay-outnaam"
 
 #: prefs_tiling.js:312 prefs_tiling.js:315
 msgid "(Copy)"
-msgstr ""
+msgstr "(Kopiëren)"
 
-#: prefs_tiling.js:355
+#: prefs_tiling.js:357
 msgid "Activation Hotkey"
-msgstr ""
+msgstr "Activeringssneltoets"
 
-#: prefs_tiling.js:361
+#: prefs_tiling.js:363
 msgid "Layout Zone Color"
-msgstr ""
+msgstr "Kleur lay-outzone"
 
-#: prefs_tiling.js:380
+#: prefs_tiling.js:383
 msgid "No drop zones"
-msgstr ""
+msgstr "Geen dropzones"
 
-#: prefs_tiling.js:380
+#: prefs_tiling.js:383
 msgid "Open Zone Designer to create some."
-msgstr ""
+msgstr "Open Zone Designer om er enkele te maken."
 
-#: prefs_tiling.js:384
+#: prefs_tiling.js:387
 msgid "Zone"
 msgstr ""
 
-#: prefs_tiling.js:440
+#: prefs_tiling.js:456
 msgid "Alternative: Pure Automatic Tiling"
-msgstr ""
+msgstr "Alternatief: puur automatisch betegelen"
 
-#: prefs_tiling.js:441
+#: prefs_tiling.js:457
 msgid ""
 "Dynamically arrange all windows without requiring pre-defined zones. "
 "Overrides the zone-based layout logic above."
-msgstr ""
+msgstr "Rangschik alle vensters dynamisch zonder dat vooraf gedefinieerde zones nodig zijn. Overschrijft de bovenstaande zonegebaseerde lay-outlogica."
 
-#: prefs_tiling.js:445
+#: prefs_tiling.js:461
 msgid "Enable Pure Automatic Tiling"
-msgstr ""
+msgstr "Schakel puur automatisch tegelen in"
 
-#: prefs_tiling.js:446
+#: prefs_tiling.js:462
 msgid "Takes over workspace layout entirely (disables Zone Designer)"
-msgstr ""
+msgstr "Neemt de indeling van de werkruimte volledig over (schakelt Zone Designer uit)"
 
-#: prefs_tiling.js:457
+#: prefs_tiling.js:473
 msgid "Auto-Tiling Algorithm"
-msgstr ""
+msgstr "Auto-tiling-algoritme"
 
-#: prefs_tiling.js:458
+#: prefs_tiling.js:474
 msgid "The layout strategy for active windows"
-msgstr ""
-
-#: prefs_tiling.js:459
-msgid "BSP (Binary Space Partitioning)"
-msgstr ""
-
-#: prefs_tiling.js:459
-msgid "Cascading"
-msgstr ""
-
-#: prefs_tiling.js:459
-msgid "Master-Stack (Stable)"
-msgstr ""
+msgstr "De lay-outstrategie voor actieve vensters"
 
 #: prefs_tiling.js:475
+msgid "BSP (Binary Space Partitioning)"
+msgstr "BSP (partitionering van binaire ruimte)"
+
+#: prefs_tiling.js:475
+msgid "Cascading"
+msgstr "Cascaderend"
+
+#: prefs_tiling.js:475
+msgid "Master-Stack (Stable)"
+msgstr "Master-Stack (stabiel)"
+
+#: prefs_tiling.js:491
 msgid "Window Gap (px)"
-msgstr ""
+msgstr "Vensteropening (px)"
 
 #: prefs_topbar.js:17
 msgid "Top bar"
-msgstr ""
+msgstr "Bovenste balk"
 
 #: prefs_topbar.js:21
 msgid "Active Toolbar Movement"
-msgstr ""
+msgstr "Actieve werkbalkbeweging"
 
 #: prefs_topbar.js:24
 msgid "Enable Toolbar Movement"
-msgstr ""
+msgstr "Werkbalkverplaatsing inschakelen"
 
 #: prefs_topbar.js:25
 msgid "Dynamically move the real native panel to the active screen"
-msgstr ""
+msgstr "Verplaats het echte native paneel dynamisch naar het actieve scherm"
 
 #: prefs_topbar.js:36
 msgid "Movement Response Speed"
-msgstr ""
+msgstr "Bewegingsreactiesnelheid"
 
 #: prefs_topbar.js:37
 msgid "Balance between snappiness and CPU usage"
-msgstr ""
+msgstr "Balans tussen snelheid en CPU-gebruik"
 
 #: prefs_topbar.js:38
 msgid "Fast (100ms)"
-msgstr ""
+msgstr "Snel (100 ms)"
 
 #: prefs_topbar.js:38
 msgid "Normal (200ms)"
-msgstr ""
+msgstr "Normaal (200 ms)"
 
 #: prefs_topbar.js:38
 msgid "Battery Saver (500ms)"
-msgstr ""
+msgstr "Batterijbesparing (500 ms)"
 
 #: prefs_topbar.js:52
 msgid "Show Desktop Button"
-msgstr ""
+msgstr "Bureaubladknop tonen"
 
 #: prefs_topbar.js:55
 msgid "Enable Show Desktop Button"
-msgstr ""
+msgstr "Schakel Bureaubladknop tonen in"
 
 #: prefs_topbar.js:56
 msgid ""
 "Adds a button to the top bar to minimize/restore windows on the current "
 "monitor"
-msgstr ""
+msgstr "Voegt een knop toe aan de bovenste balk om vensters op de huidige monitor te minimaliseren/herstellen"
 
 #: prefs_topbar.js:66
 msgid "Animation Effects"
-msgstr ""
+msgstr "Animatie-effecten"
 
 #: prefs_topbar.js:69
 msgid "Movement Animation Style"
-msgstr ""
+msgstr "Bewegingsanimatiestijl"
 
 #: prefs_topbar.js:70
 msgid "Visual effect when extensions arrive on the new screen"
-msgstr ""
+msgstr "Visueel effect wanneer extensies op het nieuwe scherm verschijnen"
 
 #: prefs_topbar.js:71
 msgid "None (Instant)"
-msgstr ""
+msgstr "Geen (direct)"
 
 #: prefs_topbar.js:71
 msgid "Fade"
-msgstr ""
+msgstr "Vervagen"
 
 #: prefs_topbar.js:71
 msgid "Slide Down"
-msgstr ""
+msgstr "Schuif naar beneden"
 
 #: prefs_topbar.js:71
 msgid "Pop"
-msgstr ""
+msgstr "Knal"
 
 #: prefs_topbar.js:91
 msgid "Animation Duration (ms)"
-msgstr ""
+msgstr "Animatieduur (ms)"
 
 #: prefs_topbar.js:98
 msgid "Active Panel Appearance"
-msgstr ""
+msgstr "Actief paneeluiterlijk"
 
 #: prefs_topbar.js:101
 msgid "Highlight Active Panel"
-msgstr ""
+msgstr "Markeer Actief paneel"
 
 #: prefs_topbar.js:102
 msgid "Change the background color of the active monitor's top bar"
-msgstr ""
+msgstr "Wijzig de achtergrondkleur van de bovenste balk van de actieve monitor"
 
 #: prefs_topbar.js:112
 msgid "Active Panel Color"
-msgstr ""
+msgstr "Actieve paneelkleur"
 
 #: prefs_topbar.js:126
 msgid "Inactive Panel Appearance"
-msgstr ""
+msgstr "Inactieve paneelweergave"
 
 #: prefs_topbar.js:129
 msgid "Translucent Inactive Bars"
-msgstr ""
+msgstr "Doorschijnende inactieve staven"
 
 #: prefs_topbar.js:130
 msgid "Make the top bar fade out on inactive monitors"
-msgstr ""
+msgstr "Laat de bovenste balk vervagen op inactieve monitoren"
 
 #: prefs_topbar.js:144
 msgid "Inactive Opacity Level"
-msgstr ""
+msgstr "Inactief dekkingsniveau"
 
 #: prefs_topbar.js:152
 msgid "Show Static Clock Label"
-msgstr ""
+msgstr "Toon statisch kloklabel"
 
 #: prefs_topbar.js:153
 msgid "Shows a non-clickable clock on inactive monitors"
-msgstr ""
+msgstr "Toont een niet-klikbare klok op inactieve monitoren"
 
 #: prefs_topbar.js:164
 msgid "Hide toolbars on inactive screens"
-msgstr ""
+msgstr "Verberg werkbalken op inactieve schermen"
 
 #: prefs_topbar.js:165
 msgid "Make inactive top bars completely invisible"
-msgstr ""
+msgstr "Maak inactieve bovenbalken volledig onzichtbaar"
 
-#: quick_tiler.js:100
+#: quick_tiler.js:103
 msgid "Name this Zone (or leave blank to just resize)..."
-msgstr ""
+msgstr "Geef deze zone een naam (of laat het veld leeg om het formaat te wijzigen)..."
 
-#: quick_tiler.js:107
+#: quick_tiler.js:110
 msgid "Apply"
-msgstr ""
+msgstr "Toepassen"
 
-#: show_desktop_button.js:12
+#: show_desktop_button.js:13
 msgid "Show Desktop"
-msgstr ""
+msgstr "Bureaublad weergeven"
 
-#: tiling_manager.js:267 zone_designer.js:338
+#: tiling_manager.js:292 zone_designer.js:337
 msgid "Cancel"
-msgstr ""
+msgstr "Annuleren"
 
-#: tiling_manager.js:268 zone_designer.js:358
+#: tiling_manager.js:293 zone_designer.js:357
 msgid "Save"
-msgstr ""
+msgstr "Redden"
 
-#: tiling_manager.js:333
+#: tiling_manager.js:357
 msgid "Enter a name for the current layout:"
-msgstr ""
+msgstr "Voer een naam in voor de huidige lay-out:"
 
-#: tiling_manager.js:342
+#: tiling_manager.js:366
 msgid "No active layout. Name this layout first:"
-msgstr ""
+msgstr "Geen actieve lay-out. Noem deze lay-out eerst:"
 
-#: zone_designer.js:315
+#: zone_designer.js:314
 msgid "Hold and drag to draw and expand zone (Min: 450x400)"
-msgstr ""
+msgstr "Houd ingedrukt en sleep om een ​​zone te tekenen en uit te breiden (Min: 450x400)"
 
-#: zone_designer.js:329
+#: zone_designer.js:328
 msgid "Name this Zone..."
-msgstr ""
+msgstr "Geef deze zone een naam..."
 
-#: zone_designer.js:400
+#: zone_designer.js:399
 msgid "Monitor"
 msgstr ""
 
-#: zone_designer.js:406 zone_designer.js:563
+#: zone_designer.js:405 zone_designer.js:562
 msgid "(Click to Cycle)"
-msgstr ""
+msgstr "(Klik om te fietsen)"
 
-#: zone_designer.js:423
+#: zone_designer.js:422
 msgid "New Layout Name..."
-msgstr ""
+msgstr "Nieuwe lay-outnaam..."
 
-#: zone_designer.js:430
+#: zone_designer.js:429
 msgid "Create"
-msgstr ""
+msgstr "Creëren"
 
-#: zone_designer.js:467
+#: zone_designer.js:466
 msgid "  Right-click overlapping zones to send them to the back"
-msgstr ""
+msgstr "Klik met de rechtermuisknop op overlappende zones om ze naar achteren te sturen"
 
-#: zone_designer.js:474
+#: zone_designer.js:473
 msgid "Quit Designer"
-msgstr ""
+msgstr "Sluit Ontwerper af"
 
-#: zone_designer.js:645
+#: zone_designer.js:644
 msgid "Unnamed Zone"
-msgstr ""
+msgstr "Naamloze zone"
+

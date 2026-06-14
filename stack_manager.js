@@ -309,7 +309,6 @@ export class StackManager {
         this._startLoop();
     }
     disable() {
-        if (!this._enabled) return;
         this._enabled = false;
         
         if (this._loopId) {
@@ -329,7 +328,7 @@ export class StackManager {
     _startLoop() {
         this._loopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
             if (!this._enabled) return GLib.SOURCE_REMOVE;
-            try { this.updateOverlays(); } catch (e) { this.manager._log(`[StackManager Error] ${e}`); }
+            this.updateOverlays(); 
             return GLib.SOURCE_CONTINUE;
         });
     }
@@ -362,57 +361,58 @@ export class StackManager {
         let activeWs = global.workspace_manager.get_active_workspace();
         
         let windows = allWindows.filter(w => {
-            try {
-                if (isWindowIgnored(w, this.settings)) return false;
-                if (!w._omnipanel_zone) return false;
-                let actor = w.get_compositor_private();
-                if (!actor || actor.is_destroyed()) return false;
-                
-                let wType = w.get_window_type();
-                let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
-                let role = typeof w.get_role === 'function' ? w.get_role() : '';
-                let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || w.get_transient_for() !== null);
+            if (isWindowIgnored(w, this.settings)) return false;
+            if (!w._omnipanel_zone) return false;
+            let actor = typeof w.get_compositor_private === 'function' ? w.get_compositor_private() : null;
+            if (!actor || actor.is_destroyed()) return false;
+            
+            let wType = typeof w.get_window_type === 'function' ? w.get_window_type() : Meta.WindowType.NORMAL;
+            let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
+            let role = typeof w.get_role === 'function' ? w.get_role() : '';
+            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || w.get_transient_for() !== null);
 
-                if (isDialog) return false;
+            if (isDialog) return false;
 
-                if (w.is_override_redirect() || wType !== Meta.WindowType.NORMAL) return false;
-                
-                let ws = w.get_workspace();
-                return ws === activeWs || w.is_on_all_workspaces() || !ws;
-            } catch { return false; }
+            let isOverride = typeof w.is_override_redirect === 'function' ? w.is_override_redirect() : false;
+            if (isOverride || wType !== Meta.WindowType.NORMAL) return false;
+            
+            let ws = typeof w.get_workspace === 'function' ? w.get_workspace() : null;
+            let onAll = typeof w.is_on_all_workspaces === 'function' ? w.is_on_all_workspaces() : false;
+            return ws === activeWs || onAll || !ws;
         });
+        
         let focusWindow = global.display.get_focus_window();
         let customSections = this.manager.storage.getCustomSections();
         let stacks = {};
+        
         for (let win of windows) {
-            try {
-                try { win.get_id(); } catch { continue; }
-                let stackZone = this._getStackZoneForWindow(win, customSections);
-                
-                if (stackZone) {
-                    let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : win.get_monitor();
-                    if (customSections[stackZone] && customSections[stackZone].monitorIndex !== undefined) {
-                        mIndex = customSections[stackZone].monitorIndex;
-                    }
-                    let key = stackZone + '|' + mIndex;
-                    if (!stacks[key]) stacks[key] = { zone: stackZone, monitor: mIndex, windows: [] };
-                    stacks[key].windows.push(win);
+            if (typeof win.get_id !== 'function') continue;
+            let stackZone = this._getStackZoneForWindow(win, customSections);
+            
+            if (stackZone) {
+                let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : win.get_monitor();
+                if (customSections[stackZone] && customSections[stackZone].monitorIndex !== undefined) {
+                    mIndex = customSections[stackZone].monitorIndex;
                 }
-            } catch { continue; }
+                let key = stackZone + '|' + mIndex;
+                if (!stacks[key]) stacks[key] = { zone: stackZone, monitor: mIndex, windows: [] };
+                stacks[key].windows.push(win);
+            }
         }
+        
         let currentStackKeys = new Set();
         for (let [key, stackData] of Object.entries(stacks)) {
             if (stackData.windows.length > 1) {
                 currentStackKeys.add(key);
                 
                 stackData.windows.sort((a, b) => {
-                    let aId = 0, bId = 0;
-                    try { aId = a.get_id(); } catch {}
-                    try { bId = b.get_id(); } catch {}
+                    let aId = typeof a.get_id === 'function' ? a.get_id() : 0;
+                    let bId = typeof b.get_id === 'function' ? b.get_id() : 0;
                     return aId - bId;
                 });
             }
         }
+        
         for (let [key, overlay] of this._overlays.entries()) {
             if (!currentStackKeys.has(key)) {
                 if (stacks[key] && stacks[key].windows.length === 1) {
@@ -428,6 +428,7 @@ export class StackManager {
                 this._overlays.delete(key);
             }
         }
+        
         for (let key of currentStackKeys) {
             let stackData = stacks[key];
             let zone = stackData.zone;
@@ -438,6 +439,7 @@ export class StackManager {
             let topWindow = [...stackWindows].sort((a, b) => {
                 return windows.indexOf(a) - windows.indexOf(b);
             })[0];
+            
             if (!this._overlays.has(key)) {
                 let newOverlay = new StackOverlayView(zone, actualMonitor, this);
                 Main.layoutManager.addChrome(newOverlay);
@@ -461,8 +463,9 @@ export class StackManager {
             
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
             let currentSignature = stackWindows.map(w => {
-                try { return w.get_id(); } catch { return 0; }
+                return typeof w.get_id === 'function' ? w.get_id() : 0;
             }).join(',') + '|' + zRectStr + '|' + actualMode;
+            
             if (overlay.lastSignature !== currentSignature) {
                 overlay.lastSignature = currentSignature;
                 overlay.windows = stackWindows;

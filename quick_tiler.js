@@ -1,4 +1,5 @@
 // omnipanel/quick_tiler.js
+
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -16,6 +17,7 @@ export const QuickTilerOverlay = GObject.registerClass(
                 reactive: true,
                 style: 'background-color: rgba(0, 0, 0, 0.5);'
             });
+
             this.manager = tilingManager;
             this.set_position(0, 0);
             this.set_size(global.stage.width, global.stage.height);
@@ -79,6 +81,7 @@ export const QuickTilerOverlay = GObject.registerClass(
                         reactive: true,
                         style: 'background-color: rgba(255,255,255,0.1); border-radius: 4px; transition-duration: 100ms;'
                     });
+
                     cell.set_position(gridOffset + col * cellW, gridOffset + row * cellH);
                     cell.set_size(cellW - cellPadding, cellH - cellPadding);
                     
@@ -114,6 +117,7 @@ export const QuickTilerOverlay = GObject.registerClass(
             
             this._promptBox.add_child(this._entry);
             this._promptBox.add_child(saveBtn);
+
             this.add_child(this._promptBox);
 
             this.connectObject('button-press-event', (actor, event) => {
@@ -178,6 +182,7 @@ export const QuickTilerOverlay = GObject.registerClass(
             let gY = this._gridContainer.y;
             let gW = this._gridContainer.width;
             let gH = this._gridContainer.height;
+
             if (x < gX || x > gX + gW || y < gY || y > gY + gH) return null;
             
             let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
@@ -186,6 +191,7 @@ export const QuickTilerOverlay = GObject.registerClass(
 
             let relX = x - gX - gridOffset;
             let relY = y - gY - gridOffset;
+
             let cellW = (gW - padding) / this._gridSize;
             let cellH = (gH - padding) / this._gridSize;
             
@@ -200,6 +206,7 @@ export const QuickTilerOverlay = GObject.registerClass(
 
         _updateHighlight() {
             if (this._startIndex === -1 || this._endIndex === -1) return;
+
             let sr = Math.floor(this._startIndex / this._gridSize);
             let sc = this._startIndex % this._gridSize;
             let er = Math.floor(this._endIndex / this._gridSize);
@@ -255,6 +262,7 @@ export const QuickTilerOverlay = GObject.registerClass(
                 let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
                 let pW = 440 * scaleFactor; 
                 let pH = 60 * scaleFactor;
+
                 this._promptBox.set_position(
                     this._monitor.x + (this._monitor.width - pW) / 2,
                     this._monitor.y + (this._monitor.height - pH) / 2
@@ -306,8 +314,10 @@ export const QuickTilerOverlay = GObject.registerClass(
                     hotkeySlot: 0
                 };
                 this.manager.storage.setCustomSectionsAndSave(cs);
+
                 this._targetWindow._omnipanel_zone = name;
                 this._targetWindow._omnipanel_monitor = this._monitorIndex;
+
             } else {
                 delete this._targetWindow._omnipanel_zone;
                 delete this._targetWindow._omnipanel_monitor;
@@ -340,16 +350,14 @@ export const QuickTilerOverlay = GObject.registerClass(
                 this._captureId = 0;
             }
 
-            try {
-                if (this._entry && this._entry.clutter_text) {
-                    this._entry.clutter_text.set_cursor_visible(false);
-                }
-            } catch {}
+            if (this._entry && this._entry.clutter_text) {
+                this._entry.clutter_text.set_cursor_visible(false);
+            }
             
             global.stage.set_key_focus(null);
 
             if (this._pushedModal) {
-                try { Main.popModal(this); } catch {}
+                Main.popModal(this);
                 this._pushedModal = false;
             }
             
@@ -357,12 +365,10 @@ export const QuickTilerOverlay = GObject.registerClass(
                 this.manager._quickTiler = null;
             }
 
-            try {
-                if (this.get_parent && this.get_parent()) {
-                    Main.layoutManager.uiGroup.remove_child(this);
-                }
-                this.destroy();
-            } catch {}
+            if (this.get_parent && this.get_parent()) {
+                Main.layoutManager.uiGroup.remove_child(this);
+            }
+            this.destroy();
         }
     }
 );

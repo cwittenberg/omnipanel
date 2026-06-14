@@ -19,7 +19,12 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 npx eslint . || { echo "========================================"; echo " ERROR: ESLint found issues. Please fix them before building a release for EGO."; echo "========================================"; exit 1; }
+
+rm -rf node_modules
+
 cd ..
+
+
 
 echo "[2/5] Compiling GSettings schemas..."
 # Compile schemas inside the target extension folder
@@ -58,6 +63,8 @@ gnome-extensions pack "$EXT_NAME" \
     --extra-source=README.md \
     --extra-source=LICENSE \
     --force
+
+
 
 echo "[5/5] Verifying build..."
 if [ -f "$ZIP_NAME" ]; then

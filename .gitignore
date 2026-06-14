@@ -28,3 +28,8 @@ node_modules
 package-lock.json
 
 locale
+
+shexli-report.json
+check_translations.sh
+auto_translate.py
+generate_locale.sh

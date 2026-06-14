@@ -30,6 +30,7 @@ export default class TilingManager {
         this._indicator = null;
         this._quickTiler = null;
         this._autoTilingTimerId = 0;
+        this._bootstrappers = new Map();
 
         this.storage = new LayoutStorage(this);
         this.snapEngine = new SnapEngine(this);
@@ -63,7 +64,7 @@ export default class TilingManager {
             },
             'changed::named-layouts', () => {
                 let layouts = {};
-                try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch {}
+                try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch (e) { this._log(`JSON Parse Error: ${e}`); }
                 if (this.activeLayoutName && !layouts[this.activeLayoutName]) {
                     this._log(`Active layout [${this.activeLayoutName}] was deleted. Purging unmanaged zones.`);
                     this.activeLayoutName = null;
@@ -81,7 +82,13 @@ export default class TilingManager {
         
         global.display.connectObject(
             'window-created', (d, w) => {
-                new WindowBootstrapper(w, this.mediator, this.settings, this._log.bind(this), this._executePlacement.bind(this), this);
+                let winId = (w && typeof w.get_id === 'function') ? w.get_id() : Math.random().toString();
+                if (this._bootstrappers.has(winId)) {
+                    this._bootstrappers.get(winId).cleanup();
+                }
+                let bs = new WindowBootstrapper(w, this.mediator, this.settings, this._log.bind(this), this._executePlacement.bind(this), this);
+                bs.onDestroy = () => this._bootstrappers.delete(winId);
+                this._bootstrappers.set(winId, bs);
             },
             'grab-op-begin', (d, w, o) => this.snapEngine.onGrabBegin(d, w, o),
             'grab-op-end', (d, w, o) => this.snapEngine.onGrabEnd(d, w, o),
@@ -113,13 +120,12 @@ export default class TilingManager {
         
         this.mediator.addTimerSeconds(5, () => {
             if (!this._enabled) return GLib.SOURCE_REMOVE;
-            try { this.storage.saveCurrentLayoutStates(); } catch { }
+            this.storage.saveCurrentLayoutStates();
             return GLib.SOURCE_CONTINUE;
         });
     }
 
     disable() {
-        if (!this._enabled) return;
         this._enabled = false;
         this._log("Extension DISABLED.");
 
@@ -131,21 +137,24 @@ export default class TilingManager {
         this.stackManager.disable();
         this.snapEngine.disable();
 
+        for (let bs of this._bootstrappers.values()) {
+            bs.cleanup();
+        }
+        this._bootstrappers.clear();
+
         this.mediator.destroy();
 
         if (this._quickTiler) {
-            try { this._quickTiler.close(); } catch {}
+            this._quickTiler.close();
             this._quickTiler = null;
         }
 
         if (this._activeOverlay) {
-            try { Main.popModal(this._activeOverlay); } catch {}
-            try {
-                if (this._activeOverlay.get_parent && this._activeOverlay.get_parent()) {
-                    Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
-                }
-            } catch {}
-            try { this._activeOverlay.destroy(); } catch {}
+            if (Main.layoutManager.uiGroup.contains(this._activeOverlay)) {
+                Main.popModal(this._activeOverlay);
+                Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
+            }
+            this._activeOverlay.destroy();
             this._activeOverlay = null;
         }
 
@@ -155,7 +164,7 @@ export default class TilingManager {
     showQuickTiler() {
         if (!this._enabled) return;
         if (this._quickTiler) {
-            try { this._quickTiler.close(); } catch {}
+            this._quickTiler.close();
             this._quickTiler = null;
         }
         this._quickTiler = new QuickTilerOverlay(this);
@@ -201,8 +210,8 @@ export default class TilingManager {
             if (monWindows.length === 0) continue;
 
             monWindows.sort((a, b) => {
-                let ida = 0, idb = 0;
-                try { ida = a.get_id(); idb = b.get_id(); } catch {}
+                let ida = typeof a.get_id === 'function' ? a.get_id() : 0;
+                let idb = typeof b.get_id === 'function' ? b.get_id() : 0;
                 return ida - idb;
             });
 
@@ -225,7 +234,7 @@ export default class TilingManager {
 
     activateLayoutBySlot(slotId) {
         let layouts = {};
-        try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { return; }
+        try { layouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch (e) { this._log(`JSON Parse Error: ${e}`); return; }
 
         let targetName = Object.keys(layouts).find(k => layouts[k].hotkeySlot === slotId);
         if (targetName) {
@@ -236,7 +245,7 @@ export default class TilingManager {
     cycleLayouts() {
         let layoutsStr = this.settings.get_string('named-layouts');
         let layouts = {};
-        try { layouts = JSON.parse(layoutsStr); } catch { return; }
+        try { layouts = JSON.parse(layoutsStr); } catch (e) { this._log(`JSON Parse Error: ${e}`); return; }
 
         let keys = Object.keys(layouts);
         if (keys.length === 0) return;
@@ -302,29 +311,25 @@ export default class TilingManager {
             if (isClosed) return;
             isClosed = true;
 
-            try {
-                if (entry && entry.clutter_text) {
-                    entry.clutter_text.set_cursor_visible(false);
-                }
-            } catch {}
+            if (entry && entry.clutter_text) {
+                entry.clutter_text.set_cursor_visible(false);
+            }
 
             global.stage.set_key_focus(overlay);
 
             if (pushedModal) {
-                try { Main.popModal(overlay); } catch { }
+                Main.popModal(overlay);
                 pushedModal = false;
             }
 
             this.mediator.addIdle(() => {
-                try {
-                    if (overlay && overlay.get_parent && overlay.get_parent()) {
-                        Main.layoutManager.uiGroup.remove_child(overlay);
-                    }
-                    if (overlay) {
-                        overlay.disconnectObject(this);
-                        overlay.destroy();
-                    }
-                } catch {}
+                if (overlay && Main.layoutManager.uiGroup.contains(overlay)) {
+                    Main.layoutManager.uiGroup.remove_child(overlay);
+                }
+                if (overlay) {
+                    overlay.disconnectObject(this);
+                    overlay.destroy();
+                }
                 this._activeOverlay = null;
 
                 if (runCallback && callback) {
@@ -391,20 +396,18 @@ export default class TilingManager {
             let windows = global.display.list_all_windows();
             
             for (let win of windows) {
-                try {
-                    if (win._omnipanel_zone && customSections[win._omnipanel_zone]) {
-                        let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : 0;
-                        if (customSections[win._omnipanel_zone].monitorIndex !== undefined) {
-                            mIndex = customSections[win._omnipanel_zone].monitorIndex;
-                        }
-
-                        let rect = getSectionRect(mIndex, win._omnipanel_zone, customSections);
-                        if (rect) {
-                            this._log(`[Designer Sync] Repositioning window into [${win._omnipanel_zone}]`);
-                            applyWindowTransform(win, mIndex, rect, false, this._log.bind(this));
-                        }
+                if (win._omnipanel_zone && customSections[win._omnipanel_zone]) {
+                    let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : 0;
+                    if (customSections[win._omnipanel_zone].monitorIndex !== undefined) {
+                        mIndex = customSections[win._omnipanel_zone].monitorIndex;
                     }
-                } catch {}
+
+                    let rect = getSectionRect(mIndex, win._omnipanel_zone, customSections);
+                    if (rect) {
+                        this._log(`[Designer Sync] Repositioning window into [${win._omnipanel_zone}]`);
+                        applyWindowTransform(win, mIndex, rect, false, this._log.bind(this));
+                    }
+                }
             }
             
             if (this.stackManager) {
@@ -416,162 +419,158 @@ export default class TilingManager {
 
     _executePlacement(window, wmClass, winTitle, winId) {
         this._log(`[${winId}] Starting Layout Evaluation. Class=${wmClass} Title=${winTitle}`);
-        try {
-            if (isWindowIgnored(window, this.settings)) {
-                this._log(`[${winId}] Ignoring WM_CLASS/Title [${wmClass} / ${winTitle}] due to user ignore-list configuration.`);
-                return;
-            }
 
-            if (this.settings.get_boolean('auto-tiling-enabled')) {
-                this._log(`[${winId}] Auto-tiling is enabled. Triggering full workspace layout recalculation.`);
-                this.queueAutoTiling();
-                return;
-            }
+        if (isWindowIgnored(window, this.settings)) {
+            this._log(`[${winId}] Ignoring WM_CLASS/Title [${wmClass} / ${winTitle}] due to user ignore-list configuration.`);
+            return;
+        }
 
-            let categories = '';
-            try {
-                let tracker = Shell.WindowTracker.get_default();
-                let app = tracker.get_window_app(window);
-                if (app && app.get_app_info()) {
-                    categories = app.get_app_info().get_categories() || '';
+        if (this.settings.get_boolean('auto-tiling-enabled')) {
+            this._log(`[${winId}] Auto-tiling is enabled. Triggering full workspace layout recalculation.`);
+            this.queueAutoTiling();
+            return;
+        }
+
+        let categories = '';
+        let tracker = Shell.WindowTracker.get_default();
+        if (tracker) {
+            let app = tracker.get_window_app(window);
+            if (app && typeof app.get_app_info === 'function' && app.get_app_info()) {
+                categories = typeof app.get_app_info().get_categories === 'function' ? app.get_app_info().get_categories() || '' : '';
+            }
+        }
+
+        let savedData = null;
+
+        if (this.activeLayoutName) {
+            let allLayouts = {};
+            try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch (e) { this._log(`JSON Parse Error: ${e}`); }
+            savedData = allLayouts[this.activeLayoutName];
+        } else if (this.settings.get_boolean('auto-restore-layouts')) {
+            let signatures = this.getMonitorSignature();
+            let allLayouts = {};
+            try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch (e) { this._log(`JSON Parse Error: ${e}`); }
+
+            savedData = allLayouts[signatures.exact];
+            if (!savedData && this.settings.get_boolean('fuzzy-restore-monitors')) {
+                let possibleSignatures = Object.keys(allLayouts);
+                let fuzzyMatch = possibleSignatures.find(sig => sig.split('|').length.toString() === signatures.fuzzy);
+                if (fuzzyMatch) savedData = allLayouts[fuzzyMatch];
+            }
+        }
+
+        let liveZonesState = this.storage.getCustomSections();
+        let windowsState = savedData ? (savedData.windows || savedData) : {};
+
+        let layoutList = [];
+        if (this.settings.get_boolean('remember-app-affinity')) {
+            layoutList = windowsState[wmClass] ? (Array.isArray(windowsState[wmClass]) ? windowsState[wmClass] : [windowsState[wmClass]]) : [];
+        }
+        
+        let layout = null;
+        let bestScore = -1;
+        
+        if (layoutList.length > 0) {
+            for (let l of layoutList) {
+                let score = calculateTitleSimilarity(winTitle, l.title);
+                if (score > bestScore) {
+                    bestScore = score;
+                    layout = l;
                 }
-            } catch { }
-
-            let savedData = null;
-
-            if (this.activeLayoutName) {
-                let allLayouts = {};
-                try { allLayouts = JSON.parse(this.settings.get_string('named-layouts') || '{}'); } catch { }
-                savedData = allLayouts[this.activeLayoutName];
-            } else if (this.settings.get_boolean('auto-restore-layouts')) {
-                let signatures = this.getMonitorSignature();
-                let allLayouts = {};
-                try { allLayouts = JSON.parse(this.settings.get_string('saved-tiling-layouts') || '{}'); } catch { }
-
-                savedData = allLayouts[signatures.exact];
-                if (!savedData && this.settings.get_boolean('fuzzy-restore-monitors')) {
-                    let possibleSignatures = Object.keys(allLayouts);
-                    let fuzzyMatch = possibleSignatures.find(sig => sig.split('|').length.toString() === signatures.fuzzy);
-                    if (fuzzyMatch) savedData = allLayouts[fuzzyMatch];
-                }
             }
+        }
 
-            let liveZonesState = this.storage.getCustomSections();
-            let windowsState = savedData ? (savedData.windows || savedData) : {};
-
-            let layoutList = [];
-            if (this.settings.get_boolean('remember-app-affinity')) {
-                layoutList = windowsState[wmClass] ? (Array.isArray(windowsState[wmClass]) ? windowsState[wmClass] : [windowsState[wmClass]]) : [];
+        let matchedZone = null;
+        let fuzzyData = null;
+        if (this.settings.get_boolean('enable-smart-placement')) {
+            let appDictStr = this.settings.get_string('app-dictionary');
+            let catMapStr = this.settings.get_string('category-map');
+            
+            let appDict = undefined;
+            if (appDictStr && appDictStr.trim() !== '') {
+                try { appDict = JSON.parse(appDictStr); } catch (e) { this._log(`JSON Parse Error: ${e}`); }
             }
             
-            let layout = null;
-            let bestScore = -1;
-            
-            if (layoutList.length > 0) {
-                for (let l of layoutList) {
-                    let score = calculateTitleSimilarity(winTitle, l.title);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        layout = l;
-                    }
-                }
+            let catMap = undefined;
+            if (catMapStr && catMapStr.trim() !== '') {
+                try { catMap = JSON.parse(catMapStr); } catch (e) { this._log(`JSON Parse Error: ${e}`); }
             }
 
-            let matchedZone = null;
-            let fuzzyData = null;
-            if (this.settings.get_boolean('enable-smart-placement')) {
-                let appDictStr = this.settings.get_string('app-dictionary');
-                let catMapStr = this.settings.get_string('category-map');
+            fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState), appDict, catMap);
+            if (fuzzyData) {
+                matchedZone = fuzzyData.zone;
+            }
+        }
+
+        let targetRect = null;
+        let targetMonitor = 0;
+        let isMax = false;
+        let targetZoneName = null;
+
+        let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
+
+        let parent = typeof window.get_transient_for === 'function' ? window.get_transient_for() : null;
+        let wType = typeof window.get_window_type === 'function' ? window.get_window_type() : Meta.WindowType.NORMAL;
+        let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
+        let role = typeof window.get_role === 'function' ? window.get_role() : '';
+
+        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || parent !== null);
+
+        if (fuzzyData && fuzzyData.isExplicit) {
+            targetZoneName = fuzzyData.zone;
+            isDialog = false;
+        } else if (parent && parent._omnipanel_zone) {
+            targetZoneName = parent._omnipanel_zone;
+            targetMonitor = parent._omnipanel_monitor !== undefined ? parent._omnipanel_monitor : parent.get_monitor();
+        } else if (hasExplicitSection) {
+            targetZoneName = layout.section;
+        } else if (matchedZone) {
+            targetZoneName = matchedZone;
+        }
+
+        if (targetZoneName) {
+            this._log(`[${winId}] MATCH FOUND: Zone [${targetZoneName}]`);
+            if (!parent || parent._omnipanel_monitor === undefined) {
+                targetMonitor = liveZonesState[targetZoneName] && liveZonesState[targetZoneName].monitorIndex !== undefined ? liveZonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
+            }
+            targetRect = getSectionRect(targetMonitor, targetZoneName, liveZonesState);
+            isMax = (targetZoneName === 'maximized' || (hasExplicitSection && layout.section === 'maximized'));
+
+            if (isDialog) {
+                isMax = false;
+                let currentRect = window.get_frame_rect();
+                let w = currentRect.width > 10 ? currentRect.width : 400;
+                let h = currentRect.height > 10 ? currentRect.height : 300;
+                if (w > targetRect.width) w = targetRect.width;
+                if (h > targetRect.height) h = targetRect.height;
                 
-                let appDict = undefined;
-                if (appDictStr && appDictStr.trim() !== '') {
-                    try { appDict = JSON.parse(appDictStr); } catch {}
-                }
+                let cx = targetRect.x + (targetRect.width - w) / 2;
+                let cy = targetRect.y + (targetRect.height - h) / 2;
+                targetRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(w), height: Math.round(h) };
+                this._log(`[${winId}] Window is Dialog/Transient. Centering in zone instead of maximizing/stretching.`);
+            }
+
+            if (targetRect) {
+                window._omnipanel_zone = targetZoneName;
+                window._omnipanel_monitor = targetMonitor;
+
+                this._log(`[${winId}] Target zone resolved. Triggering applyWindowTransform on monitor ${targetMonitor}`);
+                applyWindowTransform(window, targetMonitor, targetRect, isMax, this._log.bind(this));
                 
-                let catMap = undefined;
-                if (catMapStr && catMapStr.trim() !== '') {
-                    try { catMap = JSON.parse(catMapStr); } catch {}
-                }
-
-                fuzzyData = fuzzyMatchAppToZone(wmClass, winTitle, categories, Object.keys(liveZonesState), appDict, catMap);
-                if (fuzzyData) {
-                    matchedZone = fuzzyData.zone;
-                }
-            }
-
-            let targetRect = null;
-            let targetMonitor = 0;
-            let isMax = false;
-            let targetZoneName = null;
-
-            let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
-
-            let parent = window.get_transient_for();
-            let wType = window.get_window_type();
-            let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
-            let role = typeof window.get_role === 'function' ? window.get_role() : '';
-
-            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || parent !== null);
-
-            if (fuzzyData && fuzzyData.isExplicit) {
-                targetZoneName = fuzzyData.zone;
-                isDialog = false;
-            } else if (parent && parent._omnipanel_zone) {
-                targetZoneName = parent._omnipanel_zone;
-                targetMonitor = parent._omnipanel_monitor !== undefined ? parent._omnipanel_monitor : parent.get_monitor();
-            } else if (hasExplicitSection) {
-                targetZoneName = layout.section;
-            } else if (matchedZone) {
-                targetZoneName = matchedZone;
-            }
-
-            if (targetZoneName) {
-                this._log(`[${winId}] MATCH FOUND: Zone [${targetZoneName}]`);
-                if (!parent || parent._omnipanel_monitor === undefined) {
-                    targetMonitor = liveZonesState[targetZoneName] && liveZonesState[targetZoneName].monitorIndex !== undefined ? liveZonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
-                }
-                targetRect = getSectionRect(targetMonitor, targetZoneName, liveZonesState);
-                isMax = (targetZoneName === 'maximized' || (hasExplicitSection && layout.section === 'maximized'));
-
-                if (isDialog) {
-                    isMax = false;
-                    let currentRect = window.get_frame_rect();
-                    let w = currentRect.width > 10 ? currentRect.width : 400;
-                    let h = currentRect.height > 10 ? currentRect.height : 300;
-                    if (w > targetRect.width) w = targetRect.width;
-                    if (h > targetRect.height) h = targetRect.height;
-                    
-                    let cx = targetRect.x + (targetRect.width - w) / 2;
-                    let cy = targetRect.y + (targetRect.height - h) / 2;
-                    targetRect = { x: Math.round(cx), y: Math.round(cy), width: Math.round(w), height: Math.round(h) };
-                    this._log(`[${winId}] Window is Dialog/Transient. Centering in zone instead of maximizing/stretching.`);
-                }
-
-                if (targetRect) {
-                    window._omnipanel_zone = targetZoneName;
-                    window._omnipanel_monitor = targetMonitor;
-
-                    this._log(`[${winId}] Target zone resolved. Triggering applyWindowTransform on monitor ${targetMonitor}`);
-                    applyWindowTransform(window, targetMonitor, targetRect, isMax, this._log.bind(this));
-                    
-                    if (!isDialog) {
-                        this.mediator.addTimer(200, () => {
-                            if (this.stackManager) {
-                                this.stackManager.invalidateSignature(targetZoneName);
-                                try { this.stackManager.updateOverlays(); } catch {}
-                            }
-                            return GLib.SOURCE_REMOVE;
-                        });
-                    }
-                } else {
-                     this._log(`[${winId}] ERROR: getSectionRect returned null for [${targetZoneName}]`);
+                if (!isDialog) {
+                    this.mediator.addTimer(200, () => {
+                        if (this.stackManager) {
+                            this.stackManager.invalidateSignature(targetZoneName);
+                            this.stackManager.updateOverlays();
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
                 }
             } else {
-                this._log(`[${winId}] NO MATCH: Ignoring window. Letting GNOME handle natively.`);
+                 this._log(`[${winId}] ERROR: getSectionRect returned null for [${targetZoneName}]`);
             }
-
-        } catch (e) {
-            this._log(`[${winId}] FATAL CATCH in _executePlacement: ${e}`);
+        } else {
+            this._log(`[${winId}] NO MATCH: Ignoring window. Letting GNOME handle natively.`);
         }
     }
 }

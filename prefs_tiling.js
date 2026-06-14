@@ -1,8 +1,8 @@
 // omnipanel/prefs_tiling.js
-import Adw from 'gi://Adw?version=1';
+import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
-import Gtk from 'gi://Gtk?version=4.0';
-import Gdk from 'gi://Gdk?version=4.0';
+import Gtk from 'gi://Gtk';
+import Gdk from 'gi://Gdk';
 import { ShortcutButton, DictionaryConfigWindow } from './prefs_components.js';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -216,7 +216,7 @@ export default function buildTilingPage(settings, window) {
 
             let rawLayoutsStr = settings.get_string('named-layouts');
             let rawLayouts = {};
-            try { rawLayouts = JSON.parse(rawLayoutsStr) || {}; } catch {}
+            try { rawLayouts = JSON.parse(rawLayoutsStr) || {}; } catch (e) { console.error("OmniPanel JSON Parse Error:", e); }
             
             let rawKeys = Object.keys(rawLayouts).filter(k => k && k.trim() !== '' && k !== 'null' && k !== 'undefined');
             
@@ -332,9 +332,11 @@ export default function buildTilingPage(settings, window) {
                 delLayoutBtn.add_css_class('destructive-action');
                 delLayoutBtn.connect('clicked', () => {
                     let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
+                    
                     if (fresh[name] && fresh[name].hotkeySlot) {
                         settings.set_strv(`layout-hotkey-${fresh[name].hotkeySlot}`, []);
                     }
+
                     delete fresh[name];
                     settings.set_string('named-layouts', JSON.stringify(fresh));
                     
@@ -361,6 +363,7 @@ export default function buildTilingPage(settings, window) {
                 let colorRow = new Adw.ActionRow({ title: _('Layout Zone Color') });
                 let colorDialog = new Gtk.ColorDialog();
                 let colorBtn = new Gtk.ColorDialogButton({ dialog: colorDialog, valign: Gtk.Align.CENTER });
+
                 let rgbaObj = new Gdk.RGBA();
                 let savedColor = rawLayouts[name].color || 'rgba(46, 204, 113, 1.0)';
                 rgbaObj.parse(savedColor);
@@ -386,6 +389,7 @@ export default function buildTilingPage(settings, window) {
                         let handleZoneRename = () => {
                             let newName = zRow.get_text().trim();
                             if (!newName || newName === zName) return;
+
                             let fresh = JSON.parse(settings.get_string('named-layouts') || '{}');
                             if (fresh[name] && fresh[name].zones && fresh[name].zones[zName] !== undefined && !fresh[name].zones[newName]) {
                                 fresh[name].zones[newName] = fresh[name].zones[zName];
@@ -423,10 +427,10 @@ export default function buildTilingPage(settings, window) {
     };
 
     refreshLayoutsAndZones();
-
+    
     let namedId = settings.connect('changed::named-layouts', refreshLayoutsAndZones);
     let customId = settings.connect('changed::custom-sections', refreshLayoutsAndZones);
-    
+
     window.connect('destroy', () => {
         if (namedId) {
             settings.disconnect(namedId);

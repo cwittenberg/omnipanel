@@ -1,9 +1,15 @@
 #!/bin/bash
 # build-test.sh
 
+# Capture the development directory before changing paths
+PROJECT_DIR="$(pwd)"
+UUID="omnipanel@christian"
+ZIP_NAME="$UUID.shell-extension.zip"
+PACKAGE_PATH="$PROJECT_DIR/$ZIP_NAME"
+
 # 1. Install the missing Python virtual environment packages required by Ubuntu and NodeJS for ESLint
 sudo apt update
-sudo apt install python3-venv python3-full npm -y
+sudo apt install python3-venv python3-full npm unzip -y
 
 # 2. Run static analysis on JS files using ESLint in the development directory
 echo "Running ESLint on JavaScript files..."
@@ -17,13 +23,15 @@ cd ~/.local/share/gnome-shell/extensions/ || exit
 
 # 4. MUST COMPILE SCHEMA: If schema keys changed and aren't compiled, the JS will throw GLib.Error and crash the extension
 echo "Compiling GSettings schemas..."
-glib-compile-schemas omnipanel@christian/schemas/
+glib-compile-schemas "$UUID/schemas/"
 
 # 5. Clean up the broken environment and previous failed packaging attempts
-rm -rf omnipanel@christian/venv
+rm -rf "$UUID/venv"
 rm -rf shexli_env
-rm -f omnipanel@christian.shell-extension.zip
-rm -f omnipanel@christian.zip
+rm -rf shexli_test_dir
+rm -f "$ZIP_NAME"
+rm -f "$UUID.zip"
+rm -f "$PACKAGE_PATH"
 
 # 6. Create a fresh virtual environment strictly OUTSIDE the extension folder
 python3 -m venv shexli_env
@@ -35,7 +43,8 @@ source shexli_env/bin/activate
 pip install -U shexli
 
 # 9. Pack the extension using --force to ensure a clean overwrite
-gnome-extensions pack omnipanel@christian \
+echo "Packaging extension..."
+gnome-extensions pack "$UUID" \
     --extra-source=schemas/ \
     --extra-source=logo.png \
     --extra-source=defaults.js \
@@ -64,13 +73,30 @@ gnome-extensions pack omnipanel@christian \
     --extra-source=LICENSE \
     --force
 
-# 10. Run shexli against the correctly named .shell-extension.zip file
-echo "Running shexli GNOME Shell compatibility tests..."
-shexli omnipanel@christian.shell-extension.zip
+# 10. MOVE THE ZIP BACK TO THE PROJECT DIRECTORY so you can actually see/use it!
+mv "$ZIP_NAME" "$PACKAGE_PATH"
 
-# 11. Cleanly exit the virtual environment
+# 11. Extract the ZIP to a temporary directory to GUARANTEE shexli is reviewing the packaged files
+echo "Extracting package to temporary directory for explicit Shexli review..."
+mkdir -p shexli_test_dir
+unzip -q "$PACKAGE_PATH" -d shexli_test_dir/
+
+# 12. Run shexli against the EXTRACTED package contents (Using Absolute Paths)
+echo "Running shexli GNOME Shell compatibility tests on packaged contents..."
+TEST_DIR="$(pwd)/shexli_test_dir"
+shexli "$TEST_DIR" --format text
+shexli "$TEST_DIR" --format json > "$PROJECT_DIR/shexli-report.json"
+echo "Shexli JSON report written to: $PROJECT_DIR/shexli-report.json"
+
+# 13. Cleanly exit the virtual environment and remove test directory
 deactivate
+rm -rf shexli_test_dir
+rm -rf node_modules
 
+echo "================================================================="
+echo " Package Verification:"
+# Explicitly list the file so you can verify it exists in your development folder
+ls -lh "$PACKAGE_PATH"
 echo "================================================================="
 echo "Live Runtime Testing Instructions:"
 echo "1. Log out of GNOME and log back in (Wayland) or press Alt+F2 -> r (X11)."

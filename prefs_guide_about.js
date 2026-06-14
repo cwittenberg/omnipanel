@@ -1,7 +1,7 @@
 // omnipanel/prefs_guide_about.js
-import Adw from 'gi://Adw?version=1';
+import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
-import Gtk from 'gi://Gtk?version=4.0';
+import Gtk from 'gi://Gtk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function createFeatureRow(title, subtitle, iconName) {
@@ -196,7 +196,7 @@ export function buildAboutPage(settings, metadata, dir) {
     
     const versionStr = metadata.version ? metadata.version.toString() : _('Local / Development');
     const rowVersion = new Adw.ActionRow({ title: _('Version'), subtitle: versionStr });
-    const rowAuthor = new Adw.ActionRow({ title: _('Author'), subtitle: _('Christian Wittenberg') });
+    const rowAuthor = new Adw.ActionRow({ title: _('Author'), subtitle: 'Christian Wittenberg' });
     
     groupAboutInfo.add(wrap(logoRow));
     groupAboutInfo.add(wrap(rowVersion));
