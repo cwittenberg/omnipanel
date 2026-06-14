@@ -303,21 +303,33 @@ export class StackManager {
         this._overlays = new Map();
         this._loopId = 0;
     }
+
     enable() {
         if (this._enabled) return;
         this._enabled = true;
-        this._startLoop();
+
+        // Monitor setting and cleanly toggle loop rather than leaving it running internally
+        this.settings.connectObject('changed::enable-stack-indicators', () => {
+            if (this.settings.get_boolean('enable-stack-indicators')) {
+                this._startLoop();
+            } else {
+                this._stopLoop();
+                this.clearOverlays();
+            }
+        }, this);
+
+        if (this.settings.get_boolean('enable-stack-indicators')) {
+            this._startLoop();
+        }
     }
+
     disable() {
         this._enabled = false;
-        
-        if (this._loopId) {
-            GLib.source_remove(this._loopId);
-            this._loopId = 0;
-        }
-        
+        this.settings.disconnectObject(this);
+        this._stopLoop();
         this.clearOverlays();
     }
+
     clearOverlays() {
         for (let overlay of this._overlays.values()) {
             Main.layoutManager.removeChrome(overlay);
@@ -325,12 +337,20 @@ export class StackManager {
         }
         this._overlays.clear();
     }
+
     _startLoop() {
+        if (this._loopId) return;
         this._loopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-            if (!this._enabled) return GLib.SOURCE_REMOVE;
             this.updateOverlays(); 
             return GLib.SOURCE_CONTINUE;
         });
+    }
+
+    _stopLoop() {
+        if (this._loopId) {
+            GLib.source_remove(this._loopId);
+            this._loopId = 0;
+        }
     }
     
     invalidateSignature(zoneName) {
@@ -342,6 +362,7 @@ export class StackManager {
             }
         }
     }
+
     _getStackZoneForWindow(win, customSections) {
         if (!win._omnipanel_zone || win._omnipanel_zone === 'maximized' || win._omnipanel_zone === 'Maximize') {
             return null;
@@ -352,11 +373,8 @@ export class StackManager {
         }
         return null;
     }
+
     updateOverlays() {
-        if (!this.settings.get_boolean('enable-stack-indicators')) {
-            this.clearOverlays();
-            return;
-        }
         let allWindows = global.display.list_all_windows();
         let activeWs = global.workspace_manager.get_active_workspace();
         

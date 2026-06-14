@@ -91,11 +91,6 @@ export default class PanelMover {
         this._movementLoopId = 0;
         this._activeMonitor = -1;
         this._lastTargetPanel = null;
-        
-        // Signal tracking for standard class
-        this._settingsChangedId = 0;
-        this._monitorsChangedId = 0;
-        this._grabOpEndId = 0;
     }
 
     enable() {
@@ -104,12 +99,10 @@ export default class PanelMover {
 
         this._createPanels();
         
-        // PanelMover is a plain class, NOT a GObject, so we must use traditional connect()
-        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', this._createPanels.bind(this));
-        this._settingsChangedId = this._settings.connect('changed', this._onSettingsChanged.bind(this));
-        
-        // Listen for the end of a window drag operation
-        this._grabOpEndId = global.display.connect('grab-op-end', this._onGrabOpEnd.bind(this));
+        // Use connectObject to track lifecycle for flawless cleanup
+        Main.layoutManager.connectObject('monitors-changed', this._createPanels.bind(this), this);
+        this._settings.connectObject('changed', this._onSettingsChanged.bind(this), this);
+        global.display.connectObject('grab-op-end', this._onGrabOpEnd.bind(this), this);
 
         this._startMovementEngine();
     }
@@ -117,23 +110,15 @@ export default class PanelMover {
     disable() {
         this._enabled = false;
 
-        if (this._monitorsChangedId) {
-            Main.layoutManager.disconnect(this._monitorsChangedId);
-            this._monitorsChangedId = 0;
-        }
-
-        if (this._grabOpEndId) {
-            global.display.disconnect(this._grabOpEndId);
-            this._grabOpEndId = 0;
-        }
-        
-        if (this._settingsChangedId) {
-            this._settings.disconnect(this._settingsChangedId);
-            this._settingsChangedId = 0;
-        }
+        // Automatically clean up all signals attached to this instance
+        Main.layoutManager.disconnectObject(this);
+        this._settings.disconnectObject(this);
+        global.display.disconnectObject(this);
         
         this._stopMovementEngine();
-        this._returnExtensionsToPrimary();
+        
+        // Pass 'true' to ensure tearing down the layout skips animations and occurs synchronously
+        this._returnExtensionsToPrimary(true);
         this._removePlaceholders(Main.panel);
         this._destroyPanels();
     }
@@ -186,7 +171,7 @@ export default class PanelMover {
     }
 
     _createPanels() {
-        this._returnExtensionsToPrimary();
+        this._returnExtensionsToPrimary(true);
         this._destroyPanels();
 
         let monitors = Main.layoutManager.monitors;
@@ -257,7 +242,7 @@ export default class PanelMover {
         }
     }
 
-    _moveBoxes(monitorIndex) {
+    _moveBoxes(monitorIndex, forceSync = false) {
         let primaryIndex = Main.layoutManager.primaryIndex;
         let targetPanel = (monitorIndex === primaryIndex) ? Main.panel : this._panels.find(p => p._monitorIndex === monitorIndex);
         
@@ -266,7 +251,8 @@ export default class PanelMover {
         let allPanels = [Main.panel, ...this._panels];
         let boxNames = ['_leftBox', '_centerBox', '_rightBox'];
         
-        let animStyle = this._settings.get_string('animation-style');
+        // Overwrite animation style if we are forcefully tearing down synchronously
+        let animStyle = forceSync ? 'none' : this._settings.get_string('animation-style');
         let animDuration = this._settings.get_int('animation-duration');
 
         let isNewSwitch = (this._lastTargetPanel !== targetPanel && this._lastTargetPanel !== null);
@@ -362,12 +348,12 @@ export default class PanelMover {
         this._lastTargetPanel = targetPanel;
     }
     
-    _returnExtensionsToPrimary() {
+    _returnExtensionsToPrimary(forceSync = false) {
         let primaryIndex = Main.layoutManager?.primaryIndex;
         if (primaryIndex !== undefined && primaryIndex >= 0) {
             this._activeMonitor = primaryIndex;
             this._lastTargetPanel = null;
-            this._moveBoxes(primaryIndex);
+            this._moveBoxes(primaryIndex, forceSync);
         }
     }
 }

@@ -30,6 +30,7 @@ export default class TilingManager {
         this._indicator = null;
         this._quickTiler = null;
         this._autoTilingTimerId = 0;
+        this._saveTimerId = 0;
         this._bootstrappers = new Map();
 
         this.storage = new LayoutStorage(this);
@@ -118,8 +119,7 @@ export default class TilingManager {
 
         this.stackManager.enable();
         
-        this.mediator.addTimerSeconds(5, () => {
-            if (!this._enabled) return GLib.SOURCE_REMOVE;
+        this._saveTimerId = this.mediator.addTimerSeconds(5, () => {
             this.storage.saveCurrentLayoutStates();
             return GLib.SOURCE_CONTINUE;
         });
@@ -128,6 +128,11 @@ export default class TilingManager {
     disable() {
         this._enabled = false;
         this._log("Extension DISABLED.");
+
+        if (this._saveTimerId) {
+            this.mediator.clearTimer(this._saveTimerId);
+            this._saveTimerId = 0;
+        }
 
         this.settings.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
@@ -162,7 +167,6 @@ export default class TilingManager {
     }
 
     showQuickTiler() {
-        if (!this._enabled) return;
         if (this._quickTiler) {
             this._quickTiler.close();
             this._quickTiler = null;
