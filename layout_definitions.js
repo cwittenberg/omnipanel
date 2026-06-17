@@ -63,13 +63,9 @@ export function isWindowIgnored(window, settings) {
 }
 
 export function isWindowValid(window) {
-    if (!window) return false;
-    if (window._omnipanel_is_dead === true) return false;
-    if (window.is_disposed && window.is_disposed()) return false;
-
+    if (!window || window._omnipanel_is_dead || window.is_disposed?.()) return false;
     let actor = window.get_compositor_private();
-    if (!actor || (actor.is_destroyed && actor.is_destroyed())) return false;
-    return true;
+    return actor && !actor.is_destroyed();
 }
 
 export function hexToRgba(hex, alpha) {
@@ -99,8 +95,8 @@ export function getLayoutColors(manager) {
         let layouts = {};
         try { 
             layouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}'); 
-        } catch (e) {
-            console.error("OmniPanel JSON Parse Error:", e);
+        } catch {
+            layouts = {};
         }
         
         if (layouts[manager.activeLayoutName] && layouts[manager.activeLayoutName].color) {
@@ -219,10 +215,10 @@ export function getSectionRect(monitorIndex, section, customSections = {}) {
         let workAreaY = monitor.y + panelHeight;
         let workAreaHeight = monitor.height - panelHeight;
         
-        let crx = Number.isFinite(Number(cs.rx)) ? Number(cs.rx) : 0;
-        let cry = Number.isFinite(Number(cs.ry)) ? Number(cs.ry) : 0;
-        let crw = Number.isFinite(Number(cs.rw)) ? Math.max(0.05, Number(cs.rw)) : 0.2;
-        let crh = Number.isFinite(Number(cs.rh)) ? Math.max(0.05, Number(cs.rh)) : 0.2;
+        let crx = Number(cs.rx) || 0;
+        let cry = Number(cs.ry) || 0;
+        let crw = Math.max(0.05, Number(cs.rw) || 0.2);
+        let crh = Math.max(0.05, Number(cs.rh) || 0.2);
         
         rect.x = monitor.x + Math.round(monitor.width * crx);
         rect.y = workAreaY + Math.round(workAreaHeight * cry);

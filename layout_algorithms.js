@@ -3,20 +3,16 @@
 import { applyWindowTransform } from './window_manager_adapter.js';
 
 export function getWindowMinSize(win) {
-    let minW = 50, minH = 50;
-    
-    if (win._omnipanel_min_w) minW = Math.max(minW, win._omnipanel_min_w);
-    if (win._omnipanel_min_h) minH = Math.max(minH, win._omnipanel_min_h);
+    let minW = Math.max(50, win._omnipanel_min_w || 0);
+    let minH = Math.max(50, win._omnipanel_min_h || 0);
 
-    if (typeof win.get_size_hints === 'function') {
-        let hints = win.get_size_hints();
-        if (hints) {
-            if (hints.min_width > 0) minW = Math.max(minW, hints.min_width);
-            if (hints.min_height > 0) minH = Math.max(minH, hints.min_height);
-        }
-    } else if (win.min_width !== undefined && win.min_height !== undefined) {
-        minW = Math.max(minW, win.min_width);
-        minH = Math.max(minH, win.min_height);
+    let hints = win.get_size_hints?.();
+    if (hints) {
+        minW = Math.max(minW, hints.min_width || 0);
+        minH = Math.max(minH, hints.min_height || 0);
+    } else {
+        minW = Math.max(minW, win.min_width || 0);
+        minH = Math.max(minH, win.min_height || 0);
     }
     
     return { w: minW, h: minH };
@@ -26,7 +22,7 @@ export function getViableStackModes(windows, zRect) {
     let viable = { stack: true, grid: true, columns: true, rows: true };
     if (!zRect || windows.length === 0) return viable;
 
-    let validWindows = windows.filter(w => w && w.get_workspace());
+    let validWindows = windows.filter(w => w.get_workspace());
     let count = validWindows.length;
     if (count === 0) return viable;
 
@@ -82,7 +78,7 @@ function fitWithinZone(win, reqX, reqY, reqW, reqH, zRect) {
 export function applyStackLayout(windows, actualMonitor, zRect, mode, logger) {
     if (!zRect || windows.length === 0) return;
 
-    let validWindows = windows.filter(w => w && w.get_workspace());
+    let validWindows = windows.filter(w => w.get_workspace());
     let count = validWindows.length;
     if (count === 0) return;
 

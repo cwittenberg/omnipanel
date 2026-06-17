@@ -36,8 +36,11 @@ export const LayoutIndicator = GObject.registerClass(
                 this.visible = !(isTilingOn && isAutoOn);
             };
 
-            this._settingsChangedId1 = this.settings.connect('changed::enable-tiling', this._syncVisibility.bind(this));
-            this._settingsChangedId2 = this.settings.connect('changed::auto-tiling-enabled', this._syncVisibility.bind(this));
+            this.settings.connectObject(
+                'changed::enable-tiling', this._syncVisibility.bind(this),
+                'changed::auto-tiling-enabled', this._syncVisibility.bind(this),
+                this
+            );
 
             this._syncVisibility();
         }
@@ -91,8 +94,8 @@ export const LayoutIndicator = GObject.registerClass(
                 let layouts = {};
                 try { 
                     layouts = JSON.parse(layoutsStr); 
-                } catch (e) {
-                    console.error("OmniPanel: Failed to parse named-layouts:", e);
+                } catch {
+                    layouts = {};
                 }
                 
                 let keys = Object.keys(layouts);
@@ -132,7 +135,7 @@ export const LayoutIndicator = GObject.registerClass(
 
             let prefsItem = new PopupMenu.PopupImageMenuItem(_('Settings'), 'preferences-system-symbolic');
             prefsItem.connectObject('activate', () => {
-                if (this._extensionObj && typeof this._extensionObj.openPreferences === 'function') {
+                if (this._extensionObj?.openPreferences) {
                     this._extensionObj.openPreferences();
                 } else {
                     try {
@@ -151,14 +154,7 @@ export const LayoutIndicator = GObject.registerClass(
         }
 
         destroy() {
-            if (this._settingsChangedId1) {
-                this.settings.disconnect(this._settingsChangedId1);
-                this._settingsChangedId1 = 0;
-            }
-            if (this._settingsChangedId2) {
-                this.settings.disconnect(this._settingsChangedId2);
-                this._settingsChangedId2 = 0;
-            }
+            this.settings.disconnectObject(this);
             super.destroy();
         }
     }
