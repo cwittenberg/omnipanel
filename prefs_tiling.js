@@ -7,7 +7,7 @@ import { ShortcutButton, DictionaryConfigWindow } from './prefs_components.js';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (row && row.set_subtitle_lines) {
+    if (typeof row.set_subtitle_lines === 'function') {
         row.set_subtitle_lines(0);
     }
     return row;

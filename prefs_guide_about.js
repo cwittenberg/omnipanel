@@ -10,7 +10,7 @@ function createFeatureRow(title, subtitle, iconName) {
         subtitle: subtitle
     });
     
-    row.set_subtitle_lines(0);
+    if (typeof row.set_subtitle_lines === 'function') row.set_subtitle_lines(0);
 
     const icon = new Gtk.Image({
         icon_name: iconName,
@@ -26,7 +26,7 @@ function createFeatureRow(title, subtitle, iconName) {
 }
 
 function wrap(row) {
-    if (row) {
+    if (typeof row.set_subtitle_lines === 'function') {
         row.set_subtitle_lines(0);
     }
     return row;
@@ -49,7 +49,7 @@ function createLinkButton(title, uri, styleClass = null) {
     return button;
 }
 
-export function buildGuidePage(settings, dir) {
+export function buildGuidePage() {
     const pageGuide = new Adw.PreferencesPage({
         title: _('Guide'),
         icon_name: 'system-help-symbolic'
@@ -60,30 +60,10 @@ export function buildGuidePage(settings, dir) {
     const heroBox = new Gtk.Box({ 
         orientation: Gtk.Orientation.VERTICAL, 
         spacing: 12, 
-        margin_top: 32, 
-        margin_bottom: 32,
-        margin_start: 24,
-        margin_end: 24
-    });
-    
-    const imagePath = dir.get_child('logo.png').get_path();
-    const gfile = Gio.File.new_for_path(imagePath);
-    
-    const heroIcon = new Gtk.Picture({
-        file: gfile,
-        can_shrink: true,
-        width_request: 34,
-        height_request: 34,
-        content_fit: Gtk.ContentFit.CONTAIN
-    });
-    
-    heroIcon.add_css_class('circular');
-    heroIcon.add_css_class('icon-dropshadow');
-    
-    const heroTitle = new Gtk.Label({ 
-        label: `<span size="xx-large" weight="bold">${_('OmniPanel')}</span>`, 
-        use_markup: true, 
-        justify: Gtk.Justification.CENTER 
+        margin_top: 5, 
+        margin_bottom: 5,
+        margin_start: 10,
+        margin_end: 10
     });
     
     const heroDesc = new Gtk.Label({ 
@@ -92,8 +72,8 @@ export function buildGuidePage(settings, dir) {
         wrap: true 
     });
     
-    heroBox.append(heroIcon);
-    heroBox.append(heroTitle);
+    // heroBox.append(heroIcon);
+    // heroBox.append(heroTitle);
     heroBox.append(heroDesc);
     groupConcept.add(heroBox);
     pageGuide.add(groupConcept);

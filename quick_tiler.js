@@ -125,10 +125,10 @@ export const QuickTilerOverlay = GObject.registerClass(
                 let [x, y] = event.get_coords();
                 
                 if (this._promptBox.visible) {
-                    let pX = this._promptBox.x !== undefined ? this._promptBox.x : this._promptBox.get_x();
-                    let pY = this._promptBox.y !== undefined ? this._promptBox.y : this._promptBox.get_y();
-                    let pW = this._promptBox.width !== undefined ? this._promptBox.width : this._promptBox.get_width();
-                    let pH = this._promptBox.height !== undefined ? this._promptBox.height : this._promptBox.get_height();
+                    let pX = this._promptBox.x;
+                    let pY = this._promptBox.y;
+                    let pW = this._promptBox.width;
+                    let pH = this._promptBox.height;
                     
                     if (x >= pX && x <= pX + pW && y >= pY && y <= pY + pH) {
                         return Clutter.EVENT_PROPAGATE; 

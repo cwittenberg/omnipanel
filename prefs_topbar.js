@@ -6,7 +6,7 @@ import Gdk from 'gi://Gdk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (row) {
+    if (typeof row.set_subtitle_lines === 'function') {
         row.set_subtitle_lines(0);
     }
     return row;
@@ -18,11 +18,11 @@ export default function buildTopBarPage(settings) {
         icon_name: 'view-dual-symbolic' 
     });
 
-    const groupMovement = new Adw.PreferencesGroup({ title: _('Active Toolbar Movement') });
+    const groupMovement = new Adw.PreferencesGroup({ title: _('Top Bar Visible across all Monitors') });
 
     const rowEnabled = new Adw.ActionRow({ 
         title: _('Enable Toolbar Movement'), 
-        subtitle: _('Dynamically move the real native panel to the active screen') 
+        subtitle: _('Dynamically move the Top Bar to the active screen') 
     });
     const switchEnabled = new Gtk.Switch({ 
         active: settings.get_boolean('movement-enabled'), 
