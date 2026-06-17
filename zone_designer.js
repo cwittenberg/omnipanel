@@ -14,20 +14,6 @@ const ENTRY_PADDING = '4px';
 const QUIT_BUTTON_HEIGHT = 55; 
 // ------------------------------------
 
-const LOG_PREFIX = '[OmniPanel ZoneDesigner]';
-
-function _errorToString(error) {
-    if (error instanceof Error && error.message) {
-        return error.message;
-    }
-
-    return String(error);
-}
-
-function _logNonFatal(error, message) {
-    console.warn(`${LOG_PREFIX} ${message}: ${_errorToString(error)}`);
-}
-
 // --- STATE PATTERN DEFINITIONS ---
 class DesignerState {
     onMotion() { return Clutter.EVENT_PROPAGATE; }
@@ -79,14 +65,11 @@ class DrawState extends DesignerState {
             designer._warningLabel.hide();
         }
 
-        let sW = designer._selection.width !== undefined ? designer._selection.width : designer._selection.get_width();
-        let sH = designer._selection.height !== undefined ? designer._selection.height : designer._selection.get_height();
-        let sX = designer._selection.x !== undefined ? designer._selection.x : designer._selection.get_x();
-        let sY = designer._selection.y !== undefined ? designer._selection.y : designer._selection.get_y();
+        let sW = Math.max(450, designer._selection.width);
+        let sH = Math.max(400, designer._selection.height);
+        let sX = designer._selection.x;
+        let sY = designer._selection.y;
         let panelH = Main.panel.height;
-        
-        sW = Math.max(450, sW);
-        sH = Math.max(400, sH);
 
         if (sX + sW > global.stage.width) sX = global.stage.width - sW;
         if (sY + sH > global.stage.height) sY = global.stage.height - sH;
@@ -143,11 +126,8 @@ class MoveState extends DesignerState {
             let newX = x - this.offsetX;
             let newY = y - this.offsetY;
             
-            let bxWidth = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
-            let bxHeight = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
-            
-            newX = Math.max(0, Math.min(newX, global.stage.width - bxWidth));
-            newY = Math.max(0, Math.min(newY, global.stage.height - bxHeight));
+            newX = Math.max(0, Math.min(newX, global.stage.width - zoneBox.width));
+            newY = Math.max(0, Math.min(newY, global.stage.height - zoneBox.height));
             
             zoneBox.set_position(newX, newY);
         }
@@ -158,10 +138,10 @@ class MoveState extends DesignerState {
         let zoneBox = designer._zoneWidgets[this.zoneName];
         if (zoneBox) {
             let targetMonitorIndex = this.monitorIndex;
-            let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
-            let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-            let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
-            let bxH = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
+            let bxX = zoneBox.x;
+            let bxY = zoneBox.y;
+            let bxW = zoneBox.width;
+            let bxH = zoneBox.height;
             
             let cx = bxX + bxW / 2;
             let cy = bxY + bxH / 2;
@@ -216,11 +196,8 @@ class ResizeState extends DesignerState {
     onMotion(designer, x, y) {
         let zoneBox = designer._zoneWidgets[this.zoneName];
         if (zoneBox) {
-            let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
-            let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-            
-            let rawW = x - bxX;
-            let rawH = y - bxY;
+            let rawW = x - zoneBox.x;
+            let rawH = y - zoneBox.y;
             let showWarning = false;
             
             if (rawW < 450 || rawH < 400) {
@@ -230,8 +207,8 @@ class ResizeState extends DesignerState {
             let newW = Math.max(450, rawW);
             let newH = Math.max(400, rawH);
             
-            newW = Math.min(newW, global.stage.width - bxX);
-            newH = Math.min(newH, global.stage.height - bxY);
+            newW = Math.min(newW, global.stage.width - zoneBox.x);
+            newH = Math.min(newH, global.stage.height - zoneBox.y);
             
             zoneBox.set_size(newW, newH);
 
@@ -252,10 +229,10 @@ class ResizeState extends DesignerState {
 
         let zoneBox = designer._zoneWidgets[this.zoneName];
         if (zoneBox) {
-            let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
-            let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-            let bxW = zoneBox.width !== undefined ? zoneBox.width : zoneBox.get_width();
-            let bxH = zoneBox.height !== undefined ? zoneBox.height : zoneBox.get_height();
+            let bxX = zoneBox.x;
+            let bxY = zoneBox.y;
+            let bxW = zoneBox.width;
+            let bxH = zoneBox.height;
 
             let panelH = Main.panel.height;
             let snapBxX = bxX, snapBxY = bxY, snapBxR = bxX + bxW, snapBxB = bxY + bxH;
@@ -452,8 +429,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         let allLayouts = {};
                         try {
                             allLayouts = JSON.parse(manager.settings.get_string('named-layouts') || '{}');
-                        } catch (error) {
-                            _logNonFatal(error, 'Failed to parse named-layouts setting; using an empty layout map');
+                        } catch {
                             allLayouts = {};
                         }
                         
@@ -584,11 +560,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
         _hidePromptSafe() {
             if (this._entry) {
-                try {
-                    this._entry.clutter_text.set_cursor_visible(false);
-                } catch (error) {
-                    _logNonFatal(error, 'Failed to hide entry cursor before hiding prompt');
-                }
+                this._entry.clutter_text.set_cursor_visible(false);
             }
             
             global.stage.set_key_focus(this);
@@ -792,11 +764,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
                         let [x, y] = event.get_coords();
                         
-                        let bxX = zoneBox.x !== undefined ? zoneBox.x : zoneBox.get_x();
-                        let bxY = zoneBox.y !== undefined ? zoneBox.y : zoneBox.get_y();
-                        
                         this._currentDrawMonitorIndex = safeIndex;
-                        this.transitionTo(new MoveState(name, x - bxX, y - bxY, safeIndex));
+                        this.transitionTo(new MoveState(name, x - zoneBox.x, y - zoneBox.y, safeIndex));
                         return Clutter.EVENT_STOP;
                     }, this);
 
@@ -867,39 +836,27 @@ export const ZoneDesignerRoot = GObject.registerClass(
             global.stage.disconnectObject(this);
 
             if (this._entry) {
-                try {
-                    this._entry.clutter_text.set_cursor_visible(false);
-                } catch (error) {
-                    _logNonFatal(error, 'Failed to hide entry cursor before closing designer');
-                }
+                this._entry.clutter_text.set_cursor_visible(false);
             }
 
             global.stage.set_key_focus(null);
 
             if (this._pushedModal) {
-                try {
-                    Main.popModal(this._pushedModal);
-                } catch (error) {
-                    _logNonFatal(error, 'Failed to pop designer modal grab');
-                }
+                Main.popModal(this._pushedModal);
                 this._pushedModal = false;
             }
             
             let didModify = this._zonesModified;
             
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                try {
-                    if (this.get_parent && this.get_parent()) {
-                        Main.layoutManager.uiGroup.remove_child(this);
-                    }
-                    this._cycleBtns = [];
-                    this._zoneWidgets = {};
-                    this._lastRect = null;
-                    
-                    this.destroy();
-                } catch (error) {
-                    _logNonFatal(error, 'Failed to remove or destroy designer overlay during close');
+                if (this.get_parent()) {
+                    Main.layoutManager.uiGroup.remove_child(this);
                 }
+                this._cycleBtns = [];
+                this._zoneWidgets = {};
+                this._lastRect = null;
+                
+                this.destroy();
 
                 this._manager.onDesignerClosed(didModify);
                 return GLib.SOURCE_REMOVE;

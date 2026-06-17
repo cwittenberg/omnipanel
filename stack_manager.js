@@ -308,7 +308,6 @@ export class StackManager {
         if (this._enabled) return;
         this._enabled = true;
 
-        // Monitor setting and cleanly toggle loop rather than leaving it running internally
         this.settings.connectObject('changed::enable-stack-indicators', () => {
             if (this.settings.get_boolean('enable-stack-indicators')) {
                 this._startLoop();
@@ -381,21 +380,25 @@ export class StackManager {
         let windows = allWindows.filter(w => {
             if (isWindowIgnored(w, this.settings)) return false;
             if (!w._omnipanel_zone) return false;
-            let actor = typeof w.get_compositor_private === 'function' ? w.get_compositor_private() : null;
+            let actor = w.get_compositor_private();
             if (!actor || actor.is_destroyed()) return false;
             
-            let wType = typeof w.get_window_type === 'function' ? w.get_window_type() : Meta.WindowType.NORMAL;
-            let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
-            let role = typeof w.get_role === 'function' ? w.get_role() : '';
-            let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || w.get_transient_for() !== null);
+            let wType = w.get_window_type();
+            let isDialog = (
+                wType === Meta.WindowType.DIALOG || 
+                wType === Meta.WindowType.MODAL_DIALOG || 
+                wType === Meta.WindowType.UTILITY || 
+                w.is_skip_taskbar() || 
+                w.get_role() === 'pop-up' || 
+                w.get_transient_for() !== null
+            );
 
             if (isDialog) return false;
 
-            let isOverride = typeof w.is_override_redirect === 'function' ? w.is_override_redirect() : false;
-            if (isOverride || wType !== Meta.WindowType.NORMAL) return false;
+            if (w.is_override_redirect() || wType !== Meta.WindowType.NORMAL) return false;
             
-            let ws = typeof w.get_workspace === 'function' ? w.get_workspace() : null;
-            let onAll = typeof w.is_on_all_workspaces === 'function' ? w.is_on_all_workspaces() : false;
+            let ws = w.get_workspace();
+            let onAll = w.is_on_all_workspaces();
             return ws === activeWs || onAll || !ws;
         });
         
@@ -404,7 +407,6 @@ export class StackManager {
         let stacks = {};
         
         for (let win of windows) {
-            if (typeof win.get_id !== 'function') continue;
             let stackZone = this._getStackZoneForWindow(win, customSections);
             
             if (stackZone) {
@@ -422,12 +424,7 @@ export class StackManager {
         for (let [key, stackData] of Object.entries(stacks)) {
             if (stackData.windows.length > 1) {
                 currentStackKeys.add(key);
-                
-                stackData.windows.sort((a, b) => {
-                    let aId = typeof a.get_id === 'function' ? a.get_id() : 0;
-                    let bId = typeof b.get_id === 'function' ? b.get_id() : 0;
-                    return aId - bId;
-                });
+                stackData.windows.sort((a, b) => a.get_id() - b.get_id());
             }
         }
         
@@ -480,9 +477,7 @@ export class StackManager {
             }
             
             let zRectStr = zRect ? `${zRect.x},${zRect.y},${zRect.width},${zRect.height}` : '';
-            let currentSignature = stackWindows.map(w => {
-                return typeof w.get_id === 'function' ? w.get_id() : 0;
-            }).join(',') + '|' + zRectStr + '|' + actualMode;
+            let currentSignature = stackWindows.map(w => w.get_id()).join(',') + '|' + zRectStr + '|' + actualMode;
             
             if (overlay.lastSignature !== currentSignature) {
                 overlay.lastSignature = currentSignature;

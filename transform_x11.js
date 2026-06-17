@@ -3,10 +3,15 @@ import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
 
 export class X11TransformStrategy {
-    constructor() {}
+    constructor() {
+        this._idleIds = new Set();
+    }
 
     clear() {
-        // X11 transformations are synchronous
+        for (const id of this._idleIds) {
+            GLib.source_remove(id);
+        }
+        this._idleIds.clear();
     }
 
     applyTransform(task) {
@@ -25,7 +30,9 @@ export class X11TransformStrategy {
                 
                 task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
 
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                const idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._idleIds.delete(idleId);
+                    
                     if (task.window && !task.window._omnipanel_is_dead) {
                         const actual = task.window.get_frame_rect();
                         
@@ -54,6 +61,7 @@ export class X11TransformStrategy {
                     }
                     return GLib.SOURCE_REMOVE;
                 });
+                this._idleIds.add(idleId);
             }
         }
     }
