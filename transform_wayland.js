@@ -2,6 +2,7 @@
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
+import { isWindowValid } from './layout_definitions.js';
 
 export class WaylandTransformStrategy {
     constructor() {
@@ -28,6 +29,8 @@ export class WaylandTransformStrategy {
     }
 
     _isTargetGeometryReached(window, targetX, targetY, targetW, targetH) {
+        if (!isWindowValid(window)) return true;
+        
         const rect = window.get_frame_rect();
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor || 1;
         const tolerance = 2 * scale;
@@ -41,7 +44,7 @@ export class WaylandTransformStrategy {
 
     _executeTask(taskIdentifier) {
         const task = this.activeTasks.get(taskIdentifier);
-        if (!task || !task.window || task.window._omnipanel_is_dead) {
+        if (!task || !task.window || task.window._omnipanel_is_dead || !isWindowValid(task.window)) {
             this.activeTasks.delete(taskIdentifier);
             return;
         }
@@ -57,16 +60,20 @@ export class WaylandTransformStrategy {
             }
             
             if (!this._isTargetGeometryReached(task.window, task.x, task.y, task.w, task.h)) {
-                task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
+                if (isWindowValid(task.window)) {
+                    task.window.move_resize_frame(false, task.x, task.y, task.w, task.h);
+                }
                 
                 task.attempts--;
                 if (task.attempts > 0) {
                     this._safeTimeout(150, () => this._executeTask(taskIdentifier));
                 } else {
                     if (task.logger) task.logger(`[WaylandStrategy] Transform timed out after 3s for [${task.title}]`);
-                    const actual = task.window.get_frame_rect();
-                    if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
-                    if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
+                    if (isWindowValid(task.window)) {
+                        const actual = task.window.get_frame_rect();
+                        if (actual.width > task.w) task.window._omnipanel_min_w = actual.width;
+                        if (actual.height > task.h) task.window._omnipanel_min_h = actual.height;
+                    }
                     this.activeTasks.delete(taskIdentifier);
                 }
             } else {

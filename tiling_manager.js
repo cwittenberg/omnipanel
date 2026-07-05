@@ -83,7 +83,7 @@ export default class TilingManager {
         
         global.display.connectObject(
             'window-created', (d, w) => {
-                let winId = (w && typeof w.get_id === 'function') ? w.get_id() : Math.random().toString();
+                let winId = w ? w.get_id() : Math.random().toString();
                 if (this._bootstrappers.has(winId)) {
                     this._bootstrappers.get(winId).cleanup();
                 }
@@ -202,8 +202,8 @@ export default class TilingManager {
                 if (!actor || actor.is_destroyed()) return false;
                 
                 let wType = w.get_window_type();
-                let isSkipTaskbar = typeof w.is_skip_taskbar === 'function' ? w.is_skip_taskbar() : false;
-                let role = typeof w.get_role === 'function' ? w.get_role() : '';
+                let isSkipTaskbar = w.is_skip_taskbar();
+                let role = w.get_role();
                 let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || w.get_transient_for() !== null);
 
                 if (w.is_override_redirect() || isDialog) return false;
@@ -214,8 +214,8 @@ export default class TilingManager {
             if (monWindows.length === 0) continue;
 
             monWindows.sort((a, b) => {
-                let ida = typeof a.get_id === 'function' ? a.get_id() : 0;
-                let idb = typeof b.get_id === 'function' ? b.get_id() : 0;
+                let ida = a.get_id();
+                let idb = b.get_id();
                 return ida - idb;
             });
 
@@ -401,7 +401,7 @@ export default class TilingManager {
             
             for (let win of windows) {
                 if (win._omnipanel_zone && customSections[win._omnipanel_zone]) {
-                    let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : 0;
+                    let mIndex = win._omnipanel_monitor !== undefined ? win._omnipanel_monitor : win.get_monitor();
                     if (customSections[win._omnipanel_zone].monitorIndex !== undefined) {
                         mIndex = customSections[win._omnipanel_zone].monitorIndex;
                     }
@@ -439,8 +439,8 @@ export default class TilingManager {
         let tracker = Shell.WindowTracker.get_default();
         if (tracker) {
             let app = tracker.get_window_app(window);
-            if (app && typeof app.get_app_info === 'function' && app.get_app_info()) {
-                categories = typeof app.get_app_info().get_categories === 'function' ? app.get_app_info().get_categories() || '' : '';
+            if (app && app.get_app_info()) {
+                categories = app.get_app_info().get_categories() || '';
             }
         }
 
@@ -513,10 +513,10 @@ export default class TilingManager {
 
         let hasExplicitSection = layout && layout.section && (liveZonesState[layout.section] || Object.values(Sections).includes(layout.section));
 
-        let parent = typeof window.get_transient_for === 'function' ? window.get_transient_for() : null;
-        let wType = typeof window.get_window_type === 'function' ? window.get_window_type() : Meta.WindowType.NORMAL;
-        let isSkipTaskbar = typeof window.is_skip_taskbar === 'function' ? window.is_skip_taskbar() : false;
-        let role = typeof window.get_role === 'function' ? window.get_role() : '';
+        let parent = window.get_transient_for();
+        let wType = window.get_window_type();
+        let isSkipTaskbar = window.is_skip_taskbar();
+        let role = window.get_role();
 
         let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || parent !== null);
 

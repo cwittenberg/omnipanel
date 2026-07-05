@@ -37,8 +37,8 @@ export function clearPendingTransforms() {
 export function applyWindowTransform(window, targetMonitorIndex, targetRect, isMaximized = false, logger = null, zoneRect = null) {
     if (!window) return;
     
-    let winTitle = (typeof window.get_title === 'function') ? (window.get_title() || 'unknown') : 'unknown'; 
-    let winId = (typeof window.get_id === 'function') ? window.get_id() : Math.random().toString();
+    let winTitle = window.get_title() || 'unknown'; 
+    let winId = window.get_id();
 
     if (window._omnipanel_is_dead) return;
 

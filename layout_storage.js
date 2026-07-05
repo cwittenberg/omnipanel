@@ -44,27 +44,27 @@ export class LayoutStorage {
         
         for (let window of windows) {
             if (!window || !window.get_display()) continue;
-            if (typeof window.is_override_redirect === 'function' && window.is_override_redirect()) continue;
-            if (typeof window.get_transient_for === 'function' && window.get_transient_for() !== null) continue;
-            let wType = typeof window.get_window_type === 'function' ? window.get_window_type() : Meta.WindowType.NORMAL;
+            if (window.is_override_redirect()) continue;
+            if (window.get_transient_for() !== null) continue;
+            let wType = window.get_window_type();
             if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
             if (isWindowIgnored(window, this.settings)) continue;
             
-            let monitorIndex = typeof window.get_monitor === 'function' ? window.get_monitor() : 0;
+            let monitorIndex = window.get_monitor();
             let section = null;
             
             if (window._omnipanel_zone && customSections[window._omnipanel_zone]) {
                 section = window._omnipanel_zone;
-            } else if (typeof window.get_frame_rect === 'function') {
+            } else {
                 let rect = window.get_frame_rect();
                 section = identifySection(rect, monitorIndex, customSections);
             }
             
-            let wmClass = typeof window.get_wm_class === 'function' ? window.get_wm_class() : null;
+            let wmClass = window.get_wm_class();
             if (!wmClass) continue;
             if (!layoutState[wmClass]) layoutState[wmClass] = [];
             
-            let title = typeof window.get_title === 'function' ? window.get_title() || '' : '';
+            let title = window.get_title() || '';
             if (section) {
                 layoutState[wmClass].push({ title: title, monitor: monitorIndex, section: section });
             }
@@ -250,13 +250,13 @@ export class LayoutStorage {
         }
 
         for (let window of windows) {
-            if (!window || !window.get_display() || (typeof window.is_override_redirect === 'function' && window.is_override_redirect())) continue;
-            if (typeof window.get_transient_for === 'function' && window.get_transient_for() !== null) continue;
-            let wType = typeof window.get_window_type === 'function' ? window.get_window_type() : Meta.WindowType.NORMAL;
+            if (!window || !window.get_display() || window.is_override_redirect()) continue;
+            if (window.get_transient_for() !== null) continue;
+            let wType = window.get_window_type();
             if (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG) continue;
             if (isWindowIgnored(window, this.settings)) continue;
 
-            let wmClass = typeof window.get_wm_class === 'function' ? window.get_wm_class() : null;
+            let wmClass = window.get_wm_class();
             if (!wmClass) continue;
 
             let hadZone = !!window._omnipanel_zone;
@@ -266,7 +266,7 @@ export class LayoutStorage {
             if (rememberAffinity) {
                 if (availableLayouts[wmClass] && availableLayouts[wmClass].length > 0) {
                     let list = availableLayouts[wmClass];
-                    let winTitle = typeof window.get_title === 'function' ? window.get_title() || '' : '';
+                    let winTitle = window.get_title() || '';
                     
                     let bestIdx = 0;
                     let bestScore = -1;
@@ -318,14 +318,14 @@ export class LayoutStorage {
                 delete window._omnipanel_zone;
                 delete window._omnipanel_monitor;
                 
-                let mIdx = typeof window.get_monitor === 'function' ? window.get_monitor() || 0 : 0;
+                let mIdx = window.get_monitor ? window.get_monitor() || 0 : 0;
                 let mRect = Main.layoutManager.monitors[mIdx];
                 
                 if (mRect) {
                     let safeW = 800;
                     let safeH = 600;
 
-                    if (typeof window.get_min_size === 'function') {
+                    if (window.get_min_size) {
                         let min = window.get_min_size();
                         if (min && min.length === 2) {
                             safeW = Math.max(safeW, min[0]);

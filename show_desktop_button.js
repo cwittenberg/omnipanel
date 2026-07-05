@@ -1,5 +1,4 @@
 // omnipanel/show_desktop_button.js
-
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -18,6 +17,7 @@ export const ShowDesktopButton = GObject.registerClass(
                 icon_name: 'computer-symbolic',
                 style_class: 'system-status-icon'
             });
+
             this.add_child(icon);
 
             this.connectObject('button-release-event', () => {
@@ -43,7 +43,7 @@ export const ShowDesktopButton = GObject.registerClass(
 
             let allCurrentlyMinimized = true;
             for (let win of targetWindows) {
-                if (!win.minimized && typeof win.can_minimize === 'function' && win.can_minimize()) {
+                if (!win.minimized && win.can_minimize()) {
                     allCurrentlyMinimized = false;
                     break;
                 }
@@ -57,7 +57,7 @@ export const ShowDesktopButton = GObject.registerClass(
                 }
                 this._minimizedMap.delete(monitorIndex);
             } else {
-                let toMinimize = targetWindows.filter(w => !w.minimized && typeof w.can_minimize === 'function' && w.can_minimize());
+                let toMinimize = targetWindows.filter(w => !w.minimized && w.can_minimize());
                 if (toMinimize.length > 0) {
                     this._minimizedMap.set(monitorIndex, toMinimize);
                     for (let win of toMinimize) {

@@ -289,7 +289,6 @@ export class SnapEngine {
         let window = global.display.get_focus_window();
         
         if (!window || !window.get_display()) return;
-        if (typeof window.get_window_type !== 'function') return;
         
         let wType = window.get_window_type();
         if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;
@@ -323,7 +322,6 @@ export class SnapEngine {
         let window = global.display.get_focus_window();
         
         if (!window || !window.get_display()) return;
-        if (typeof window.get_window_type !== 'function') return;
         
         let wType = window.get_window_type();
         if (wType !== Meta.WindowType.NORMAL && wType !== Meta.WindowType.DIALOG && wType !== Meta.WindowType.MODAL_DIALOG) return;

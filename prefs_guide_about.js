@@ -10,7 +10,7 @@ function createFeatureRow(title, subtitle, iconName) {
         subtitle: subtitle
     });
     
-    if (typeof row.set_subtitle_lines === 'function') row.set_subtitle_lines(0);
+    row.set_subtitle_lines(0);
 
     const icon = new Gtk.Image({
         icon_name: iconName,
@@ -26,9 +26,7 @@ function createFeatureRow(title, subtitle, iconName) {
 }
 
 function wrap(row) {
-    if (typeof row.set_subtitle_lines === 'function') {
-        row.set_subtitle_lines(0);
-    }
+    row.set_subtitle_lines(0);
     return row;
 }
 

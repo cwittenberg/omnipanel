@@ -63,7 +63,7 @@ export function isWindowIgnored(window, settings) {
 }
 
 export function isWindowValid(window) {
-    if (!window || window._omnipanel_is_dead || window.is_disposed?.()) return false;
+    if (!window || window._omnipanel_is_dead) return false;
     let actor = window.get_compositor_private();
     return actor && !actor.is_destroyed();
 }
