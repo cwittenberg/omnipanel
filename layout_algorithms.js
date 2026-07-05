@@ -6,13 +6,21 @@ export function getWindowMinSize(win) {
     let minW = Math.max(50, win._omnipanel_min_w || 0);
     let minH = Math.max(50, win._omnipanel_min_h || 0);
 
-    let hints = win.get_size_hints?.();
+    let hints = null;
+    if (typeof win.get_size_hints === 'function') {
+        hints = win.get_size_hints();
+    }
+
     if (hints) {
         minW = Math.max(minW, hints.min_width || 0);
         minH = Math.max(minH, hints.min_height || 0);
     } else {
-        minW = Math.max(minW, win.min_width || 0);
-        minH = Math.max(minH, win.min_height || 0);
+        if (win.min_width !== undefined) {
+            minW = Math.max(minW, win.min_width);
+        }
+        if (win.min_height !== undefined) {
+            minH = Math.max(minH, win.min_height);
+        }
     }
     
     return { w: minW, h: minH };

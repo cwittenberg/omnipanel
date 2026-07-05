@@ -349,8 +349,12 @@ export default class PanelMover {
     }
     
     _returnExtensionsToPrimary(forceSync = false) {
-        let primaryIndex = Main.layoutManager?.primaryIndex;
-        if (primaryIndex !== undefined && primaryIndex >= 0) {
+        let primaryIndex = null;
+        if (Main.layoutManager) {
+            primaryIndex = Main.layoutManager.primaryIndex;
+        }
+
+        if (primaryIndex !== null && primaryIndex !== undefined && primaryIndex >= 0) {
             this._activeMonitor = primaryIndex;
             this._lastTargetPanel = null;
             this._moveBoxes(primaryIndex, forceSync);

@@ -318,7 +318,11 @@ export class LayoutStorage {
                 delete window._omnipanel_zone;
                 delete window._omnipanel_monitor;
                 
-                let mIdx = window.get_monitor ? window.get_monitor() || 0 : 0;
+                let mIdx = window.get_monitor();
+                if (mIdx < 0) {
+                    mIdx = 0;
+                }
+                
                 let mRect = Main.layoutManager.monitors[mIdx];
                 
                 if (mRect) {

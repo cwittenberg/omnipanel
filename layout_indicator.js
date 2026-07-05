@@ -1,6 +1,5 @@
 // omnipanel/layout_indicator.js
 import GObject from 'gi://GObject';
-import Gio from 'gi://Gio';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -135,20 +134,7 @@ export const LayoutIndicator = GObject.registerClass(
 
             let prefsItem = new PopupMenu.PopupImageMenuItem(_('Settings'), 'preferences-system-symbolic');
             prefsItem.connectObject('activate', () => {
-                if (this._extensionObj?.openPreferences) {
-                    this._extensionObj.openPreferences();
-                } else {
-                    try {
-                        let app = Gio.AppInfo.create_from_commandline(
-                            'gnome-extensions prefs omnipanel@christian', 
-                            'OmniPanel Prefs', 
-                            Gio.AppInfoCreateFlags.NONE
-                        );
-                        app.launch([], null);
-                    } catch (e) {
-                        console.error("OmniPanel: Failed to launch preferences:", e);
-                    }
-                }
+                this._extensionObj.openPreferences();
             }, this);
             this.menu.addMenuItem(prefsItem);
         }
