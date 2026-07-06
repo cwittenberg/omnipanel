@@ -1,10 +1,12 @@
 // omnipanel/panel_mover.js
+
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import GnomeDesktop from 'gi://GnomeDesktop';
+
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const SecondaryPanel = GObject.registerClass(
@@ -13,8 +15,9 @@ const SecondaryPanel = GObject.registerClass(
             super._init({
                 name: 'panel',
                 reactive: true,
-                style_class: 'panel',
-             });
+                style_class: 'panel', 
+            });
+
             this.add_style_class_name('solid');
             this._monitorIndex = monitorIndex;
             this._ext = panelMoverInstance;
@@ -23,17 +26,19 @@ const SecondaryPanel = GObject.registerClass(
             
             this.set_size(monitor.width, Main.panel.height);
             this.set_position(monitor.x, monitor.y);
+
             this.layout_manager = new Clutter.BinLayout();
             
-            this._leftBox = new St.BoxLayout({
-                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.FILL
-             });
-            this._centerBox = new St.BoxLayout({
-                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.FILL
-             });
-            this._rightBox = new St.BoxLayout({
-                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.FILL
-             });
+            this._leftBox = new St.BoxLayout({ 
+                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.FILL 
+            });
+            this._centerBox = new St.BoxLayout({ 
+                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.FILL 
+            });
+            this._rightBox = new St.BoxLayout({ 
+                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.FILL 
+            });
+
             this.add_child(this._leftBox);
             this.add_child(this._centerBox);
             this.add_child(this._rightBox);
@@ -56,7 +61,6 @@ const SecondaryPanel = GObject.registerClass(
 
             // Ensure the window is fully maximized
             let isMaximized = focusWindow.is_maximized();
-
             if (!isMaximized)
                 return Clutter.EVENT_PROPAGATE;
 
@@ -64,18 +68,17 @@ const SecondaryPanel = GObject.registerClass(
             if (focusWindow.get_monitor() !== this._monitorIndex)
                 return Clutter.EVENT_PROPAGATE;
 
-            let [x, y] = event.get_coords();
-            
-            global.display.begin_grab_op(
-                focusWindow,
+            let device = event.get_device();
+            if (!device) {
+                let seat = Clutter.get_default_backend().get_default_seat();
+                device = seat.get_pointer();
+            }
+
+            focusWindow.begin_grab_op(
                 Meta.GrabOp.MOVING,
-                false,
-                true,
-                button,
-                event.get_state(),
-                event.get_time(),
-                x,
-                y
+                device,
+                event.get_event_sequence(),
+                event.get_time()
             );
 
             return Clutter.EVENT_STOP;
@@ -154,6 +157,7 @@ export default class PanelMover {
 
     _startMovementEngine() {
         this._stopMovementEngine();
+
         let speed = this._settings.get_int('movement-speed');
         
         this._movementLoopId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, speed, () => {
@@ -184,7 +188,7 @@ export default class PanelMover {
             let panel = new SecondaryPanel(i, this);
             this._injectPlaceholders(panel, false);
             
-            Main.layoutManager.addChrome(panel, { affectsStruts: true, trackFullscreen: true });
+            Main.layoutManager.addTopChrome(panel, { affectsStruts: true, trackFullscreen: true });
             this._panels.push(panel);
         }
         
@@ -268,6 +272,7 @@ export default class PanelMover {
                 if (!sourceBox) continue;
 
                 let children = [...sourceBox.get_children()];
+
                 for (let child of children) {
                     if (child._isOmniPlaceholder) continue;
 
@@ -330,7 +335,6 @@ export default class PanelMover {
                 if (panel._omniClock) {
                     if (!panel._omniClock._isPrimaryPlaceholder || this._settings.get_boolean('show-clock')) {
                         panel._omniClock.show();
-
                         if (isNewSwitch && animStyle === 'fade') {
                             panel._omniClock.opacity = 0;
                             panel._omniClock.ease({ opacity: 255, duration: animDuration, mode: Clutter.AnimationMode.EASE_OUT_QUAD });

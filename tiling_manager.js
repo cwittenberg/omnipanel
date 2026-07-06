@@ -518,21 +518,33 @@ export default class TilingManager {
         let isSkipTaskbar = window.is_skip_taskbar();
         let role = window.get_role();
 
-        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || parent !== null);
+        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up');
 
-        if (fuzzyData && fuzzyData.isExplicit) {
-            targetZoneName = fuzzyData.zone;
-        } else if (parent && parent._omnipanel_zone) {
+        // Priority Fix: 
+        // 1. True Dialogs strictly stick to their parent zone. 
+        // 2. Explicit Dictionary overrides (e.g. Embedded terminal, exact name matches).
+        // 3. User Saved App Affinity.
+        // 4. Normal windows fallback to parent zone ONLY as a last resort.
+        if (isDialog && parent && parent._omnipanel_zone) {
+            this._log(`[${winId}] MATCH: Dialog follows parent zone [${parent._omnipanel_zone}]`);
             targetZoneName = parent._omnipanel_zone;
             targetMonitor = parent._omnipanel_monitor !== undefined ? parent._omnipanel_monitor : parent.get_monitor();
+        } else if (fuzzyData && fuzzyData.isExplicit) {
+            this._log(`[${winId}] MATCH: Dictionary Keyword Engine [${fuzzyData.zone}] (Reason: ${fuzzyData.reason || 'Keyword hit'})`);
+            targetZoneName = fuzzyData.zone;
         } else if (hasExplicitSection) {
+            this._log(`[${winId}] MATCH: Explicit saved user layout [${layout.section}]`);
             targetZoneName = layout.section;
         } else if (matchedZone) {
+            this._log(`[${winId}] MATCH: Fallback Category Match [${matchedZone}]`);
             targetZoneName = matchedZone;
+        } else if (parent && parent._omnipanel_zone) {
+            this._log(`[${winId}] MATCH: Normal window inherits parent zone as last resort [${parent._omnipanel_zone}]`);
+            targetZoneName = parent._omnipanel_zone;
+            targetMonitor = parent._omnipanel_monitor !== undefined ? parent._omnipanel_monitor : parent.get_monitor();
         }
 
         if (targetZoneName) {
-            this._log(`[${winId}] MATCH FOUND: Zone [${targetZoneName}]`);
             if (!parent || parent._omnipanel_monitor === undefined) {
                 targetMonitor = liveZonesState[targetZoneName] && liveZonesState[targetZoneName].monitorIndex !== undefined ? liveZonesState[targetZoneName].monitorIndex : (layout ? layout.monitor : 0);
             }

@@ -141,53 +141,60 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
     if (!appDictionary || !Array.isArray(appDictionary)) appDictionary = DEFAULT_APP_DICTIONARY;
     if (!fdCategoryMap || !Array.isArray(fdCategoryMap)) fdCategoryMap = DEFAULT_CATEGORY_MAP;
 
-    wmClass = (wmClass || '').toLowerCase();
-    windowTitle = (windowTitle || '').toLowerCase();
-    categories = (categories || '').toLowerCase();
+    wmClass = (wmClass || '').toLowerCase().trim();
+    windowTitle = (windowTitle || '').toLowerCase().trim();
+    categories = (categories || '').toLowerCase().trim();
 
-    let termDict = appDictionary.find(d => d.zoneKeys.includes('term') || d.zoneKeys.includes('console') || d.zoneKeys.includes('cli'));
-    const termKeywords = termDict ? [...termDict.keywords] : ['term', 'console', 'alacritty', 'kitty', 'wezterm', 'pty', 'bash', 'zsh', 'fish', 'tmux', 'powershell', 'cmd'];
+    // PRIORITY 1: Sub-app / Embedded Terminal overrides (e.g., bash inside VS Code)
+    let termKeywords = ['bash', 'zsh', 'fish', 'tmux', 'pty', 'terminal', 'console', 'sh'];
+    let isEmbeddedTerm = termKeywords.some(kw => windowTitle.includes(kw)) && !termKeywords.some(kw => wmClass.includes(kw));
     
-    if (!termKeywords.includes('terminal')) termKeywords.push('terminal');
-
-    // Strong exact match checks for terminals (including VSCode bash etc)
-    let isExplicitTerminal = termKeywords.some(kw => 
-        windowTitle.includes(kw) || wmClass.includes(kw)
-    );
-
-    if (isExplicitTerminal) {
-        let termZone = zoneNames.find(zn => zn.toLowerCase().includes('term') || zn.toLowerCase().includes('cli') || zn.toLowerCase().includes('console'));
-        if (termZone) return { zone: termZone, isExplicit: true };
+    if (isEmbeddedTerm) {
+        let termZone = zoneNames.find(zn => {
+            let z = zn.toLowerCase().trim();
+            return z.includes('term') || z.includes('cli') || z.includes('console');
+        });
+        if (termZone) return { zone: termZone, isExplicit: true, reason: 'Embedded Terminal Override' };
     }
 
-    // Dictionary Match (High Priority -> Explicit)
-    for (let zone of zoneNames) {
-        let z = zone.toLowerCase();
-        for (let dict of appDictionary) {
-            if (dict.zoneKeys.some(zk => z.includes(zk))) {
-                if (dict.keywords.some(kw => wmClass.includes(kw) || windowTitle.includes(kw))) {
-                    return { zone: zone, isExplicit: true };
-                }
+    // PRIORITY 2: Dictionary Matching (Ordered by dictionary specificity)
+    for (let dict of appDictionary) {
+        let matchingZones = zoneNames.filter(zn => {
+            let z = zn.toLowerCase().trim();
+            return dict.zoneKeys.some(zk => z.includes(zk));
+        });
+
+        if (matchingZones.length > 0) {
+            if (dict.keywords.some(kw => wmClass.includes(kw))) {
+                return { zone: matchingZones[0], isExplicit: true, reason: `Dict wmClass match for ${matchingZones[0]}` };
+            }
+            if (dict.keywords.some(kw => windowTitle.includes(kw))) {
+                return { zone: matchingZones[0], isExplicit: true, reason: `Dict title match for ${matchingZones[0]}` };
             }
         }
     }
 
-    // Exact word match in wmClass or windowTitle with zone names (High Priority -> Explicit)
+    // PRIORITY 3: Exact Zone Name Matches
     for (let zone of zoneNames) {
-        let z = zone.toLowerCase();
-        if (z.length > 2 && (wmClass.includes(z) || z.includes(wmClass) || windowTitle.includes(z))) {
-            return { zone: zone, isExplicit: true };
+        let z = zone.toLowerCase().trim();
+        if (z.length > 2) {
+            if (wmClass.includes(z) || z.includes(wmClass)) {
+                return { zone: zone, isExplicit: true, reason: `Exact wmClass match for ${zone}` };
+            }
+            if (windowTitle.includes(z)) {
+                return { zone: zone, isExplicit: true, reason: `Exact title match for ${zone}` };
+            }
         }
     }
 
-    // Category Match (Lower Priority -> Non-explicit)
+    // PRIORITY 4: Category Matching (Lower Priority -> Non-explicit fallback)
     if (categories) {
         for (let c of fdCategoryMap) {
             if (categories.includes(c.cat)) {
                 for (let zone of zoneNames) {
-                    let z = zone.toLowerCase();
+                    let z = zone.toLowerCase().trim();
                     if (c.hints.some(hint => z.includes(hint))) {
-                        return { zone: zone, isExplicit: false };
+                        return { zone: zone, isExplicit: false, reason: `GNOME Desktop Category match` };
                     }
                 }
             }
