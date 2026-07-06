@@ -1,5 +1,4 @@
 // omnipanel/prefs_hotkeys.js
-
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -20,8 +19,8 @@ function createHotkeyRow(title, subtitle, hotkeyText) {
     });
     
     shortcutLabel.add_css_class('dim-label');
-
     row.add_suffix(shortcutLabel);
+
     return row;
 }
 
@@ -86,7 +85,7 @@ export function buildHotkeysPage() {
     groupQuickTiler.add(createHotkeyRow(
         _('Open Quick Tiler'),
         _('Press to spawn a centered 8x8 grid on the active monitor, then click and drag across cells to reshape the active window.'),
-        _('Configurable (Default: Super + G)')
+        _('Configurable (Default: ⌘ + G)')
     ));
     pageHotkeys.add(groupQuickTiler);
 

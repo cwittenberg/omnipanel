@@ -3,11 +3,14 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
+
 import { ShortcutButton, DictionaryConfigWindow } from './prefs_components.js';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    row.set_subtitle_lines(0);
+    if (typeof row.set_subtitle_lines === 'function') {
+        row.set_subtitle_lines(0);
+    }
     return row;
 }
 
@@ -18,7 +21,6 @@ export default function buildTilingPage(settings, window) {
     });
 
     const groupMaster = new Adw.PreferencesGroup();
-
     const rowTilingEnabled = new Adw.ActionRow({ 
         title: _('Enable Window Management'), 
         subtitle: _('Master switch for all OmniPanel tiling, snapping, and layout features') 
@@ -32,7 +34,6 @@ export default function buildTilingPage(settings, window) {
     groupMaster.add(wrap(rowTilingEnabled));
 
     const groupZone = new Adw.PreferencesGroup({ title: _('Zone-Based Tiling') });
-
     const rowDesigner = new Adw.ActionRow({ 
         title: _('Zone Designer Mode'), 
         subtitle: _('Draw and configure drop zones visually across your screens') 
@@ -70,7 +71,7 @@ export default function buildTilingPage(settings, window) {
     groupZone.add(wrap(rowFuzzyMatch));
 
     const groupAutomation = new Adw.PreferencesGroup({ title: _('Automation & Defaults') });
-
+    
     const rowSmartPlacement = new Adw.ActionRow({ 
         title: _('Fuzzy Auto-Placement'), 
         subtitle: _('Automatically assign new unrecognized windows to zones matching their name or category') 
@@ -120,7 +121,7 @@ export default function buildTilingPage(settings, window) {
         title: _('Window Exclusions'),
         description: _('Provide a comma-separated list of application names (e.g. gimp, steam) to completely exclude them from being snapped or managed by OmniPanel.')
     });
-
+    
     const rowIgnoreList = new Adw.EntryRow({
         title: _('Ignored Applications')
     });
@@ -135,7 +136,7 @@ export default function buildTilingPage(settings, window) {
     groupExclusions.add(wrap(rowIgnoreList));
 
     const groupStacks = new Adw.PreferencesGroup({ title: _('Stack Indicators') });
-
+    
     const rowStacks = new Adw.ActionRow({ 
         title: _('Zone Stack Indicators'), 
         subtitle: _('Show a fast-switching overlay when multiple windows share the same drop zone') 
@@ -181,7 +182,7 @@ export default function buildTilingPage(settings, window) {
     groupStacks.add(wrap(rowDefaultStackMode));
 
     const groupShortcuts = new Adw.PreferencesGroup({ title: _('Keyboard Shortcuts') });
-
+    
     let rowShortcut = new Adw.ActionRow({
         title: _('Cycle Layouts Shortcut'),
         subtitle: _('Click to capture keybinding')
@@ -191,7 +192,7 @@ export default function buildTilingPage(settings, window) {
 
     let rowQuickTilerShortcut = new Adw.ActionRow({
         title: _('Quick Tiler Grid Shortcut'),
-        subtitle: _('Click to capture keybinding (Default: <Super>g)')
+        subtitle: _('Click to capture keybinding (Default: ⌘g)')
     });
     rowQuickTilerShortcut.add_suffix(new ShortcutButton(settings, 'quick-tiler-hotkey'));
     groupShortcuts.add(wrap(rowQuickTilerShortcut));
@@ -200,7 +201,7 @@ export default function buildTilingPage(settings, window) {
         title: _('Saved Layouts & Drop Zones'),
         description: _('Click a layout to expand and manage its associated drop zones.') 
     });
-
+    
     let layoutRows = [];
     let isUpdatingLayouts = false;
 
@@ -264,6 +265,7 @@ export default function buildTilingPage(settings, window) {
 
                     fresh[newName] = { windows: {}, zones: {}, color: 'rgba(46, 204, 113, 1.0)', hotkeySlot: freeSlot };
                     settings.set_string('named-layouts', JSON.stringify(fresh));
+
                     if (!settings.get_string('default-layout')) {
                         settings.set_string('default-layout', newName);
                     }
@@ -274,6 +276,7 @@ export default function buildTilingPage(settings, window) {
             createBtn.connect('clicked', handleCreate);
             createNewRow.connect('apply', handleCreate);
             createNewRow.add_suffix(createBtn);
+
             groupLayouts.add(wrap(createNewRow));
             layoutRows.push(createNewRow);
 
@@ -318,9 +321,11 @@ export default function buildTilingPage(settings, window) {
                     let usedSlots = Object.values(fresh).map(l => l.hotkeySlot).filter(s => s);
                     let freeSlot = [1,2,3,4,5,6,7,8,9].find(s => !usedSlots.includes(s)) || 1;
                     fresh[copyName].hotkeySlot = freeSlot;
+
                     settings.set_strv(`layout-hotkey-${freeSlot}`, []);
                     
                     settings.set_string('named-layouts', JSON.stringify(fresh));
+
                     if (!settings.get_string('default-layout')) {
                         settings.set_string('default-layout', copyName);
                     }
@@ -361,7 +366,7 @@ export default function buildTilingPage(settings, window) {
                 let colorRow = new Adw.ActionRow({ title: _('Layout Zone Color') });
                 let colorDialog = new Gtk.ColorDialog();
                 let colorBtn = new Gtk.ColorDialogButton({ dialog: colorDialog, valign: Gtk.Align.CENTER });
-
+                
                 let rgbaObj = new Gdk.RGBA();
                 let savedColor = rawLayouts[name].color || 'rgba(46, 204, 113, 1.0)';
                 rgbaObj.parse(savedColor);
@@ -419,6 +424,7 @@ export default function buildTilingPage(settings, window) {
                 groupLayouts.add(wrap(expander));
                 layoutRows.push(expander);
             }
+
         } finally {
             isUpdatingLayouts = false;
         }

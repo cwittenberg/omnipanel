@@ -6,7 +6,9 @@ import Gdk from 'gi://Gdk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    row.set_subtitle_lines(0);
+    if (typeof row.set_subtitle_lines === 'function') {
+        row.set_subtitle_lines(0);
+    }
     return row;
 }
 
@@ -17,7 +19,6 @@ export default function buildTopBarPage(settings) {
     });
 
     const groupMovement = new Adw.PreferencesGroup({ title: _('Top Bar Visible across all Monitors') });
-
     const rowEnabled = new Adw.ActionRow({ 
         title: _('Enable Toolbar Movement'), 
         subtitle: _('Dynamically move the Top Bar to the active screen') 
@@ -48,7 +49,6 @@ export default function buildTopBarPage(settings) {
     groupMovement.add(wrap(rowSpeed));
 
     const groupDesktop = new Adw.PreferencesGroup({ title: _('Show Desktop Button') });
-
     const rowShowDesktop = new Adw.ActionRow({ 
         title: _('Enable Show Desktop Button'), 
         subtitle: _('Adds a button to the top bar to minimize/restore windows on the current monitor') 
@@ -62,7 +62,6 @@ export default function buildTopBarPage(settings) {
     groupDesktop.add(wrap(rowShowDesktop));
 
     const groupAnimations = new Adw.PreferencesGroup({ title: _('Animation Effects') });
-
     const rowAnimStyle = new Adw.ComboRow({
         title: _('Movement Animation Style'),
         subtitle: _('Visual effect when extensions arrive on the new screen'),
@@ -94,7 +93,6 @@ export default function buildTopBarPage(settings) {
     groupAnimations.add(wrap(rowDuration));
 
     const groupActiveUI = new Adw.PreferencesGroup({ title: _('Active Panel Appearance') });
-
     const rowHighlight = new Adw.ActionRow({ 
         title: _('Highlight Active Panel'), 
         subtitle: _('Change the background color of the active monitor\'s top bar') 
@@ -122,7 +120,6 @@ export default function buildTopBarPage(settings) {
     groupActiveUI.add(wrap(rowColor));
 
     const groupInactiveUI = new Adw.PreferencesGroup({ title: _('Inactive Panel Appearance') });
-
     const rowTranslucent = new Adw.ActionRow({ 
         title: _('Translucent Inactive Bars'), 
         subtitle: _('Make the top bar fade out on inactive monitors') 

@@ -7,10 +7,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { hexToRgba, getLayoutColors } from './layout_definitions.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const TOPBAR_HEIGHT = 110; 
-const BUTTON_PADDING = '4px 8px'; 
-const ENTRY_PADDING = '4px'; 
-const QUIT_BUTTON_HEIGHT = 55; 
+const TOPBAR_HEIGHT = 50; 
+const BUTTON_PADDING = '2px 4px'; 
+const ENTRY_PADDING = '2px'; 
+const QUIT_BUTTON_HEIGHT = 25; 
 
 class DesignerState {
     onMotion() { return Clutter.EVENT_PROPAGATE; }

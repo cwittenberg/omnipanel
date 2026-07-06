@@ -48,6 +48,11 @@ export const LayoutIndicator = GObject.registerClass(
             if (!text) return '';
             return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
+        
+        _formatHotkey(text) {
+            if (!text) return '';
+            return text.replace(/<Super>/ig, '⌘');
+        }
 
         _rebuildMenu() {
             this.menu.removeAll();
@@ -82,7 +87,7 @@ export const LayoutIndicator = GObject.registerClass(
                 this.menu.addMenuItem(designerToggle);
 
                 let hotkeyRaw = this.settings.get_strv('quick-tiler-hotkey');
-                let hotkeyTxt = (hotkeyRaw && hotkeyRaw.length > 0) ? hotkeyRaw[0] : '<Super>g';
+                let hotkeyTxt = (hotkeyRaw && hotkeyRaw.length > 0) ? this._formatHotkey(hotkeyRaw[0]) : '';
                 let quickTilerItem = new PopupMenu.PopupMenuItem(`${_('Quick Tiler Grid')} (${hotkeyTxt})`);
                 quickTilerItem.connectObject('activate', () => {
                     this._tilingManager.showQuickTiler();
@@ -109,14 +114,15 @@ export const LayoutIndicator = GObject.registerClass(
                     this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
                     for (let name of keys) {
                         let isActive = (this._tilingManager.activeLayoutName === name);
-                        let hotkey = layouts[name].hotkeyText ? `(${layouts[name].hotkeyText})` : '';
+                        let hotkey = layouts[name].hotkeyText ? `(${this._formatHotkey(layouts[name].hotkeyText)})` : '';
+
                         let escapedName = this._escapeMarkup(name);
                         let escapedHotkey = this._escapeMarkup(hotkey);
 
                         let item = new PopupMenu.PopupMenuItem('');
                         
                         if (isActive) {
-                            item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71"> </span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
+                            item.label.get_clutter_text().set_markup(`<b><span color="#2ecc71">✓</span> ${escapedName}</b> <span size="small" color="gray">${escapedHotkey}</span>`);
                         } else {
                             item.label.get_clutter_text().set_markup(`   ${escapedName} <span size="small" color="gray">${escapedHotkey}</span>`);
                         }
@@ -131,7 +137,6 @@ export const LayoutIndicator = GObject.registerClass(
             }
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
             let prefsItem = new PopupMenu.PopupImageMenuItem(_('Settings'), 'preferences-system-symbolic');
             prefsItem.connectObject('activate', () => {
                 this._extensionObj.openPreferences();
