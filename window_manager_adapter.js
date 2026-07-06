@@ -1,12 +1,10 @@
 // omnipanel/window_manager_adapter.js
-import Meta from 'gi://Meta';
+
 import { WaylandTransformStrategy } from './transform_wayland.js';
-import { X11TransformStrategy } from './transform_x11.js';
 
 class WindowManagerAdapter {
     constructor() {
-        this.isWayland = Meta.is_wayland_compositor();
-        this.strategy = this.isWayland ? new WaylandTransformStrategy() : new X11TransformStrategy();
+        this.strategy = new WaylandTransformStrategy();
     }
 
     clearPendingTransforms() {

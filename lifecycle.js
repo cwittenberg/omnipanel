@@ -1,4 +1,5 @@
 // omnipanel/lifecycle.js
+
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -160,8 +161,8 @@ export class WindowBootstrapper {
                 this.rescueTimerId = 0;
                 if (isWindowValid(this.window)) {
                     let m = Main.layoutManager.monitors[this.window.get_monitor()] || Main.layoutManager.monitors[0];
-                    if (this.window.get_maximized() > 0) {
-                        this.window.unmaximize(Meta.MaximizeFlags.BOTH);
+                    if (this.window.is_maximized()) {
+                        this.window.unmaximize();
                     }
                     this.window.move_resize_frame(false, m.x + 100, m.y + 100, 800, 600);
                 }
@@ -185,7 +186,7 @@ export class WindowBootstrapper {
         let wType = this.window.get_window_type();
         let role = this.window.get_role();
 
-        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || role === 'pop-up' || this.window.get_transient_for() !== null);
+        let isDialog = (wType === Meta.WindowType.DIALOG || wType === Meta.WindowType.MODAL_DIALOG || wType === Meta.WindowType.UTILITY || isSkipTaskbar || role === 'pop-up' || this.window.get_transient_for() !== null);
         let isOverride = this.window.is_override_redirect();
 
         if (isOverride || (!isDialog && isSkipTaskbar)) {

@@ -55,7 +55,8 @@ const SecondaryPanel = GObject.registerClass(
                 return Clutter.EVENT_PROPAGATE;
 
             // Ensure the window is fully maximized
-            let isMaximized = focusWindow.get_maximized() === Meta.MaximizeFlags.BOTH || focusWindow.get_maximized() === 3 || focusWindow.get_maximized() === true;
+            let isMaximized = focusWindow.is_maximized();
+
             if (!isMaximized)
                 return Clutter.EVENT_PROPAGATE;
 
@@ -65,7 +66,6 @@ const SecondaryPanel = GObject.registerClass(
 
             let [x, y] = event.get_coords();
             
-            // Hand over the window drag operation to the window manager
             global.display.begin_grab_op(
                 focusWindow,
                 Meta.GrabOp.MOVING,
@@ -99,7 +99,6 @@ export default class PanelMover {
 
         this._createPanels();
         
-        // Use connectObject to track lifecycle for flawless cleanup
         Main.layoutManager.connectObject('monitors-changed', this._createPanels.bind(this), this);
         this._settings.connectObject('changed', this._onSettingsChanged.bind(this), this);
         global.display.connectObject('grab-op-end', this._onGrabOpEnd.bind(this), this);
@@ -136,7 +135,7 @@ export default class PanelMover {
 
             if (x >= px && x <= px + pw && y >= py && y <= py + ph) {
                 // Force maximize the window
-                window.maximize(Meta.MaximizeFlags.BOTH);
+                window.maximize();
                 break;
             }
         }

@@ -24,8 +24,6 @@ rm -rf node_modules
 
 cd ..
 
-
-
 echo "[2/5] Compiling GSettings schemas..."
 # Compile schemas inside the target extension folder
 glib-compile-schemas "$EXT_NAME/schemas/"
@@ -55,7 +53,6 @@ gnome-extensions pack "$EXT_NAME" \
     --extra-source=tiling_manager.js \
     --extra-source=zone_designer.js \
     --extra-source=transform_wayland.js \
-    --extra-source=transform_x11.js \
     --extra-source=window_manager_adapter.js \
     --extra-source=quick_tiler.js \
     --extra-source=lifecycle.js \
@@ -63,8 +60,6 @@ gnome-extensions pack "$EXT_NAME" \
     --extra-source=README.md \
     --extra-source=LICENSE \
     --force
-
-
 
 echo "[5/5] Verifying build..."
 if [ -f "$ZIP_NAME" ]; then

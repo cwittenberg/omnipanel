@@ -1,6 +1,5 @@
 // omnipanel/transform_wayland.js
 import GLib from 'gi://GLib';
-import Meta from 'gi://Meta';
 import St from 'gi://St';
 import { isWindowValid } from './layout_definitions.js';
 
@@ -49,14 +48,16 @@ export class WaylandTransformStrategy {
             return;
         }
 
-        const isAlreadyMax = task.window.get_maximized() === Meta.MaximizeFlags.BOTH || task.window.get_maximized() === 3 || task.window.get_maximized() === true;
+        const isAlreadyMax = task.window.is_maximized();
         
         if (task.isMax) {
-            if (!isAlreadyMax) task.window.maximize(Meta.MaximizeFlags.BOTH);
+            if (!isAlreadyMax) {
+                task.window.maximize();
+            }
             this.activeTasks.delete(taskIdentifier); 
         } else {
-            if (isAlreadyMax || task.window.get_maximized() > 0) {
-                task.window.unmaximize(Meta.MaximizeFlags.BOTH);
+            if (task.window.is_maximized()) {
+                task.window.unmaximize();
             }
             
             if (!this._isTargetGeometryReached(task.window, task.x, task.y, task.w, task.h)) {

@@ -4,9 +4,7 @@
   "uuid": "omnipanel@christian",
   "settings-schema": "org.gnome.shell.extensions.omnipanel",
   "shell-version": [
-    "46",
-    "47",
-    "50"    
+    "50"
   ],
   "url": "https://github.com/cwittenberg/omnipanel",
   "donations": {

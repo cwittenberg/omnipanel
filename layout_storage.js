@@ -343,11 +343,12 @@ export class LayoutStorage {
                     if (window._omnipanel_eject_timer) {
                         this.manager.mediator.clearTimer(window._omnipanel_eject_timer);
                     }
+                    
                     window._omnipanel_eject_timer = this.manager.mediator.addTimer(50, () => {
                         window._omnipanel_eject_timer = 0;
                         if (isWindowValid(window)) {
-                            if (window.get_maximized() > 0) window.unmaximize(Meta.MaximizeFlags.BOTH);
-                            window.move_resize_frame(false, safeX, safeY, safeW, safeH);
+                            let targetRect = { x: safeX, y: safeY, width: safeW, height: safeH };
+                            applyWindowTransform(window, mIdx, targetRect, false, this.manager._log.bind(this.manager));
                         }
                         return GLib.SOURCE_REMOVE;
                     });

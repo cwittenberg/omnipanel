@@ -64,7 +64,6 @@ gnome-extensions pack "$UUID" \
     --extra-source=tiling_manager.js \
     --extra-source=zone_designer.js \
     --extra-source=transform_wayland.js \
-    --extra-source=transform_x11.js \
     --extra-source=window_manager_adapter.js \
     --extra-source=quick_tiler.js \
     --extra-source=lifecycle.js \
@@ -99,7 +98,7 @@ echo " Package Verification:"
 ls -lh "$PACKAGE_PATH"
 echo "================================================================="
 echo "Live Runtime Testing Instructions:"
-echo "1. Log out of GNOME and log back in (Wayland) or press Alt+F2 -> r (X11)."
+echo "1. Log out of GNOME and log back in (Wayland)."
 echo "2. Monitor real-time JS errors by running this command in terminal:"
 echo "   journalctl -f -o cat /usr/bin/gnome-shell | grep -i omnipanel"
 echo "================================================================="

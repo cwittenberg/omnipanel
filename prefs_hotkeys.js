@@ -1,4 +1,5 @@
 // omnipanel/prefs_hotkeys.js
+
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -6,10 +7,9 @@ import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensio
 function createHotkeyRow(title, subtitle, hotkeyText) {
     const row = new Adw.ActionRow({
         title: title,
-        subtitle: subtitle
+        subtitle: subtitle,
+        subtitle_lines: 0
     });
-    
-    row.set_subtitle_lines(0);
 
     const shortcutLabel = new Gtk.Label({
         label: `<b>${hotkeyText}</b>`,
@@ -28,7 +28,7 @@ function createHotkeyRow(title, subtitle, hotkeyText) {
 export function buildHotkeysPage() {
     const pageHotkeys = new Adw.PreferencesPage({
         title: _('Hotkeys'),
-        icon_name: 'keyboard-shortcuts-symbolic'
+        icon_name: 'preferences-desktop-keyboard-symbolic'
     });
 
     const groupSnapping = new Adw.PreferencesGroup({ 

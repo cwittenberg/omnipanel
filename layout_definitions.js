@@ -6,6 +6,14 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { DEFAULT_APP_DICTIONARY, DEFAULT_CATEGORY_MAP } from './defaults.js';
 
+export const windowApi = {
+    isMaximized(win) { return win.is_maximized(); },
+    wasMaximized(win) { return win.is_maximized(); },
+    maximize(win) { win.maximize(); },
+    unmaximize(win) { win.unmaximize(); },
+    moveResize(win, x, y, w, h) { win.move_resize_frame(false, x, y, w, h); }
+};
+
 export const Sections = {
     LEFT_HALF: 'left_half',
     RIGHT_HALF: 'right_half',
