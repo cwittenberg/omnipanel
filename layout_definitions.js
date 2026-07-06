@@ -140,38 +140,47 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
     if (!zoneNames || zoneNames.length === 0) return null;
     if (!appDictionary || !Array.isArray(appDictionary)) appDictionary = DEFAULT_APP_DICTIONARY;
     if (!fdCategoryMap || !Array.isArray(fdCategoryMap)) fdCategoryMap = DEFAULT_CATEGORY_MAP;
-    
+
     wmClass = (wmClass || '').toLowerCase();
     windowTitle = (windowTitle || '').toLowerCase();
     categories = (categories || '').toLowerCase();
-    
+
     let termDict = appDictionary.find(d => d.zoneKeys.includes('term') || d.zoneKeys.includes('console') || d.zoneKeys.includes('cli'));
-    const termKeywords = termDict ? termDict.keywords : ['term', 'console', 'alacritty', 'kitty', 'wezterm', 'pty', 'bash', 'zsh', 'fish', 'tmux', 'powershell', 'cmd'];
+    const termKeywords = termDict ? [...termDict.keywords] : ['term', 'console', 'alacritty', 'kitty', 'wezterm', 'pty', 'bash', 'zsh', 'fish', 'tmux', 'powershell', 'cmd'];
     
+    if (!termKeywords.includes('terminal')) termKeywords.push('terminal');
+
+    // Strong exact match checks for terminals (including VSCode bash etc)
     let isExplicitTerminal = termKeywords.some(kw => 
-        windowTitle === kw || 
-        windowTitle.startsWith(`${kw} `) || 
-        windowTitle.endsWith(` - ${kw}`) || 
-        windowTitle.includes(` ${kw} `) ||
-        windowTitle.includes(`[${kw}]`)
+        windowTitle.includes(kw) || wmClass.includes(kw)
     );
-    
+
     if (isExplicitTerminal) {
         let termZone = zoneNames.find(zn => zn.toLowerCase().includes('term') || zn.toLowerCase().includes('cli') || zn.toLowerCase().includes('console'));
         if (termZone) return { zone: termZone, isExplicit: true };
     }
 
+    // Dictionary Match (High Priority -> Explicit)
     for (let zone of zoneNames) {
         let z = zone.toLowerCase();
         for (let dict of appDictionary) {
             if (dict.zoneKeys.some(zk => z.includes(zk))) {
-                if (dict.keywords.some(kw => wmClass.includes(kw))) {
-                    return { zone: zone, isExplicit: false };
+                if (dict.keywords.some(kw => wmClass.includes(kw) || windowTitle.includes(kw))) {
+                    return { zone: zone, isExplicit: true };
                 }
             }
         }
     }
 
+    // Exact word match in wmClass or windowTitle with zone names (High Priority -> Explicit)
+    for (let zone of zoneNames) {
+        let z = zone.toLowerCase();
+        if (z.length > 2 && (wmClass.includes(z) || z.includes(wmClass) || windowTitle.includes(z))) {
+            return { zone: zone, isExplicit: true };
+        }
+    }
+
+    // Category Match (Lower Priority -> Non-explicit)
     if (categories) {
         for (let c of fdCategoryMap) {
             if (categories.includes(c.cat)) {
@@ -181,22 +190,6 @@ export function fuzzyMatchAppToZone(wmClass, windowTitle, categories, zoneNames,
                         return { zone: zone, isExplicit: false };
                     }
                 }
-            }
-        }
-    }
-
-    for (let zone of zoneNames) {
-        let z = zone.toLowerCase();
-        if (z.length > 2 && (wmClass.includes(z) || z.includes(wmClass))) {
-            return { zone: zone, isExplicit: false };
-        }
-    }
-
-    for (let zone of zoneNames) {
-        let z = zone.toLowerCase();
-        if (z.length > 3 && windowTitle.includes(z)) {
-            if (windowTitle.startsWith(z) || windowTitle.includes(` ${z}`) || windowTitle.includes(`-${z}`) || windowTitle.includes(`[${z}]`)) {
-                return { zone: zone, isExplicit: false };
             }
         }
     }

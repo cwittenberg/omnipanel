@@ -522,7 +522,6 @@ export default class TilingManager {
 
         if (fuzzyData && fuzzyData.isExplicit) {
             targetZoneName = fuzzyData.zone;
-            isDialog = false;
         } else if (parent && parent._omnipanel_zone) {
             targetZoneName = parent._omnipanel_zone;
             targetMonitor = parent._omnipanel_monitor !== undefined ? parent._omnipanel_monitor : parent.get_monitor();
