@@ -7,9 +7,7 @@ import { DEFAULT_APP_DICTIONARY, DEFAULT_CATEGORY_MAP } from './defaults.js';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (typeof row.set_subtitle_lines === 'function') {
-        row.set_subtitle_lines(0);
-    }
+    row.set_subtitle_lines(0);
     return row;
 }
 
@@ -90,9 +88,7 @@ const AppDictRow = GObject.registerClass(
     class AppDictRow extends Adw.ExpanderRow {
         _init(ruleData, onDelete) {
             super._init({ title: `Zones: ${ruleData.zoneKeys.join(', ') || _('New Rule')}` });
-            if (typeof this.set_subtitle_lines === 'function') {
-                this.set_subtitle_lines(0);
-            }
+            this.set_subtitle_lines(0);
             this.ruleData = ruleData;
 
             let zoneRow = new Adw.EntryRow({ 
@@ -129,9 +125,7 @@ const CatMapRow = GObject.registerClass(
     class CatMapRow extends Adw.ExpanderRow {
         _init(ruleData, onDelete) {
             super._init({ title: `Category: ${ruleData.cat || _('New Category')}` });
-            if (typeof this.set_subtitle_lines === 'function') {
-                this.set_subtitle_lines(0);
-            }
+            this.set_subtitle_lines(0);
             this.ruleData = ruleData;
 
             let catRow = new Adw.EntryRow({ 
@@ -267,7 +261,7 @@ const DictionaryConfigWindow = GObject.registerClass(
             }
 
             let addRow = new Adw.ActionRow({ title: _('Add New App Routing Rule') });
-            if (typeof addRow.set_subtitle_lines === 'function') addRow.set_subtitle_lines(0);
+            addRow.set_subtitle_lines(0);
             let addBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
             addBtn.add_css_class('suggested-action');
             addBtn.connect('clicked', () => {
@@ -298,7 +292,7 @@ const DictionaryConfigWindow = GObject.registerClass(
             }
 
             let addRow = new Adw.ActionRow({ title: _('Add New Category Routing Rule') });
-            if (typeof addRow.set_subtitle_lines === 'function') addRow.set_subtitle_lines(0);
+            addRow.set_subtitle_lines(0);
             let addBtn = new Gtk.Button({ icon_name: 'list-add-symbolic', valign: Gtk.Align.CENTER });
             addBtn.add_css_class('suggested-action');
             addBtn.connect('clicked', () => {

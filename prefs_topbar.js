@@ -6,9 +6,7 @@ import Gdk from 'gi://Gdk';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 function wrap(row) {
-    if (typeof row.set_subtitle_lines === 'function') {
-        row.set_subtitle_lines(0);
-    }
+    row.set_subtitle_lines(0);
     return row;
 }
 
