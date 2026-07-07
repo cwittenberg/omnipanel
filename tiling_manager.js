@@ -155,16 +155,8 @@ export default class TilingManager {
             this._quickTiler = null;
         }
 
-        if (this._activeOverlay) {
-            if (typeof this._activeOverlay.close === 'function') {
-                this._activeOverlay.close();
-            } else {
-                if (Main.layoutManager.uiGroup.contains(this._activeOverlay)) {
-                    Main.popModal(this._activeOverlay);
-                    Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
-                }
-                this._activeOverlay.destroy();
-            }
+        if (this._activeOverlay) {            
+            this._activeOverlay.close();
             this._activeOverlay = null;
         }
 
