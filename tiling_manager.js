@@ -5,6 +5,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import { ZoneDesignerRoot } from './zone_designer.js';
 import { LayoutStorage } from './layout_storage.js';
@@ -155,11 +156,15 @@ export default class TilingManager {
         }
 
         if (this._activeOverlay) {
-            if (Main.layoutManager.uiGroup.contains(this._activeOverlay)) {
-                Main.popModal(this._activeOverlay);
-                Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
+            if (typeof this._activeOverlay.close === 'function') {
+                this._activeOverlay.close();
+            } else {
+                if (Main.layoutManager.uiGroup.contains(this._activeOverlay)) {
+                    Main.popModal(this._activeOverlay);
+                    Main.layoutManager.uiGroup.remove_child(this._activeOverlay);
+                }
+                this._activeOverlay.destroy();
             }
-            this._activeOverlay.destroy();
             this._activeOverlay = null;
         }
 
@@ -267,94 +272,67 @@ export default class TilingManager {
         return { exact: sigData.join('|'), fuzzy: fuzzyData };
     }
 
-    _showPromptOverlay(title, callback) {
-        let m = Main.layoutManager.monitors[global.display.get_current_monitor()];
-        
-        let overlay = new St.Widget({
-            reactive: true,
-            style: 'background-color: rgba(0, 0, 0, 0.75);',
-            x: 0, y: 0, width: global.stage.width, height: global.stage.height
+    _showPromptOverlay(title, callback, defaultText = '') {
+        let dialog = new ModalDialog.ModalDialog({
+            styleClass: 'prompt-dialog'
         });
 
-        let monitorContainer = new St.BoxLayout({
+        let mainContentBox = new St.BoxLayout({
             vertical: true,
-            x: m.x, y: m.y, width: m.width, height: m.height,
-            x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.CENTER
+            style: 'padding: 24px; spacing: 16px;'
         });
 
-        let dialogBox = new St.BoxLayout({
-            vertical: true,
-            style: 'background-color: #242424; padding: 24px; border-radius: 12px; border: 1px solid #555; box-shadow: 0 8px 16px rgba(0,0,0,0.8);'
+        let label = new St.Label({
+            text: title,
+            style: 'font-weight: bold; font-size: 18px;'
+        });
+        mainContentBox.add_child(label);
+
+        let entry = new St.Entry({
+            text: defaultText,
+            style: 'min-width: 300px; padding: 10px; border-radius: 6px;',
+            can_focus: true,
+            reactive: true
+        });
+        
+        mainContentBox.add_child(entry);
+        dialog.contentLayout.add_child(mainContentBox);
+
+        dialog.setButtons([
+            {
+                label: _('Cancel'),
+                action: () => {
+                    dialog.close();
+                    this._activeOverlay = null;
+                    if (callback) callback(null);
+                },
+                key: Clutter.KEY_Escape
+            },
+            {
+                label: _('Save'),
+                action: () => {
+                    dialog.close();
+                    this._activeOverlay = null;
+                    if (callback) callback(entry.get_text().trim());
+                },
+                default: true
+            }
+        ]);
+
+        entry.clutter_text.connect('activate', () => {
+            dialog.close();
+            this._activeOverlay = null;
+            if (callback) callback(entry.get_text().trim());
         });
 
-        let label = new St.Label({ text: title, style: 'font-weight: bold; font-size: 18px; margin-bottom: 16px; color: white;' });
-        let entry = new St.Entry({ style: 'min-width: 300px; padding: 10px; border-radius: 6px; margin-bottom: 24px;', can_focus: true, reactive: true });
-        entry.connectObject('destroy', () => { entry = null; }, this);
+        dialog.setInitialKeyFocus(entry);
+        dialog.open();
         
-        let btnBox = new St.BoxLayout({ vertical: false, style: 'spacing: 16px;' });
-        let cancelBtn = new St.Button({ label: _('Cancel'), style: 'background-color: #444; color: white; padding: 8px 24px; border-radius: 6px;', reactive: true, can_focus: true, track_hover: true });
-        let saveBtn = new St.Button({ label: _('Save'), style: 'background-color: #0078d4; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold;', reactive: true, can_focus: true, track_hover: true });
-
-        btnBox.add_child(cancelBtn);
-        btnBox.add_child(saveBtn);
-        dialogBox.add_child(label);
-        dialogBox.add_child(entry);
-        dialogBox.add_child(btnBox);
-        monitorContainer.add_child(dialogBox);
-        overlay.add_child(monitorContainer);
-
-        Main.layoutManager.uiGroup.add_child(overlay);
-        this._activeOverlay = overlay;
-
-        let pushedModal = Main.pushModal(overlay);
-        if (entry) entry.grab_key_focus();
-
-        let isClosed = false;
-        let closeOverlay = (runCallback, text) => {
-            if (isClosed) return;
-            isClosed = true;
-
-            if (entry && entry.clutter_text) {
-                entry.clutter_text.set_cursor_visible(false);
-            }
-
-            global.stage.set_key_focus(overlay);
-
-            if (pushedModal) {
-                Main.popModal(overlay);
-                pushedModal = false;
-            }
-
-            this.mediator.addIdle(() => {
-                if (overlay && Main.layoutManager.uiGroup.contains(overlay)) {
-                    Main.layoutManager.uiGroup.remove_child(overlay);
-                }
-                if (overlay) {
-                    overlay.disconnectObject(this);
-                    overlay.destroy();
-                }
-                this._activeOverlay = null;
-
-                if (runCallback && callback) {
-                    callback(text);
-                }
-                return GLib.SOURCE_REMOVE;
-            });
-        };
-
-        cancelBtn.connectObject('clicked', () => closeOverlay(false, null), this);
-        saveBtn.connectObject('clicked', () => closeOverlay(true, entry ? entry.get_text().trim() : ''), this);
-        entry.clutter_text.connectObject('activate', () => closeOverlay(true, entry ? entry.get_text().trim() : ''), this);
+        if (defaultText) {
+            entry.clutter_text.set_selection(0, defaultText.length);
+        }
         
-        overlay.connectObject('button-press-event', () => Clutter.EVENT_STOP, this);
-        overlay.connectObject('key-press-event', (_, event) => {
-            if (event.get_key_symbol() === Clutter.KEY_Escape) {
-                closeOverlay(false, null);
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        }, this);
+        this._activeOverlay = dialog;
     }
 
     promptForLayoutName() {
@@ -376,7 +354,7 @@ export default class TilingManager {
                 } else {
                     this.settings.set_boolean('designer-active', false);
                 }
-            });
+            }, 'default');
         } else {
             this.isDesignerActive = true;
             this._designerRoot = new ZoneDesignerRoot(this);
