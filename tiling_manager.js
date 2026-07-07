@@ -298,38 +298,39 @@ export default class TilingManager {
         mainContentBox.add_child(entry);
         dialog.contentLayout.add_child(mainContentBox);
 
+        let cleanupAndCall = (val) => {
+            if (this._activeOverlay) {
+                this._activeOverlay.close();
+                this._activeOverlay = null;
+            }
+            if (callback) callback(val);
+        };
+
         dialog.setButtons([
             {
                 label: _('Cancel'),
-                action: () => {
-                    dialog.close();
-                    this._activeOverlay = null;
-                    if (callback) callback(null);
-                },
+                action: () => cleanupAndCall(null),
                 key: Clutter.KEY_Escape
             },
             {
                 label: _('Save'),
-                action: () => {
-                    dialog.close();
-                    this._activeOverlay = null;
-                    if (callback) callback(entry.get_text().trim());
-                },
+                action: () => cleanupAndCall(entry.get_text().trim()),
                 default: true
             }
         ]);
 
-        entry.clutter_text.connect('activate', () => {
-            dialog.close();
-            this._activeOverlay = null;
-            if (callback) callback(entry.get_text().trim());
-        });
+        entry.clutter_text.connect('activate', () => cleanupAndCall(entry.get_text().trim()));
 
         dialog.setInitialKeyFocus(entry);
         dialog.open();
         
         if (defaultText) {
-            entry.clutter_text.set_selection(0, defaultText.length);
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (entry && entry.clutter_text) {
+                    entry.clutter_text.set_selection(0, defaultText.length);
+                }
+                return GLib.SOURCE_REMOVE;
+            });
         }
         
         this._activeOverlay = dialog;
