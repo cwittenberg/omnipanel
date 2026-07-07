@@ -1,6 +1,6 @@
 {
   "name": "OmniPanel",
-  "description": "Multi-monitor productivity with configurable window layouts and a top bar that seamlessly follows your focus.",
+  "description": "OmniPanel is a Multi-Monitor advanced window management solution for productivity, featuring configurable zones for windows, smart auto-placement, and automatic tiling. \n\nMaster your workflow with perfectly organized, highly customizable layouts for uninterrupted multitasking. Includes a feature to dynamically move the GNOME top bar to your active screen.\n\nA GNOME native alternative to FancyZones or COSMIC on Pop!_Os",
   "uuid": "omnipanel@christian",
   "settings-schema": "org.gnome.shell.extensions.omnipanel",
   "shell-version": [
