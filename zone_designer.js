@@ -4,7 +4,6 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 import { hexToRgba, getLayoutColors } from './layout_definitions.js';
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -92,24 +91,19 @@ class DrawState extends DesignerState {
         designer._selection.set_size(sW, sH);
         designer._lastRect = { x: sX, y: sY, width: sW, height: sH };
 
-        let monIdx = designer._currentDrawMonitorIndex;
+        let px = sX;
+        let py = sY + sH + 10;
+        
+        let currMon = designer._monitors[designer._currentDrawMonitorIndex];
+        if (py + 60 > currMon.y + currMon.height) py = sY - 60; 
+        if (px + 360 > currMon.x + currMon.width) px = currMon.x + currMon.width - 360; 
+
+        if (designer._entry) designer._entry.set_text('');
+        designer._promptBox.set_position(px, py);
+        designer._promptBox.show();
+        if (designer._entry) designer._entry.grab_key_focus();
 
         designer.transitionTo(new IdleState());
-
-        // Launch native GNOME modal dialog for zone naming
-        designer._showZoneNameDialog((name) => {
-            if (name && designer._lastRect && monIdx >= 0) {
-                designer._manager.storage.saveCustomZoneRect(name, designer._lastRect, monIdx);
-                designer._zonesModified = true;
-                designer._selection.hide();
-                designer._refreshZones(); 
-            } else {
-                designer._selection.hide();
-            }
-        }, () => {
-            designer._selection.hide();
-        });
-
         return Clutter.EVENT_STOP;
     }
 }
@@ -287,7 +281,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
             this._pushedModal = false;
             this._cycleBtns = [];
             this._lastRect = null;
-            this._activeDialog = null;
             
             this.set_position(0, 0);
             this.set_size(global.stage.width, global.stage.height);
@@ -310,6 +303,76 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 visible: false
             });
             this.add_child(this._warningLabel);
+
+            this._promptBox = new St.BoxLayout({
+                  vertical: false,
+                  visible: false,
+                  reactive: true,
+                 style: 'background-color: rgba(40,40,40,0.95); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.5);'
+              });
+            
+            this._entry = new St.Entry({
+                  hint_text: _('Name this Zone...'),
+                  style: `min-width: 220px; margin-right: 12px; padding: ${ENTRY_PADDING};`,
+                  can_focus: true,
+                  reactive: true
+              });
+            this._entry.connectObject('destroy', () => { this._entry = null; }, this);
+
+            let cancelBox = new St.BoxLayout({ vertical: false });
+            let cancelIcon = new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
+            let cancelLabel = new St.Label({ text: _('Cancel'), y_align: Clutter.ActorAlign.CENTER });
+            cancelBox.add_child(cancelIcon);
+            cancelBox.add_child(cancelLabel);
+            
+            this._cancelBtn = new St.Button({
+                child: cancelBox,
+                style_class: 'button',
+                style: `padding: ${BUTTON_PADDING}; margin-right: 8px;`,
+                reactive: true,
+                track_hover: true
+            });
+            
+            this._cancelBtn.connectObject('clicked', () => {
+                this._hidePromptSafe();
+                this.transitionTo(new IdleState());
+            }, this);
+
+            let saveBox = new St.BoxLayout({ vertical: false });
+            let saveIcon = new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16, style: 'margin-right: 8px;' });
+            let saveLabel = new St.Label({ text: _('Save'), y_align: Clutter.ActorAlign.CENTER });
+            saveBox.add_child(saveIcon);
+            saveBox.add_child(saveLabel);
+
+            this._saveBtn = new St.Button({
+                 child: saveBox,
+                 style_class: 'button suggested-action',
+                 style: `padding: ${BUTTON_PADDING};`,
+                 reactive: true,
+                 track_hover: true
+             });
+            
+            let saveAction = () => {
+                global.stage.set_key_focus(null);
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (!this._entry) return GLib.SOURCE_REMOVE;
+                    let name = this._entry.get_text().trim();
+                    if (name && this._lastRect && this._currentDrawMonitorIndex >= 0) {
+                        this._manager.storage.saveCustomZoneRect(name, this._lastRect, this._currentDrawMonitorIndex);
+                        this._zonesModified = true;
+                        this._hidePromptSafe();
+                        this._refreshZones(); 
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
+            };
+            this._saveBtn.connectObject('clicked', saveAction, this);
+            this._entry.clutter_text.connectObject('activate', saveAction, this);
+            
+            this._promptBox.add_child(this._entry);
+            this._promptBox.add_child(this._cancelBtn);
+            this._promptBox.add_child(this._saveBtn);
+            this.add_child(this._promptBox);
 
             this._monitors.forEach((m, i) => {
                 let toolbar = new St.BoxLayout({
@@ -450,7 +513,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 let temp = source;
                 
                 while (temp && temp !== this) {
-                    if (temp._isZoneBox || temp._isZoneControl) {
+                    if (temp._isZoneBox || temp._isZoneControl || temp === this._promptBox) {
                         return Clutter.EVENT_PROPAGATE; 
                     }
                     temp = temp.get_parent();
@@ -467,6 +530,10 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 let mon = this._monitors[this._currentDrawMonitorIndex];
                 
                 if (y <= mon.y + TOPBAR_HEIGHT) return Clutter.EVENT_PROPAGATE; 
+
+                if (this._promptBox.visible) {
+                    this._hidePromptSafe();
+                }
 
                 this.transitionTo(new DrawState(x, y));
                 
@@ -503,59 +570,21 @@ export const ZoneDesignerRoot = GObject.registerClass(
             }
         }
 
-        _showZoneNameDialog(onSave, onCancel) {
-            let dialog = new ModalDialog.ModalDialog({
-                styleClass: 'prompt-dialog'
-            });
-
-            let mainContentBox = new St.BoxLayout({
-                vertical: true,
-                style: 'padding: 24px; spacing: 16px;'
-            });
-
-            let label = new St.Label({
-                text: _('Name this Zone:'),
-                style: 'font-weight: bold; font-size: 18px;'
-            });
-            mainContentBox.add_child(label);
-
-            let entry = new St.Entry({
-                style: 'min-width: 300px; padding: 10px; border-radius: 6px;',
-                can_focus: true,
-                reactive: true
-            });
+        _hidePromptSafe() {
+            global.stage.set_key_focus(null);
             
-            mainContentBox.add_child(entry);
-            dialog.contentLayout.add_child(mainContentBox);
-
-            let cleanupAndCall = (callback, val) => {
-                if (this._activeDialog) {
-                    this._activeDialog.close();
-                    this._activeDialog = null;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (this._promptBox) {
+                    this._promptBox.hide();
+                    this._selection.hide();
+                    if (this._entry) {
+                        this._entry.set_text('');
+                    }
                 }
-                if (callback) callback(val);
-            };
-
-            dialog.setButtons([
-                {
-                    label: _('Cancel'),
-                    action: () => cleanupAndCall(onCancel),
-                    key: Clutter.KEY_Escape
-                },
-                {
-                    label: _('Save'),
-                    action: () => cleanupAndCall(onSave, entry.get_text().trim()),
-                    default: true
-                }
-            ]);
-
-            entry.clutter_text.connect('activate', () => cleanupAndCall(onSave, entry.get_text().trim()));
-
-            dialog.setInitialKeyFocus(entry);
-            dialog.open();
-            this._activeDialog = dialog;
+                return GLib.SOURCE_REMOVE;
+            });
         }
-
+        
         _refreshZones() {
             global.stage.set_key_focus(null);
             
@@ -652,8 +681,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             return GLib.SOURCE_REMOVE;
                         });
                     };
-                    
-                    nameEntry.clutter_text.connectObject('activate', handleZoneRename, this);
 
                     let zSaveBtn = new St.Button({
                         child: new St.Icon({ icon_name: 'emblem-ok-symbolic', icon_size: 16 }),
@@ -663,7 +690,33 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         visible: false
                     });
                     zSaveBtn._isZoneControl = true;
-                    zSaveBtn.connectObject('clicked', handleZoneRename, this);
+                    
+                    let saveArmed = false;
+                    if (zSaveBtn.clear_actions) {
+                        zSaveBtn.clear_actions();
+                    }
+
+                    zSaveBtn.connectObject('button-press-event', (_, event) => {
+                        if (event.get_button() !== 1) {
+                            return Clutter.EVENT_PROPAGATE;
+                        }
+                        saveArmed = true;
+                        return Clutter.EVENT_STOP;
+                    }, this);
+
+                    zSaveBtn.connectObject('button-release-event', (_, event) => {
+                        if (event.get_button() !== 1 || !saveArmed) {
+                            saveArmed = false;
+                            return Clutter.EVENT_PROPAGATE;
+                        }
+                        saveArmed = false;
+                        handleZoneRename();
+                        return Clutter.EVENT_STOP;
+                    }, this);
+
+                    if (!zSaveBtn.clear_actions) {
+                        zSaveBtn.connectObject('clicked', handleZoneRename, this);
+                    }
 
                     nameEntry.clutter_text.connectObject('text-changed', () => {
                         if (nameEntry.get_text().trim() !== name) {
@@ -680,12 +733,41 @@ export const ZoneDesignerRoot = GObject.registerClass(
                         reactive: true, track_hover: true
                     });
                     sendToBackBtn._isZoneControl = true;
-                    sendToBackBtn.connectObject('clicked', () => {
+
+                    let sendToBackArmed = false;
+                    if (sendToBackBtn.clear_actions) {
+                        sendToBackBtn.clear_actions();
+                    }
+
+                    sendToBackBtn.connectObject('button-press-event', (_, event) => {
+                        if (event.get_button() !== 1) {
+                            return Clutter.EVENT_PROPAGATE;
+                        }
+                        sendToBackArmed = true;
+                        return Clutter.EVENT_STOP;
+                    }, this);
+
+                    sendToBackBtn.connectObject('button-release-event', (_, event) => {
+                        if (event.get_button() !== 1 || !sendToBackArmed) {
+                            sendToBackArmed = false;
+                            return Clutter.EVENT_PROPAGATE;
+                        }
+                        sendToBackArmed = false;
                         global.stage.set_key_focus(null);
                         if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
                             this._zonesContainer.set_child_below_sibling(zoneBox, null); 
                         }
+                        return Clutter.EVENT_STOP;
                     }, this);
+
+                    if (!sendToBackBtn.clear_actions) {
+                        sendToBackBtn.connectObject('clicked', () => {
+                            global.stage.set_key_focus(null);
+                            if (this._zonesContainer && zoneBox.get_parent() === this._zonesContainer) {
+                                this._zonesContainer.set_child_below_sibling(zoneBox, null); 
+                            }
+                        }, this);
+                    }
 
                     let handleZoneDelete = () => {
                         global.stage.set_key_focus(null);
@@ -794,6 +876,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                             }
                         }
 
+                        if (this._promptBox.visible) this._hidePromptSafe();
+
                         let [x, y] = event.get_coords();
                         
                         this._currentDrawMonitorIndex = safeIndex;
@@ -809,6 +893,8 @@ export const ZoneDesignerRoot = GObject.registerClass(
                                 this._zonesContainer.set_child_above_sibling(zoneBox, null);
                             }
                             
+                            if (this._promptBox.visible) this._hidePromptSafe();
+
                             this._currentDrawMonitorIndex = safeIndex;
                             this.transitionTo(new ResizeState(name, safeIndex));
                             return Clutter.EVENT_STOP;
@@ -826,31 +912,20 @@ export const ZoneDesignerRoot = GObject.registerClass(
 
         open() {
             Main.layoutManager.uiGroup.add_child(this);
-            
-            // Ensure designer is below modal dialogs so native dialogs appear on top
-            try {
-                if (Main.layoutManager.modalDialogGroup && Main.layoutManager.modalDialogGroup.get_parent() === Main.layoutManager.uiGroup) {
-                    Main.layoutManager.uiGroup.set_child_below_sibling(this, Main.layoutManager.modalDialogGroup);
-                }
-            } catch (e) {
-                console.error(`[OmniPanel] Error setting Z-index for Designer: ${e}`);
-            }
-
             this._pushedModal = Main.pushModal(this);
             
             global.stage.connectObject('captured-event', (_, event) => {
                 if (event.type() === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
-                    
-                    if (this._activeDialog) {
-                        // Let ModalDialog handle the escape key to close itself
-                        return Clutter.EVENT_PROPAGATE;
-                    }
-
                     if (!(this._currentState instanceof IdleState)) {
                         this.transitionTo(new IdleState());
                         if (this._selection) this._selection.hide();
                         if (this._warningLabel) this._warningLabel.hide();
                         this._refreshZones(); 
+                        return Clutter.EVENT_STOP;
+                    }
+
+                    if (this._promptBox && this._promptBox.visible) {
+                        this._hidePromptSafe();
                         return Clutter.EVENT_STOP;
                     }
 
@@ -872,11 +947,6 @@ export const ZoneDesignerRoot = GObject.registerClass(
         close() {
             if (this._isClosed) return;
             this._isClosed = true;
-
-            if (this._activeDialog) {
-                this._activeDialog.close();
-                this._activeDialog = null;
-            }
 
             global.stage.disconnectObject(this);
             global.stage.set_key_focus(null); 
