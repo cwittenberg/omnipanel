@@ -330,12 +330,28 @@ export const ZoneDesignerRoot = GObject.registerClass(
                 style_class: 'button',
                 style: `padding: ${BUTTON_PADDING}; margin-right: 8px;`,
                 reactive: true,
+                can_focus: true,
                 track_hover: true
             });
             
-            this._cancelBtn.connectObject('clicked', () => {
+            let cancelArmed = false;
+            if (this._cancelBtn.clear_actions) {
+                this._cancelBtn.clear_actions();
+            }
+            this._cancelBtn.connectObject('button-press-event', (_, event) => {
+                if (event.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
+                cancelArmed = true;
+                return Clutter.EVENT_STOP;
+            }, this);
+            this._cancelBtn.connectObject('button-release-event', (_, event) => {
+                if (event.get_button() !== 1 || !cancelArmed) {
+                    cancelArmed = false;
+                    return Clutter.EVENT_PROPAGATE;
+                }
+                cancelArmed = false;
                 this._hidePromptSafe();
                 this.transitionTo(new IdleState());
+                return Clutter.EVENT_STOP;
             }, this);
 
             let saveBox = new St.BoxLayout({ vertical: false });
@@ -349,6 +365,7 @@ export const ZoneDesignerRoot = GObject.registerClass(
                  style_class: 'button suggested-action',
                  style: `padding: ${BUTTON_PADDING};`,
                  reactive: true,
+                 can_focus: true,
                  track_hover: true
              });
             
@@ -366,7 +383,26 @@ export const ZoneDesignerRoot = GObject.registerClass(
                     return GLib.SOURCE_REMOVE;
                 });
             };
-            this._saveBtn.connectObject('clicked', saveAction, this);
+            
+            let saveArmed = false;
+            if (this._saveBtn.clear_actions) {
+                this._saveBtn.clear_actions();
+            }
+            this._saveBtn.connectObject('button-press-event', (_, event) => {
+                if (event.get_button() !== 1) return Clutter.EVENT_PROPAGATE;
+                saveArmed = true;
+                return Clutter.EVENT_STOP;
+            }, this);
+            this._saveBtn.connectObject('button-release-event', (_, event) => {
+                if (event.get_button() !== 1 || !saveArmed) {
+                    saveArmed = false;
+                    return Clutter.EVENT_PROPAGATE;
+                }
+                saveArmed = false;
+                saveAction();
+                return Clutter.EVENT_STOP;
+            }, this);
+
             this._entry.clutter_text.connectObject('activate', saveAction, this);
             
             this._promptBox.add_child(this._entry);
