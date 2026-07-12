@@ -6,7 +6,13 @@ https://github.com/user-attachments/assets/3f818d5e-e8df-4233-9a10-aae4e615074e
 
 OmniPanel also introduces a revolutionary **Active Toolbar Movement** engine. Instead of cloning, OmniPanel dynamically sweeps the *real* native GNOME top bar directly to whichever monitor - you are actively using. This includes all your extensions to maximize productivity.
 
+Dynamic stack layout switching
 
+<img width="400" alt="vlcsnap-2026-07-12-11h19m11s282" src="https://github.com/user-attachments/assets/565295f9-ac78-4599-9dcc-f264dc389d2f" />
+
+Zone designer (if you want to design zones, can be used without with auto-tiling)
+
+<img width="1900" alt="vlcsnap-2026-07-12-11h22m01s403" src="https://github.com/user-attachments/assets/3a94f0b8-d7ae-42d5-8752-457bf34c1595" />
 
 
 ## Features
