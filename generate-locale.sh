@@ -2,7 +2,7 @@
 # generate-locale.sh
 set -euo pipefail
 
-DOMAIN="omnipanel"
+DOMAIN="omnipanel@christian"
 PODIR="po"
 LOCALEDIR="locale"
 
